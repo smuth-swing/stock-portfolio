@@ -7,6 +7,8 @@
     <title>주식 체크 리스트 — 전용 뷰어</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <!-- Chart.js 추가 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="bg-glow bg-glow-1"></div>
@@ -31,6 +33,13 @@
                 <span class="status-dot"></span>
                 <span class="status-text">연결 중...</span>
             </div>
+            <div class="auto-refresh-control">
+                <label class="switch">
+                    <input type="checkbox" id="chk-auto-refresh" onchange="toggleAutoRefresh(this.checked)">
+                    <span class="slider round"></span>
+                </label>
+                <span class="refresh-label">자동 업데이트</span>
+            </div>
             <button id="btn-refresh" class="header-btn" title="새로고침" onclick="refreshData()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
@@ -49,6 +58,7 @@
                 <span class="label">고정 파일:</span>
                 <span class="filename">주식 체크 리스트_20220328.xlsx</span>
                 <span id="row-count-badge" class="badge">0행</span>
+                <span id="last-updated" class="last-updated"></span>
             </div>
             <div class="search-box">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
@@ -59,15 +69,178 @@
         </div>
 
         <section id="dashboard" class="dashboard">
-            <div class="viewer-header glass-panel">
+            <!-- 시트 선택 탭 -->
+            <div class="viewer-header glass-panel" style="margin-bottom: 0;">
                 <div class="sheet-tabs-container">
-                    <div id="sheet-tabs" class="sheet-tabs">
-                        <!-- 시트 탭이 여기에 생성됨 -->
+                    <div id="sheet-tabs" class="sheet-tabs"></div>
+                </div>
+            </div>
+
+            <!-- 상단 막대 그래프 영역 -->
+            <div class="chart-panel glass-panel">
+                <div class="chart-header">
+                    <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M18 20V10M12 20V4M6 20v-6"/></svg> 포트폴리오 분석 그래프</h3>
+                    <div id="chart-controls" class="chart-controls"></div>
+                </div>
+                
+                <!-- 투자 요약 정보 바 -->
+                <div class="summary-stats">
+                    <div class="stat-item total">
+                        <span class="stat-label">총 투자 금액</span>
+                        <span id="stat-total" class="stat-value">0</span>
+                        <span class="stat-unit">백만</span>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item operating">
+                        <span class="stat-label">운용 투자 금액</span>
+                        <div class="stat-value-group">
+                            <span id="stat-operating" class="stat-value">0</span>
+                            <span class="stat-unit">백만</span>
+                            <span id="stat-operating-ratio" class="stat-ratio">(0%)</span>
+                        </div>
+                    </div>
+                    <div class="stat-item excluding">
+                        <span class="stat-label">편출 투자 금액</span>
+                        <div class="stat-value-group">
+                            <span id="stat-excluding" class="stat-value">0</span>
+                            <span class="stat-unit">백만</span>
+                            <span id="stat-excluding-ratio" class="stat-ratio">(0%)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 종목군별 요약 정보 (작은 글씨) -->
+                <div id="group-stats" class="group-stats">
+                    <!-- 종목군별 합계가 여기에 동적으로 생성됨 -->
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="portfolio-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- 매매일지 전용 입력 영역 (매매일지 시트에서만 표시) -->
+            <div id="journal-panel" class="journal-panel glass-panel hidden">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" class="panel-icon"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        <span>매매일지 데이터 입력</span>
+                    </div>
+                </div>
+                <div class="journal-form-container">
+                    <form id="journal-form" class="journal-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="trade-date">날짜</label>
+                                <input type="date" id="trade-date" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="trade-stock">종목</label>
+                                <input type="text" id="trade-stock" list="stock-list" placeholder="종목명 입력 또는 선택" required>
+                                <datalist id="stock-list"></datalist>
+                            </div>
+                            <div class="form-group">
+                                <label for="trade-quantity">수량</label>
+                                <input type="number" id="trade-quantity" placeholder="0" step="any" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="trade-price">단가</label>
+                                <input type="number" id="trade-price" placeholder="0" step="any" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="trade-type">매매종류</label>
+                                <select id="trade-type" required>
+                                    <option value="매수">매수</option>
+                                    <option value="매도">매도</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="trade-amount">투자금 (만원)</label>
+                                <input type="number" id="trade-amount" placeholder="자동 계산됨" step="100" required>
+                                <span class="input-hint">수량 × 단가 (백만원 단위 반올림 후 만원 단위 표기)</span>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                저장하기
+                            </button>
+                            <button type="reset" class="btn-secondary">초기화</button>
+                        </div>
+                    </form>
+                </div>
+                <!-- 매매일지 종목별 트렌드 차트 추가 -->
+                <div id="journal-trend-container" class="journal-chart-container" style="padding: 24px; border-top: 1px solid var(--border-glass);">
+                    <div class="chart-header" style="padding: 0 0 16px 0; border: none; display: flex; justify-content: space-between; align-items: center;">
+                        <h4 style="font-size: 13px; color: var(--gold-light); display: flex; align-items: center; gap: 8px; margin: 0;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                            종목별 투자금 트렌드 (최근 6개월)
+                        </h4>
+                        <div class="chart-controls" style="margin: 0;">
+                            <select id="journal-chart-stock-select" class="chart-select" style="min-width: 150px;">
+                                <option value="">종목 선택...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="height: 250px; position: relative;">
+                        <canvas id="journal-trend-chart"></canvas>
                     </div>
                 </div>
             </div>
 
-            <div class="table-panel glass-panel">
+            <!-- 탐구생활 전용: 좌우 분할 뷰 -->
+            <div id="investigation-panel" class="investigation-panel glass-panel hidden">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" class="panel-icon"><path d="M4 5h16v4H4z"/><path d="M4 11h16v8H4z"/></svg>
+                        <span>탐구생활 편집</span>
+                    </div>
+                    <span class="investigation-hint-badge">Shift+Enter: 줄바꿈 &nbsp;|&nbsp; 포커스 아웃: 자동 저장</span>
+                </div>
+
+                <div class="investigation-split-view">
+                    <!-- 좌측: 검색 + 종목 카드 목록 -->
+                    <div class="investigation-left-panel">
+                        <div class="investigation-search-area">
+                            <input type="text" id="investigation-stock-search"
+                                   list="investigation-stock-list"
+                                   placeholder="종목 검색...">
+                            <datalist id="investigation-stock-list"></datalist>
+                            <div class="investigation-search-btns">
+                                <button type="button" class="btn-secondary" onclick="searchInvestigationStock()">서칭</button>
+                                <button type="button" class="btn-ghost-sm" onclick="filterMomentumStocks()">매매 우선</button>
+                                <button type="button" class="btn-ghost-sm" onclick="resetInvestigationSearch()">전체</button>
+                            </div>
+                        </div>
+                        <div id="investigation-card-list" class="investigation-card-list"></div>
+                    </div>
+
+                    <!-- 우측: 선택 종목 컬럼별 편집 폼 -->
+                    <div class="investigation-right-panel">
+                        <div class="investigation-edit-header">
+                            <div class="investigation-edit-title-area">
+                                <span class="investigation-edit-label">선택 종목</span>
+                                <span id="inv-edit-title" class="investigation-edit-stock">—</span>
+                            </div>
+                            <div class="investigation-edit-actions">
+                                <button id="inv-new-btn" class="btn-primary" onclick="prepareNewInvestigationRow()">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    신규
+                                </button>
+                            </div>
+                        </div>
+                        <div id="investigation-edit-form" class="investigation-edit-form">
+                            <div class="inv-edit-placeholder">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48" style="opacity:0.2"><path d="M15 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V9z"/><polyline points="15 3 15 9 21 9"/></svg>
+                                <p>좌측에서 종목을 선택하세요</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 하단 데이터 표 영역 -->
+            <div id="table-panel" class="table-panel glass-panel">
                 <div class="table-wrapper">
                     <table id="data-table">
                         <thead id="table-head"></thead>
@@ -78,7 +251,7 @@
         </section>
 
         <!-- 로딩 오버레이 -->
-        <div id="loading-overlay" class="loading-overlay">
+        <div id="loading-overlay" class="loading-overlay hidden">
             <div class="spinner"></div>
             <p>데이터를 불러오는 중입니다...</p>
         </div>

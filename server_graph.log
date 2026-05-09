@@ -1,0 +1,25 @@
+2026-05-09 00:08:09,095 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2026-05-09 00:08:09,095 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-05-09 00:08:37,542 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2026-05-09 00:08:37,542 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-05-09 00:11:52,362 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+2026-05-09 00:11:58,049 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-05-09 00:12:48,632 - werkzeug - INFO - 127.0.0.1 - - [09/May/2026 00:12:48] "[32mGET /auth/login HTTP/1.1[0m" 302 -
+2026-05-09 00:12:48,633 - werkzeug - INFO - 127.0.0.1 - - [09/May/2026 00:12:48] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-09 00:12:49,323 - werkzeug - INFO - 127.0.0.1 - - [09/May/2026 00:12:49] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-09 00:12:49,323 - werkzeug - INFO - 127.0.0.1 - - [09/May/2026 00:12:49] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-09 00:18:07,980 - werkzeug - INFO - 127.0.0.1 - - [09/May/2026 00:18:07] "[32mGET /auth/login HTTP/1.1[0m" 302 -
+2026-05-09 00:19:20,092 - werkzeug - INFO - 127.0.0.1 - - [09/May/2026 00:19:20] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-09 00:19:20,114 - werkzeug - INFO - 127.0.0.1 - - [09/May/2026 00:19:20] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-09 00:19:20,346 - werkzeug - INFO - 127.0.0.1 - - [09/May/2026 00:19:20] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-09 00:19:23,197 - werkzeug - INFO - 127.0.0.1 - - [09/May/2026 00:19:23] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-09 00:19:23,217 - werkzeug - INFO - 127.0.0.1 - - [09/May/2026 00:19:23] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-09 00:19:23,456 - werkzeug - INFO - 127.0.0.1 - - [09/May/2026 00:19:23] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-09 00:19:24,318 - werkzeug - INFO - 127.0.0.1 - - [09/May/2026 00:19:24] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-09 00:19:24,345 - werkzeug - INFO - 127.0.0.1 - - [09/May/2026 00:19:24] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-09 00:19:24,576 - werkzeug - INFO - 127.0.0.1 - - [09/May/2026 00:19:24] "[36mGET /app.js HTTP/1.1[0m" 304 -
