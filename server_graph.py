@@ -621,13 +621,19 @@ def internal_error(error):
 
 
 if __name__ == '__main__':
+    # Windows 터미널 UTF-8 출력 설정
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
     print("=" * 70)
     print("  Stock Portfolio Analysis Server - Microsoft Graph API Version")
     print("=" * 70)
     
     # 필수 설정 확인
     if not config.CLIENT_ID or not config.CLIENT_SECRET:
-        print("⚠️  경고: CLIENT_ID와 CLIENT_SECRET이 설정되지 않았습니다.")
+        print("[WARNING] CLIENT_ID와 CLIENT_SECRET이 설정되지 않았습니다.")
         print("   .env 파일을 생성하고 다음을 설정하세요:")
         print("   - TENANT_ID")
         print("   - CLIENT_ID")
@@ -640,12 +646,12 @@ if __name__ == '__main__':
     token_data = load_token()
     if token_data:
         access_token = token_data.get('access_token')
-        print(f"✅ 저장된 토큰 로드됨")
+        print("[OK] 저장된 토큰 로드됨")
     else:
-        print(f"❌ 인증이 필요합니다. http://localhost:5000/auth/login으로 이동하세요.")
+        print("[INFO] 인증이 필요합니다. http://localhost:5000/auth/login 으로 이동하세요.")
     
     print(f"  Server Address: http://localhost:5000")
-    print(f"  Auth Login: http://localhost:5000/auth/login")
+    print(f"  Auth Login:     http://localhost:5000/auth/login")
     print("=" * 70)
     
     try:

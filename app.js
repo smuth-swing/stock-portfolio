@@ -1677,6 +1677,9 @@ async function fetchPortfolioMapData() {
 /**
  * 매매일지 종목별 투자금 트렌드 차트 (최근 6개월)
  */
+/**
+ * 매매일지 종목별 투자금 트렌드 차트 (최근 6개월)
+ */
 function updateJournalTrendChart() {
     const stockSelect = document.getElementById('journal-chart-stock-select');
     if (!stockSelect) return;
@@ -1734,6 +1737,12 @@ function updateJournalTrendChart() {
         return numVal / 100; // 만원 -> 백만 단위로 변환
     });
 
+    const prices = filteredData.map(row => {
+        const val = row['Unnamed: 3'];
+        const numVal = typeof val === 'number' ? val : parseFloat(String(val).replace(/,/g, '')) || 0;
+        return numVal;
+    });
+
     if (journalTrendChart) journalTrendChart.destroy();
 
     const journalDataLabelsPlugin = {
@@ -1742,15 +1751,24 @@ function updateJournalTrendChart() {
             const { ctx } = chart;
             ctx.save();
             ctx.textAlign = 'center';
-            ctx.font = 'bold 10px JetBrains Mono';
-            ctx.fillStyle = '#D4AF37';
 
             chart.data.datasets.forEach((dataset, i) => {
+                if (i !== 0) return; // 첫 번째 데이터셋(투자금액) 기준으로만 라벨 표시
+                
                 const meta = chart.getDatasetMeta(i);
                 meta.data.forEach((datapoint, index) => {
-                    const value = dataset.data[index];
-                    const label = value.toFixed(1);
-                    ctx.fillText(label, datapoint.x, datapoint.y - 12);
+                    const amount = dataset.data[index];
+                    const price = chart.data.datasets[1].data[index];
+                    
+                    // 투자금액 (위)
+                    ctx.font = 'bold 10px JetBrains Mono';
+                    ctx.fillStyle = '#D4AF37';
+                    ctx.fillText(amount.toFixed(1), datapoint.x, datapoint.y - 18);
+                    
+                    // 거래단가 (아래)
+                    ctx.font = '9px JetBrains Mono';
+                    ctx.fillStyle = '#94A3B8';
+                    ctx.fillText(`(${price.toLocaleString()})`, datapoint.x, datapoint.y - 6);
                 });
             });
             ctx.restore();
@@ -1758,28 +1776,53 @@ function updateJournalTrendChart() {
     };
 
     journalTrendChart = new Chart(ctx, {
-        type: 'line',
         data: {
             labels: labels,
-            datasets: [{
-                label: '투자금액 (백만)',
-                data: values,
-                borderColor: '#D4AF37',
-                backgroundColor: 'rgba(212, 175, 55, 0.1)',
-                borderWidth: 2,
-                pointRadius: 4,
-                pointBackgroundColor: '#D4AF37',
-                pointBorderColor: '#0A0E1A',
-                pointBorderWidth: 2,
-                tension: 0.3,
-                fill: true
-            }]
+            datasets: [
+                {
+                    type: 'line',
+                    label: '투자금액 (백만)',
+                    data: values,
+                    borderColor: '#D4AF37',
+                    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#D4AF37',
+                    pointBorderColor: '#0A0E1A',
+                    pointBorderWidth: 2,
+                    tension: 0.3,
+                    fill: true,
+                    yAxisID: 'y'
+                },
+                {
+                    type: 'line',
+                    label: '평균 단가',
+                    data: prices,
+                    borderColor: 'rgba(148, 163, 184, 0.4)',
+                    backgroundColor: 'transparent',
+                    borderWidth: 1.5,
+                    borderDash: [3, 3],
+                    pointRadius: 3,
+                    pointBackgroundColor: '#94A3B8',
+                    tension: 0.3,
+                    fill: false,
+                    yAxisID: 'y1'
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false },
+                legend: { 
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        color: '#94A3B8',
+                        font: { size: 10 },
+                        boxWidth: 10
+                    }
+                },
                 tooltip: {
                     mode: 'index',
                     intersect: false,
@@ -1793,7 +1836,13 @@ function updateJournalTrendChart() {
                             const idx = items[0].dataIndex;
                             return filteredData[idx]['Unnamed: 0'];
                         },
-                        label: (context) => `투자금: ${context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}백만`
+                        label: (context) => {
+                            if (context.datasetIndex === 0) {
+                                return `투자금: ${context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}백만`;
+                            } else {
+                                return `평균단가: ${context.parsed.y.toLocaleString()}원`;
+                            }
+                        }
                     }
                 }
             },
@@ -1802,10 +1851,22 @@ function updateJournalTrendChart() {
                     beginAtZero: false,
                     grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false },
                     ticks: { 
-                        color: '#64748B', 
+                        color: '#D4AF37', 
                         font: { size: 10 },
                         callback: (val) => val.toLocaleString() + 'M'
-                    }
+                    },
+                    title: { display: true, text: '투자금 (M)', color: '#D4AF37', font: { size: 10 } }
+                },
+                y1: {
+                    position: 'right',
+                    beginAtZero: false,
+                    grid: { drawOnChartArea: false },
+                    ticks: {
+                        color: '#94A3B8',
+                        font: { size: 10 },
+                        callback: (val) => val.toLocaleString()
+                    },
+                    title: { display: true, text: '거래단가', color: '#94A3B8', font: { size: 10 } }
                 },
                 x: {
                     grid: { display: false },
@@ -1813,7 +1874,7 @@ function updateJournalTrendChart() {
                 }
             },
             layout: {
-                padding: { top: 20 } // 상단 라벨이 잘리지 않도록 여백 추가
+                padding: { top: 25 } // 상단 라벨이 잘리지 않도록 여백 추가
             }
         },
         plugins: [journalDataLabelsPlugin]
