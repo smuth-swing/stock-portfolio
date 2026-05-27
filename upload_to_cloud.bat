@@ -16,7 +16,7 @@ if %errorlevel% neq 0 (
 echo.
 echo 2. 모바일 앱 파일을 준비합니다...
 xcopy "c:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\dist" "c:\Users\zerod\.antigravity\주식 포트폴리오 관리\mobile" /E /I /Y
-"%PYTHON_EXE%" "c:\Users\zerod\.antigravity\주식 포트폴리오 관리\fix_github_paths.py"
+xcopy "c:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data" "c:\Users\zerod\.antigravity\주식 포트폴리오 관리\mobile\data" /E /I /Y
 
 echo.
 echo 3. GitHub에 데이터를 업로드합니다...

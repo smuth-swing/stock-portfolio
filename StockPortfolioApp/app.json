@@ -27,7 +27,7 @@
       "favicon": "./assets/favicon.png"
     },
     "experiments": {
-      "baseUrl": "/mobile"
+      "baseUrl": "/stock-portfolio/mobile"
     }
   }
 }
