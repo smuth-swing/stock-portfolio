@@ -15,7 +15,9 @@ let hostUri =
 let BASE_URL = hostUri ? `http://${hostUri}` : '';
 
 if (Platform.OS === 'web' && typeof window !== 'undefined') {
-  BASE_URL = window.location.origin + '/mobile';
+  // GitHub Pages 등 어떤 하위 경로에서 실행되든 동적으로 현재 경로를 BASE_URL로 사용
+  const pathname = window.location.pathname.replace(/\/[^/]*$/, ''); // 마지막 파일명 제거
+  BASE_URL = window.location.origin + pathname;
 }
 
 // 개발 중 서버 URL 확인용 로그

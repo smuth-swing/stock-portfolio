@@ -2,8 +2,17 @@
  * Excel Viewer - 주식 체크 리스트 고정 뷰어
  */
 
-const API = 'http://localhost:5000/api';
+const IS_GITHUB_PAGES = window.location.hostname.includes('github.io');
+const API = IS_GITHUB_PAGES ? 'StockPortfolioApp/public/data' : 'http://localhost:5000/api';
 const TARGET_FILE = '주식 체크 리스트_20220328.xlsx';
+
+const GITHUB_JSON_MAP = {
+    '매매일지': 'trade_journal.json',
+    '포트폴리오 맵': 'portfolio_map.json',
+    '탐구생활': 'investigation.json',
+    '실적': 'performance.json',
+    '배당금': 'dividend.json'
+};
 const EXPLORATION_SHEET_KEYWORD = '탐구';
 let currentData = null;
 let autoRefreshTimer = null;
@@ -271,7 +280,7 @@ function startReconnectPolling() {
             reconnectTimer = null;
             badge.className = 'connection-badge disconnected';
             badge.querySelector('.status-text').textContent = '서버 오프라인';
-            showToast('서버에 연결할 수 없습니다. 서버 상태를 확인하세요.', 'error');
+            showToast('서버에 연결할 수 없습니다. 데이터 로컬 버전을 표시합니다.', 'error');
             console.warn('[재연결] 최대 시도 횟수 초과. 재연결 중단.');
             return;
         }
@@ -281,6 +290,15 @@ function startReconnectPolling() {
         console.log(`[재연결] ${reconnectCount}/${MAX_RECONNECT}회 시도 중...`);
 
         try {
+            if (IS_GITHUB_PAGES) {
+                clearInterval(reconnectTimer);
+                reconnectTimer = null;
+                badge.className = 'connection-badge connected';
+                badge.querySelector('.status-text').textContent = 'GitHub 연결됨';
+                await loadExcel(TARGET_FILE);
+                return;
+            }
+
             const res = await fetch(`${API}/onedrive-status`, { signal: AbortSignal.timeout(3000) });
             const data = await res.json();
 
@@ -328,8 +346,19 @@ async function loadExcel(filePath, sheetName = null) {
     try {
         // 캐시 방지를 위해 타임스탬프 추가
         const timestamp = new Date().getTime();
-        let url = `${API}/read-excel?file=${encodeURIComponent(filePath)}&t=${timestamp}`;
-        if (sheetName) url += `&sheet=${encodeURIComponent(sheetName)}`;
+        let url;
+        
+        if (IS_GITHUB_PAGES) {
+            // GitHub Pages 환경: 정적 JSON 파일 로드
+            const targetSheet = sheetName || '매매일지'; // 기본값
+            const jsonFileName = GITHUB_JSON_MAP[targetSheet];
+            if (!jsonFileName) throw new Error(`시트 매핑을 찾을 수 없음: ${targetSheet}`);
+            url = `${API}/${jsonFileName}?t=${timestamp}`;
+        } else {
+            // 로컬 서버 API 호출
+            url = `${API}/read-excel?file=${encodeURIComponent(filePath)}&t=${timestamp}`;
+            if (sheetName) url += `&sheet=${encodeURIComponent(sheetName)}`;
+        }
 
         const res = await fetch(url);
         const data = await res.json();
