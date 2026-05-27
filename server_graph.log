@@ -28,3 +28,76 @@
  * Running on http://127.0.0.1:5000
  * Running on http://192.168.219.101:5000
 2026-05-14 23:49:29,416 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-05-16 21:38:17,577 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+2026-05-16 21:38:17,577 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-05-16 21:51:07,712 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+2026-05-16 21:51:07,712 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-05-16 21:52:51,769 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:52:51] "GET / HTTP/1.1" 200 -
+2026-05-16 21:52:51,938 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:52:51] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-16 21:52:52,013 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:52:52] "GET /app.js HTTP/1.1" 200 -
+2026-05-16 21:52:52,334 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:52:52] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-16 21:52:57,126 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:52:57] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-16 21:52:57,437 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:52:57] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-16 21:52:57,452 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:52:57] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-16 21:52:57,769 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:52:57] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-16 21:53:28,516 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:53:28] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-16 21:53:28,824 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:53:28] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-16 21:53:28,839 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:53:28] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-16 21:53:29,155 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:53:29] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-16 21:53:30,867 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:53:30] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-16 21:53:31,169 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:53:31] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-16 21:53:31,199 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:53:31] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-16 21:53:31,514 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:53:31] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-16 21:53:57,721 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:53:57] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-16 21:53:58,022 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:53:58] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-16 21:53:58,055 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:53:58] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-16 21:53:58,371 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:53:58] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-16 21:54:00,381 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:54:00] "GET / HTTP/1.1" 200 -
+2026-05-16 21:54:00,691 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:54:00] "GET /styles.css HTTP/1.1" 200 -
+2026-05-16 21:54:00,706 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:54:00] "GET /app.js HTTP/1.1" 200 -
+2026-05-16 21:54:01,024 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:54:01] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-16 21:54:01,250 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:54:01] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2026-05-16 21:54:17,405 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:54:17] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-16 21:54:17,738 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:54:17] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+2026-05-16 21:55:11,675 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+2026-05-16 21:55:11,675 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-05-16 21:55:42,916 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:55:42] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-16 21:55:42,939 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:55:42] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-16 21:55:43,159 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:55:43] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-16 21:55:43,264 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:55:43] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-16 21:55:43,476 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:55:43] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+2026-05-16 21:55:46,926 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:55:46] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-16 21:55:46,944 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:55:46] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-16 21:55:47,185 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:55:47] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-16 21:55:47,275 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:55:47] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-16 21:55:47,503 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:55:47] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+2026-05-16 21:56:27,666 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:56:27] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-16 21:56:27,691 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:56:27] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-16 21:56:27,915 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:56:27] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-16 21:56:28,225 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:56:28] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-16 21:56:28,271 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:56:28] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2026-05-16 21:56:59,172 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:56:59] "GET / HTTP/1.1" 200 -
+2026-05-16 21:56:59,192 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:56:59] "GET /styles.css HTTP/1.1" 200 -
+2026-05-16 21:56:59,430 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:56:59] "GET /app.js HTTP/1.1" 200 -
+2026-05-16 21:56:59,748 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:56:59] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-16 21:56:59,751 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:56:59] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2026-05-16 21:57:41,440 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:57:41] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-16 21:57:55,798 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:57:55] "[33mGET /get-data HTTP/1.1[0m" 404 -
+2026-05-16 21:58:05,263 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:58:05] "[33mGET /api/journal HTTP/1.1[0m" 404 -
+2026-05-16 21:59:57,392 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:59:57] "GET / HTTP/1.1" 200 -
+2026-05-16 21:59:57,426 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:59:57] "GET /styles.css HTTP/1.1" 200 -
+2026-05-16 21:59:57,428 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:59:57] "GET /app.js HTTP/1.1" 200 -
+2026-05-16 21:59:58,037 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:59:58] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2026-05-16 21:59:58,078 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 21:59:58] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-16 22:00:25,359 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 22:00:25] "[33mGET /static/js/app.js HTTP/1.1[0m" 404 -
+2026-05-16 22:00:29,186 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 22:00:29] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-16 22:00:33,828 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 22:00:33] "GET /api/onedrive-status HTTP/1.1" 200 -

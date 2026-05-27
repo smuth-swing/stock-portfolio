@@ -18,7 +18,7 @@ from flask import Flask, jsonify, request, send_from_directory, redirect, url_fo
 from flask_cors import CORS
 import pandas as pd
 import openpyxl
-from openpyxl.styles import Font
+from openpyxl.styles import Font, PatternFill
 from openpyxl.cell.rich_text import CellRichText, TextBlock
 from datetime import datetime, timedelta
 import requests
@@ -498,53 +498,25 @@ def save_journal():
         for col_idx in range(1, len(row_values) + 1):
             ws.cell(row=last_row, column=col_idx).font = cell_font
         
-        # 2. 포트폴리오 맵 동기화 로직 (개별 거래 금액 기반 증감)
+        # 2. 포트폴리오 맵 동기화 로직
         try:
             trade_stock = str(row_values[1]).strip() if len(row_values) > 1 else ""
-            trade_type = str(row_values[4]).strip() if len(row_values) > 4 else ""
             trade_amount = float(row_values[5]) if len(row_values) > 5 else 0
             
-            trade_stock_clean = trade_stock.replace(" ", "")
-            
-            if trade_stock_clean and '포트폴리오 맵' in wb.sheetnames:
+            if trade_stock:
+                sync_portfolio_map(wb, trade_stock, trade_amount)
+                # 매칭된 실제 점 개수 기준으로 매매일지 금액 재확인
+                final_ones = 0
                 ws_map = wb['포트폴리오 맵']
-                # [절대값 동기화 로직 - 중복 대응 버전]
-                # 매매일지의 최종 투자금(trade_amount)을 기준으로 맵의 모든 일치하는 행을 완전히 재구성
-                target_marks = int(trade_amount // 100)
-                
-                # 종목명이 일치하는 모든 행을 찾아서 처리
-                target_rows = []
+                trade_stock_clean = trade_stock.replace(" ", "")
                 for r in range(1, ws_map.max_row + 1):
-                    cell_val = str(ws_map.cell(row=r, column=4).value or "").strip()
-                    cell_val_clean = cell_val.replace(" ", "")
-                    if cell_val_clean and (trade_stock_clean in cell_val_clean or cell_val_clean in trade_stock_clean):
-                        target_rows.append(r)
-                
-                if target_rows:
-                    for target_row in target_rows:
-                        # 1. 해당 행의 마크 영역(5~100컬럼) 초기화
+                    cell_val = str(ws_map.cell(row=r, column=4).value or "").strip().replace(" ", "")
+                    if cell_val == trade_stock_clean:
                         for c in range(5, 101):
-                            ws_map.cell(row=target_row, column=c).value = None
-                            ws_map.cell(row=target_row, column=c).fill = no_fill
-                        
-                        # 2. 최종 투자금에 해당하는 개수만큼 점(1) 새로 찍기
-                        if target_marks > 0:
-                            for i in range(target_marks):
-                                col_idx = 5 + i
-                                if col_idx <= 100:
-                                    cell = ws_map.cell(row=target_row, column=col_idx)
-                                    cell.value = 1
-                                    cell.fill = yellow_fill
-                    
-                    # 3. 매매일지 데이터 재검증 (첫 번째 매칭된 행의 실제 점 개수 기준)
-                    final_ones = 0
-                    for c in range(5, 101):
-                        if ws_map.cell(row=target_rows[0], column=c).value == 1:
-                            final_ones += 1
-                    ws.cell(row=last_row, column=6).value = final_ones * 100
-                    print(f"✅ [{trade_stock}] 동기화 완료: 행 {target_rows}, 점 {final_ones}개")
-                else:
-                    print(f"⚠️ [{trade_stock}] 포트폴리오 맵에서 종목을 찾을 수 없습니다.")
+                            if ws_map.cell(row=r, column=c).value == 1:
+                                final_ones += 1
+                        ws.cell(row=last_row, column=6).value = final_ones * 100
+                        break
         except Exception as inner_e:
             print(f"Portfolio Map update error: {inner_e}")
 
@@ -604,6 +576,107 @@ def update_row():
         return jsonify({'error': '파일 업로드 실패'}), 500
     except Exception as e:
         return jsonify({'error': f'업데이트 오류: {str(e)}'}), 500
+
+
+def sync_portfolio_map(wb, stock_name, trade_amount):
+    """포트폴리오 맵의 종목 마크(점)를 투자금액에 맞게 동기화"""
+    if '포트폴리오 맵' not in wb.sheetnames:
+        return
+        
+    ws_map = wb['포트폴리오 맵']
+    stock_clean = stock_name.replace(" ", "")
+    target_marks = int(trade_amount // 100)
+    
+    # 채우기 스타일 설정
+    from openpyxl.styles import PatternFill
+    yellow_fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+    no_fill = PatternFill(fill_type=None)
+    
+    # 종목명이 일치하는 모든 행을 찾아서 처리
+    for r in range(1, ws_map.max_row + 1):
+        cell_val = str(ws_map.cell(row=r, column=4).value or "").strip().replace(" ", "")
+        if cell_val and (stock_clean in cell_val or cell_val in stock_clean):
+            # 1. 해당 행의 마크 영역(5~100컬럼) 초기화
+            for c in range(5, 101):
+                ws_map.cell(row=r, column=c).value = None
+                ws_map.cell(row=r, column=c).fill = no_fill
+            
+            # 2. 투자금에 해당하는 개수만큼 점(1) 새로 찍기
+            if target_marks > 0:
+                for i in range(target_marks):
+                    col_idx = 5 + i
+                    if col_idx <= 100:
+                        cell = ws_map.cell(row=r, column=col_idx)
+                        cell.value = 1
+                        cell.fill = yellow_fill
+    print(f"📊 [{stock_name}] 포트폴리오 맵 동기화 완료: {target_marks}개 마크")
+
+
+@app.route('/api/delete-row', methods=['POST'])
+def delete_row():
+    """행 삭제 API - 매매일지의 경우 이전 데이터로 동기화 포함"""
+    data = request.get_json()
+    file_path = data.get('file', EXCEL_FILE_PATH)
+    sheet_name = data.get('sheet')
+    row_index = int(data.get('rowIndex', 0))
+
+    if sheet_name is None:
+        return jsonify({'error': 'sheet 값이 필요합니다.'}), 400
+
+    try:
+        file_id = find_file_by_name(file_path.split('/')[-1])
+        if not file_id:
+            return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
+
+        file_content = download_file(file_id)
+        if not file_content:
+            return jsonify({'error': '파일 다운로드 실패'}), 500
+
+        wb = openpyxl.load_workbook(file_content)
+        if sheet_name not in wb.sheetnames:
+            return jsonify({'error': f'시트를 찾을 수 없습니다: {sheet_name}'}), 404
+
+        ws = wb[sheet_name]
+        target_row_idx = row_index + 2
+        
+        # 삭제 전 정보 기억 (매매일지인 경우 동기화를 위해)
+        stock_name = None
+        if sheet_name == '매매일지':
+            stock_name = str(ws.cell(row=target_row_idx, column=2).value or "").strip()
+        
+        # 행 삭제
+        ws.delete_rows(target_row_idx)
+        
+        # 매매일지 삭제 후 동기화 로직
+        if sheet_name == '매매일지' and stock_name:
+            # 삭제 후 시트에서 해당 종목의 마지막 거래를 다시 찾음 (날짜 순서 고려 없이 가장 아래에 있는 해당 종목 행)
+            last_amount = 0
+            stock_clean = stock_name.replace(" ", "")
+            # 2행부터 마지막 행까지 (이미 한 행이 삭제된 상태)
+            for r in range(2, ws.max_row + 1):
+                cell_val = str(ws.cell(row=r, column=2).value or "").strip().replace(" ", "")
+                if cell_val == stock_clean:
+                    try:
+                        val = ws.cell(row=r, column=6).value
+                        if val is not None:
+                            last_amount = float(val)
+                    except:
+                        pass
+            
+            # 포트폴리오 맵 업데이트 (마지막 찾은 금액 기준, 없으면 0)
+            sync_portfolio_map(wb, stock_name, last_amount)
+            print(f"🗑️ [{stock_name}] 삭제 후 이전 거래 데이터({last_amount})로 동기화 완료")
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        if upload_file(file_id, output.getvalue()):
+            return jsonify({'success': True, 'message': '행이 삭제되었습니다.'})
+        return jsonify({'error': '파일 업로드 실패'}), 500
+    except Exception as e:
+        logger.error(f"Delete row error: {str(e)}")
+        return jsonify({'error': f'삭제 오류: {str(e)}'}), 500
 
 
 # ==================== 에러 핸들러 ====================

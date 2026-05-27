@@ -358,6 +358,25 @@ tr:hover { background: rgba(255,255,255,0.04); }
 .btn-accent { padding: 8px 16px; border-radius: 6px; border: none; background: var(--gold-primary); color: #000; font-weight: 600; cursor: pointer; }
 .btn-ghost-sm { padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-glass); background: transparent; color: var(--text-secondary); font-size: 11px; cursor: pointer; }
 .btn-ghost-sm:hover { color: var(--gold-primary); border-color: var(--gold-primary); }
+.btn-primary.edit-mode {
+    background: #3B82F6; /* 수정 모드일 때 푸른색으로 변경 */
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+}
+.btn-primary.edit-mode:hover {
+    background: #2563EB;
+}
+.btn-danger {
+    padding: 8px 16px; border-radius: 6px; border: none;
+    background: #EF4444; color: #fff; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 8px;
+    transition: var(--transition);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+.btn-danger:hover {
+    background: #DC2626;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.3);
+}
 .hidden { display: none !important; }
 .spinner { width: 24px; height: 24px; border: 2px solid var(--border-glass); border-top-color: var(--gold-primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px; }
 @keyframes spin { to { transform: rotate(360deg); } }

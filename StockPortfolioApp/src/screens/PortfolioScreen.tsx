@@ -26,16 +26,39 @@ export default function PortfolioScreen() {
       }
     });
 
-    // 프리미엄 네온/파스텔 그라데이션 컬러셋
-    const colors = ['#00F2FE', '#4FACFE', '#A18CD1', '#FBC2EB', '#F6D365', '#FDA085'];
+    const totalInvestment = Object.values(sectors).reduce((acc, value) => acc + value, 0);
+    const sectorColorOverrides: { [key: string]: string } = {
+      '바이오': '#F43F5E',
+    };
+    const colors = ['#22C55E', '#F97316', '#38BDF8', '#EAB308', '#8B5CF6', '#14B8A6', '#F59E0B', '#64748B'];
     let idx = 0;
+    let cumulativeValue = 0;
     
-    return Object.keys(sectors).map(key => {
-      const value = sectors[key];
-      const color = colors[idx % colors.length];
+    return Object.keys(sectors).map(key => ({ key, value: sectors[key] }))
+      .sort((a, b) => b.value - a.value)
+      .map(({ key, value }) => {
+      const percentage = totalInvestment ? Math.round((value / totalInvestment) * 100) : 0;
+      const color = sectorColorOverrides[key] || colors[idx % colors.length];
+      const isSmallSlice = percentage <= 5;
+      const midpoint = totalInvestment ? (cumulativeValue + value / 2) / totalInvestment : 0;
+      const isLeftSide = Math.sin(2 * Math.PI * midpoint) < 0;
+      const radialShiftX = isSmallSlice ? Math.sin(2 * Math.PI * midpoint) * 6 : 0;
+      const radialShiftY = isSmallSlice ? -Math.cos(2 * Math.PI * midpoint) * 6 : 0;
+      cumulativeValue += value;
       idx++;
-      return { value, text: `${value}M`, color, label: key };
-    }).sort((a, b) => b.value - a.value);
+      return {
+        value,
+        percentage,
+        text: `${key}(${percentage}%)`,
+        color,
+        label: key,
+        labelPosition: 'outward' as const,
+        shiftTextX: isSmallSlice
+          ? (isLeftSide ? -18 : 12) + radialShiftX
+          : isLeftSide ? -22 : 8,
+        shiftTextY: isSmallSlice ? (idx % 2 === 0 ? -6 : 6) + radialShiftY : 0,
+      };
+    });
   }, [portfolioMap]);
 
   if (isLoading) {
@@ -60,11 +83,14 @@ export default function PortfolioScreen() {
                 <PieChart
                   data={chartData}
                   donut
-                  radius={110}
-                  innerRadius={70}
+                  radius={96}
+                  innerRadius={60}
+                  paddingHorizontal={68}
                   showText
-                  textColor="white"
-                  textSize={12}
+                  labelsPosition="outward"
+                  textColor="#FFFFFF"
+                  textSize={9}
+                  fontWeight="700"
                   innerCircleColor="#1E293B"
                   centerLabelComponent={() => {
                     return (
@@ -85,8 +111,11 @@ export default function PortfolioScreen() {
             <View style={styles.legendContainer}>
               {chartData.map((item, index) => (
                 <View key={index} style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-                  <Text style={styles.legendText}>{item.label} ({item.value}M)</Text>
+                  <View style={styles.legendLabelGroup}>
+                    <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                    <Text style={styles.legendLabel} numberOfLines={2}>{item.label}</Text>
+                  </View>
+                  <Text style={styles.legendValue}>{item.value}M/{item.percentage}%</Text>
                 </View>
               ))}
             </View>
@@ -120,9 +149,20 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 18, fontWeight: '600', color: '#E2E8F0', marginBottom: 20 },
   chartWrapper: { alignItems: 'center', marginVertical: 10 },
-  legendContainer: { marginTop: 28, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start' },
-  legendItem: { flexDirection: 'row', alignItems: 'center', width: '48%', marginBottom: 14 },
-  legendDot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
-  legendText: { color: '#94A3B8', fontSize: 13, fontWeight: '500' },
+  legendContainer: { marginTop: 28, gap: 10 },
+  legendItem: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  legendLabelGroup: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', marginRight: 12 },
+  legendDot: { width: 10, height: 10, borderRadius: 5, marginRight: 9 },
+  legendLabel: { flex: 1, color: '#E2E8F0', fontSize: 14, fontWeight: '600', lineHeight: 18 },
+  legendValue: { minWidth: 82, color: '#FFFFFF', fontSize: 13, fontWeight: '800', textAlign: 'right' },
   infoText: { color: '#64748B', fontSize: 16, textAlign: 'center', marginVertical: 20 },
 });

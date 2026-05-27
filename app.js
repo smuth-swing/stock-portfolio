@@ -13,6 +13,7 @@ let investigationRowMap = [];
 let selectedInvestigationRowIndex = null;
 let investigationCurrentRows = [];
 let journalTrendChart = null;
+let editingJournalRowIndex = null; // 수정 중인 매매일지 행 인덱스
 
 // ===== 서버 자동 재연결 설정 =====
 let reconnectTimer = null;        // 재연결 타이머
@@ -105,14 +106,23 @@ async function init() {
             ];
 
             try {
-                const res = await fetch(`${API}/save-journal`, {
+                const isEdit = editingJournalRowIndex !== null;
+                const url = isEdit ? `${API}/update-row` : `${API}/save-journal`;
+                const body = isEdit ? {
+                    file: TARGET_FILE,
+                    sheet: '매매일지',
+                    rowIndex: editingJournalRowIndex,
+                    values: rowData
+                } : {
+                    file: TARGET_FILE,
+                    sheet: '매매일지',
+                    row: rowData
+                };
+
+                const res = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        file: TARGET_FILE,
-                        sheet: '매매일지',
-                        row: rowData
-                    })
+                    body: JSON.stringify(body)
                 });
 
                 if (!res.ok) {
@@ -121,8 +131,8 @@ async function init() {
 
                 const result = await res.json();
                 if (result.success) {
-                    showToast('매매일지가 성공적으로 저장되었습니다.', 'success');
-                    journalForm.reset();
+                    showToast(isEdit ? '매매일지가 수정되었습니다.' : '매매일지가 성공적으로 저장되었습니다.', 'success');
+                    resetJournalForm(); // 폼 초기화 및 수정 모드 해제
                     refreshData(true); // 데이터 새로고침
                 } else {
                     showToast('저장 실패: ' + result.error, 'error');
@@ -134,6 +144,17 @@ async function init() {
                 alert('저장 중 오류가 발생했습니다.\n서버가 실행 중인지 확인해주세요.\n\n상세: ' + err.message);
             }
         };
+
+        // 리셋 버튼 클릭 시 수정 모드 해제 추가
+        journalForm.onreset = () => {
+            resetJournalForm();
+        };
+
+        // 삭제 버튼 클릭 이벤트 등록
+        const deleteBtn = document.getElementById('btn-delete-journal');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', deleteJournalEntry);
+        }
     }
 
     try {
@@ -1040,6 +1061,18 @@ function renderTableRows(rows, cols, rowMap = null) {
                 });
             });
         });
+    } else if (currentData && currentData.current_sheet === '매매일지') {
+        const rowsEls = tbody.querySelectorAll('tr');
+        rowsEls.forEach(rowEl => {
+            const originalIndex = parseInt(rowEl.dataset.originalIndex, 10);
+            rowEl.style.cursor = 'pointer';
+            rowEl.addEventListener('click', () => {
+                const rowData = displayRows.find((_, i) => map[i] === originalIndex);
+                if (rowData) {
+                    setJournalEditMode(originalIndex, rowData);
+                }
+            });
+        });
     }
 }
 
@@ -1786,7 +1819,8 @@ function updateJournalTrendChart() {
                     borderColor: '#D4AF37',
                     backgroundColor: 'rgba(212, 175, 55, 0.1)',
                     borderWidth: 2,
-                    pointRadius: 4,
+                    pointRadius: 6, // 클릭하기 쉽게 포인트 크기 확대
+                    pointHoverRadius: 8,
                     pointBackgroundColor: '#D4AF37',
                     pointBorderColor: '#0A0E1A',
                     pointBorderWidth: 2,
@@ -1813,6 +1847,17 @@ function updateJournalTrendChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const index = elements[0].index;
+                    const row = filteredData[index];
+                    const originalIndex = currentData.data.indexOf(row);
+                    
+                    if (originalIndex !== -1) {
+                        setJournalEditMode(originalIndex, row);
+                    }
+                }
+            },
             plugins: {
                 legend: { 
                     display: true,
@@ -1879,4 +1924,105 @@ function updateJournalTrendChart() {
         },
         plugins: [journalDataLabelsPlugin]
     });
+}
+
+/**
+ * 매매일지 수정 모드 설정
+ */
+function setJournalEditMode(rowIndex, data) {
+    editingJournalRowIndex = rowIndex;
+    
+    // 입력 폼에 데이터 채우기
+    document.getElementById('trade-date').value = data['Unnamed: 0'] || '';
+    document.getElementById('trade-stock').value = data['Unnamed: 1'] || '';
+    document.getElementById('trade-quantity').value = data['Unnamed: 2'] || '';
+    document.getElementById('trade-price').value = data['Unnamed: 3'] || '';
+    document.getElementById('trade-type').value = data['Unnamed: 4'] || '매수';
+    document.getElementById('trade-amount').value = data['Unnamed: 5'] || '';
+    
+    // UI 변경
+    const submitBtn = document.querySelector('#journal-form .btn-primary');
+    const deleteBtn = document.getElementById('btn-delete-journal');
+    
+    if (submitBtn) {
+        submitBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            수정하기
+        `;
+        submitBtn.classList.add('edit-mode');
+    }
+    
+    if (deleteBtn) {
+        deleteBtn.classList.remove('hidden');
+    }
+    
+    // 폼으로 스크롤
+    document.getElementById('journal-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
+    showToast(`${data['Unnamed: 1']} (${data['Unnamed: 0']}) 데이터를 수정합니다.`, 'info');
+}
+
+/**
+ * 매매일지 폼 초기화 및 수정 모드 해제
+ */
+function resetJournalForm() {
+    editingJournalRowIndex = null;
+    const form = document.getElementById('journal-form');
+    if (form) form.reset();
+    
+    const submitBtn = document.querySelector('#journal-form .btn-primary');
+    const deleteBtn = document.getElementById('btn-delete-journal');
+    
+    if (submitBtn) {
+        submitBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            저장하기
+        `;
+        submitBtn.classList.remove('edit-mode');
+    }
+    
+    if (deleteBtn) {
+        deleteBtn.classList.add('hidden');
+    }
+}
+
+/**
+ * 매매일지 항목 삭제
+ */
+async function deleteJournalEntry(e) {
+    if (e) e.preventDefault();
+    if (editingJournalRowIndex === null) return;
+    
+    const stockName = document.getElementById('trade-stock').value;
+    const tradeDate = document.getElementById('trade-date').value;
+    
+    if (!confirm(`'${stockName}'의 ${tradeDate} 매매 기록을 삭제하시겠습니까?\n삭제 후 포트폴리오 현황이 이전 기록으로 되돌아갑니다.`)) {
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${API}/delete-row`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                file: TARGET_FILE,
+                sheet: '매매일지',
+                rowIndex: editingJournalRowIndex
+            })
+        });
+        
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        
+        const result = await res.json();
+        if (result.success) {
+            showToast('매매 기록이 삭제되고 포트폴리오가 업데이트되었습니다.', 'success');
+            resetJournalForm();
+            refreshData(true);
+        } else {
+            showToast('삭제 실패: ' + result.error, 'error');
+        }
+    } catch (err) {
+        console.error('Delete error:', err);
+        showToast('삭제 중 오류가 발생했습니다.', 'error');
+    }
 }

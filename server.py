@@ -424,63 +424,28 @@ def save_journal():
             # row_values: [날짜, 종목, 수량, 단가, 매매종류, 투자금]
             try:
                 trade_stock = str(row_values[1]).strip() if len(row_values) > 1 else ""
-                trade_stock_clean = trade_stock.replace(" ", "")
-                
-                # 투자금액 절대값 계산 (음수 포함 → abs 처리)
+                # 투자금액 절대값 계산
                 raw_investment = float(row_values[5]) if len(row_values) > 5 else 0
                 investment_amount = abs(raw_investment)
-                target_marks = int(investment_amount // 100)
                 
-                print(f"[MAP] [{trade_stock}] invest={raw_investment} -> abs={investment_amount} -> marks={target_marks}")
-                
-                if trade_stock_clean and '포트폴리오 맵' in wb.sheetnames:
+                if trade_stock:
+                    sync_portfolio_map(wb, trade_stock, investment_amount)
+                    
+                    # 실제 반영된 마크 수 재검증 → 매매일지 투자금 보정
                     ws_map = wb['포트폴리오 맵']
-                    
-                    # 종목명이 일치하는 모든 행을 찾아서 처리
-                    target_rows = []
+                    trade_stock_clean = trade_stock.replace(" ", "")
+                    final_ones = 0
                     for r in range(1, ws_map.max_row + 1):
-                        cell_val = str(ws_map.cell(row=r, column=4).value or "").strip()
-                        cell_val_clean = cell_val.replace(" ", "")
-                        if cell_val_clean and (
-                            trade_stock_clean in cell_val_clean
-                            or cell_val_clean in trade_stock_clean
-                        ):
-                            target_rows.append(r)
-                    
-                    if target_rows:
-                        for target_row in target_rows:
-                            # 1단계: 마크 영역(E열~CV열, 5~100컬럼) 완전 초기화
-                            #         - 값(1) 삭제, 노란색 배경 삭제
+                        cell_val = str(ws_map.cell(row=r, column=4).value or "").strip().replace(" ", "")
+                        if cell_val == trade_stock_clean:
                             for c in range(5, 101):
-                                cell = ws_map.cell(row=target_row, column=c)
-                                cell.value = None
-                                cell.fill = no_fill
-                            
-                            # 2단계: 절대값 기준 마크(1+노란색) 새로 반영
-                            if target_marks > 0:
-                                for i in range(target_marks):
-                                    col_idx = 5 + i
-                                    if col_idx <= 100:
-                                        cell = ws_map.cell(row=target_row, column=col_idx)
-                                        cell.value = 1
-                                        cell.fill = yellow_fill
-                        
-                        # 3단계: 실제 반영된 마크 수 재검증 → 매매일지 투자금 보정
-                        final_ones = sum(
-                            1 for c in range(5, 101)
-                            if ws_map.cell(row=target_rows[0], column=c).value == 1
-                        )
-                        ws.cell(row=last_row, column=6).value = final_ones * 100
-                        print(f"[OK] [{trade_stock}] sync done: rows={target_rows}, marks={final_ones} ({final_ones * 100} man)")
-                    else:
-                        print(f"[WARN] [{trade_stock}] stock not found in portfolio map.")
-                else:
-                    print(f"[WARN] portfolio map sheet not found or stock name is empty.")
-                    
+                                if ws_map.cell(row=r, column=c).value == 1:
+                                    final_ones += 1
+                            ws.cell(row=last_row, column=6).value = final_ones * 100
+                            break
+                    print(f"[OK] [{trade_stock}] sync done: marks={final_ones}")
             except Exception as inner_e:
-                import traceback
                 print(f"[ERROR] portfolio map update failed: {inner_e}")
-                print(traceback.format_exc())
             
             # 최종 저장 (매매일지 + 포트폴리오 맵 모두 반영)
             wb.save(full_path)
@@ -533,6 +498,15 @@ def update_row():
             if isinstance(value, str) and '\n' in value:
                 cell.alignment = Alignment(wrap_text=True)
 
+        # 매매일지인 경우 포트폴리오 맵 동기화
+        if sheet_name == '매매일지':
+            try:
+                stock_name = values[1] if len(values) > 1 else ""
+                amount = float(values[5]) if len(values) > 5 else 0
+                if stock_name:
+                    sync_portfolio_map(wb, stock_name, amount)
+            except: pass
+
         wb.save(full_path)
         wb.close()
         return jsonify({'success': True, 'message': '행이 업데이트되었습니다.'})
@@ -540,6 +514,94 @@ def update_row():
         import traceback
         print(traceback.format_exc())
         return jsonify({'error': f'업데이트 오류: {str(e)}'}), 500
+
+
+def sync_portfolio_map(wb, stock_name, trade_amount):
+    """포트폴리오 맵의 종목 마크(점)를 투자금액에 맞게 동기화"""
+    if '포트폴리오 맵' not in wb.sheetnames:
+        return
+    
+    from openpyxl.styles import PatternFill
+    yellow_fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+    no_fill = PatternFill(fill_type=None)
+    
+    ws_map = wb['포트폴리오 맵']
+    stock_clean = stock_name.replace(" ", "")
+    target_marks = int(abs(trade_amount) // 100)
+    
+    # 종목명이 일치하는 모든 행을 찾아서 처리
+    for r in range(1, ws_map.max_row + 1):
+        cell_val = str(ws_map.cell(row=r, column=4).value or "").strip().replace(" ", "")
+        if cell_val and (stock_clean in cell_val or cell_val in stock_clean):
+            # 1. 초기화
+            for c in range(5, 101):
+                cell = ws_map.cell(row=r, column=c)
+                cell.value = None
+                cell.fill = no_fill
+            # 2. 마킹
+            if target_marks > 0:
+                for i in range(target_marks):
+                    col_idx = 5 + i
+                    if col_idx <= 100:
+                        cell = ws_map.cell(row=r, column=col_idx)
+                        cell.value = 1
+                        cell.fill = yellow_fill
+    print(f"📊 [{stock_name}] 포트폴리오 동기화: {target_marks}개")
+
+
+@app.route('/api/delete-row', methods=['POST'])
+def delete_row():
+    """행 삭제 API - 매매일지의 경우 이전 데이터로 동기화 포함"""
+    if not ONEDRIVE_PATH:
+        return jsonify({'error': 'OneDrive 경로가 설정되지 않았습니다.'}), 400
+
+    data = request.get_json()
+    file_path = data.get('file', '')
+    sheet_name = data.get('sheet')
+    row_index = int(data.get('rowIndex', 0))
+
+    full_path = os.path.join(ONEDRIVE_PATH, file_path)
+    if not os.path.isfile(full_path):
+        return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
+
+    try:
+        wb = openpyxl.load_workbook(full_path)
+        if sheet_name not in wb.sheetnames:
+            return jsonify({'error': f'시트를 찾을 수 없습니다: {sheet_name}'}), 404
+
+        ws = wb[sheet_name]
+        target_row_idx = row_index + 2
+        
+        # 삭제 전 정보 기억
+        stock_name = None
+        if sheet_name == '매매일지':
+            stock_name = str(ws.cell(row=target_row_idx, column=2).value or "").strip()
+        
+        # 행 삭제
+        ws.delete_rows(target_row_idx)
+        
+        # 매매일지 삭제 후 동기화
+        if sheet_name == '매매일지' and stock_name:
+            last_amount = 0
+            stock_clean = stock_name.replace(" ", "")
+            for r in range(2, ws.max_row + 1):
+                cell_val = str(ws.cell(row=r, column=2).value or "").strip().replace(" ", "")
+                if cell_val == stock_clean:
+                    try:
+                        val = ws.cell(row=r, column=6).value
+                        if val is not None: last_amount = float(val)
+                    except: pass
+            
+            sync_portfolio_map(wb, stock_name, last_amount)
+            print(f"🗑️ [{stock_name}] 삭제 및 이전 데이터({last_amount}) 동기화")
+
+        wb.save(full_path)
+        wb.close()
+        return jsonify({'success': True, 'message': '행이 삭제되었습니다.'})
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'error': f'삭제 오류: {str(e)}'}), 500
 
 
 if __name__ == '__main__':

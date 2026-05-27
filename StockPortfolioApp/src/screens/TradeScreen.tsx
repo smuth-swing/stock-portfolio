@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
 import { useDataStore } from '../store/useDataStore';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,6 +10,9 @@ export default function TradeScreen() {
   const { tradeJournal, isLoading } = useDataStore();
   const [selectedStock, setSelectedStock] = useState<string>('전체');
   const [zoomLevel, setZoomLevel] = useState<number>(60); // 차트 간격(Zoom) 제어
+  const [isPinching, setIsPinching] = useState<boolean>(false);
+  const pinchStartDistance = useRef<number | null>(null);
+  const pinchStartZoom = useRef<number>(60);
 
   // 최근 6개월 데이터만 필터링
   const validTrades = useMemo(() => {
@@ -87,6 +90,7 @@ export default function TradeScreen() {
       rawPriceData.push({
         originalValue: priceVal,
         dataPointText: priceVal.toLocaleString(),
+        textShiftY: 15,
       });
     });
 
@@ -108,10 +112,6 @@ export default function TradeScreen() {
     return { investmentData, priceData };
   }, [validTrades, selectedStock]);
 
-  // 줌인/줌아웃 핸들러
-  const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 20, 150));
-  const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 20, 20));
-  
   const handleFitToScreen = () => {
     if (chartData.investmentData.length > 0) {
       // (화면 너비 - 여백) / 데이터 개수로 자동 계산하여 한 화면에 꽉 차게 설정
@@ -119,6 +119,37 @@ export default function TradeScreen() {
       const fitSpacing = ((width - 100) / Math.max(1, chartData.investmentData.length - 1)) * 0.9;
       setZoomLevel(Math.max(15, fitSpacing));
     }
+  };
+
+  const getTouchDistance = (touches: any[]) => {
+    const [firstTouch, secondTouch] = touches;
+    const dx = firstTouch.pageX - secondTouch.pageX;
+    const dy = firstTouch.pageY - secondTouch.pageY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const handlePinchStart = (event: any) => {
+    const touches = event.nativeEvent.touches;
+    if (touches.length !== 2) return;
+
+    pinchStartDistance.current = getTouchDistance(touches);
+    pinchStartZoom.current = zoomLevel;
+    setIsPinching(true);
+  };
+
+  const handlePinchMove = (event: any) => {
+    const touches = event.nativeEvent.touches;
+    if (touches.length !== 2 || !pinchStartDistance.current) return;
+
+    const currentDistance = getTouchDistance(touches);
+    const scale = currentDistance / pinchStartDistance.current;
+    const nextZoom = pinchStartZoom.current * scale;
+    setZoomLevel(Math.min(150, Math.max(15, nextZoom)));
+  };
+
+  const handlePinchEnd = () => {
+    pinchStartDistance.current = null;
+    setIsPinching(false);
   };
 
   // 종목 선택 시 자동으로 전체보기(Fit) 적용
@@ -173,17 +204,19 @@ export default function TradeScreen() {
                 <TouchableOpacity style={styles.zoomBtn} onPress={handleFitToScreen}>
                   <Text style={styles.zoomBtnText}>전체보기</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.zoomBtnIcon} onPress={handleZoomOut}>
-                  <Text style={styles.zoomBtnText}>−</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.zoomBtnIcon} onPress={handleZoomIn}>
-                  <Text style={styles.zoomBtnText}>+</Text>
-                </TouchableOpacity>
               </View>
             </View>
             
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={{ paddingTop: 30, paddingBottom: 10 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} scrollEnabled={!isPinching}>
+              <View
+                style={{ paddingTop: 30, paddingBottom: 10 }}
+                onStartShouldSetResponder={(event) => event.nativeEvent.touches.length === 2}
+                onMoveShouldSetResponder={(event) => event.nativeEvent.touches.length === 2}
+                onResponderGrant={handlePinchStart}
+                onResponderMove={handlePinchMove}
+                onResponderRelease={handlePinchEnd}
+                onResponderTerminate={handlePinchEnd}
+              >
                 <LineChart
                   data={chartData.investmentData}
                   data2={chartData.priceData}
@@ -202,9 +235,9 @@ export default function TradeScreen() {
                   textShiftY={-15}
                   textColor2="#94A3B8"
                   textFontSize2={9}
-                  textShiftY2={15}
                   yAxisColor="transparent"
                   xAxisColor="rgba(255,255,255,0.1)"
+                  xAxisLabelTextStyle={{ color: '#FFFFFF', fontSize: 10 }}
                   yAxisTextStyle={{ color: '#D4AF37', fontSize: 10 }}
                   rulesColor="rgba(255,255,255,0.05)"
                   hideDataPoints={false}
@@ -268,7 +301,6 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 15, fontWeight: 'bold', color: '#E2E8F0' },
   zoomControls: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   zoomBtn: { backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  zoomBtnIcon: { backgroundColor: 'rgba(255,255,255,0.08)', width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
   zoomBtnText: { color: '#E2E8F0', fontSize: 13, fontWeight: 'bold' },
   legendContainer: { marginTop: 20, flexDirection: 'row', justifyContent: 'center', gap: 24 },
   legendItem: { flexDirection: 'row', alignItems: 'center' },
