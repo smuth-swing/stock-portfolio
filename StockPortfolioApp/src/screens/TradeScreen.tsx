@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import { useDataStore } from '../store/useDataStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart } from 'react-native-gifted-charts';
@@ -8,11 +9,18 @@ const { width } = Dimensions.get('window');
 
 export default function TradeScreen() {
   const { tradeJournal, isLoading } = useDataStore();
+  const route = useRoute<RouteProp<any, '매매일지'>>();
   const [selectedStock, setSelectedStock] = useState<string>('전체');
   const [zoomLevel, setZoomLevel] = useState<number>(60); // 차트 간격(Zoom) 제어
   const [isPinching, setIsPinching] = useState<boolean>(false);
   const pinchStartDistance = useRef<number | null>(null);
   const pinchStartZoom = useRef<number>(60);
+
+  useEffect(() => {
+    if (route.params?.selectedStock) {
+      setSelectedStock(route.params.selectedStock);
+    }
+  }, [route.params?.selectedStock]);
 
   // 최근 6개월 데이터만 필터링
   const validTrades = useMemo(() => {
@@ -159,10 +167,13 @@ export default function TradeScreen() {
     }
   }, [selectedStock, chartData.investmentData.length]);
 
-  if (isLoading) {
+  // 데이터가 전혀 없고 로딩 중일 때만 스피너 표시
+  // (캐시 데이터라도 있으면 바로 화면 진입)
+  if (isLoading && !tradeJournal) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#00F2FE" />
+        <Text style={{ color: '#64748B', fontSize: 13, marginTop: 12 }}>데이터 확인 중...</Text>
       </View>
     );
   }

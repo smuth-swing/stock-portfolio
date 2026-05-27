@@ -10,27 +10,50 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 export default function InvestigationScreen() {
   const { investigation, isLoading } = useDataStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | 'strategy'>('all');
 
   const toggleExpand = (id: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedId(expandedId === id ? null : id);
   };
 
-  if (isLoading) {
+  // 데이터가 없고 로딩 중일 때만 스피너 표시
+  if (isLoading && !investigation) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#00F2FE" />
+        <Text style={{ color: '#64748B', fontSize: 13, marginTop: 12 }}>데이터 확인 중...</Text>
       </View>
     );
   }
 
   // 첫 두 줄은 헤더/공백이므로 제외하고 실제 데이터만 필터링
-  const items = investigation?.data?.slice(2).filter((r: any) => r['Unnamed: 1']) || [];
+  const allItems = investigation?.data?.slice(2).filter((r: any) => r['Unnamed: 1']) || [];
+  const items = allItems.filter((item: any) => {
+    if (filter === 'all') return true;
+    return item['Unnamed: 6']; // 전략 보유 (매매 전략 내용이 있는 경우)
+  });
 
   return (
     <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>탐구생활</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>탐구생활</Text>
+          <View style={styles.filterContainer}>
+            <TouchableOpacity 
+              style={[styles.filterBtn, filter === 'all' && styles.filterBtnActive]}
+              onPress={() => setFilter('all')}
+            >
+              <Text style={[styles.filterBtnText, filter === 'all' && styles.filterBtnTextActive]}>전체</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.filterBtn, filter === 'strategy' && styles.filterBtnActive]}
+              onPress={() => setFilter('strategy')}
+            >
+              <Text style={[styles.filterBtnText, filter === 'strategy' && styles.filterBtnTextActive]}>전략보유</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
         
         {items.length > 0 ? (
           items.map((item: any, index: number) => {
@@ -111,7 +134,13 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   loadingContainer: { flex: 1, backgroundColor: '#0F172A', justifyContent: 'center', alignItems: 'center' },
   scrollContent: { padding: 20, paddingBottom: 40 },
-  title: { fontSize: 28, fontWeight: '800', color: '#FFFFFF', marginBottom: 24, letterSpacing: 0.5 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  title: { fontSize: 28, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 },
+  filterContainer: { flexDirection: 'row', backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 12, padding: 4 },
+  filterBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 },
+  filterBtnActive: { backgroundColor: 'rgba(0, 242, 254, 0.2)' },
+  filterBtnText: { color: '#64748B', fontSize: 13, fontWeight: '700' },
+  filterBtnTextActive: { color: '#00F2FE' },
   card: {
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderRadius: 20,

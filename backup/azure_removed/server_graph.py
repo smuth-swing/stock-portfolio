@@ -14,7 +14,7 @@ import io
 import logging
 import re
 from pathlib import Path
-from flask import Flask, jsonify, request, send_from_directory, redirect, url_for
+from flask import Flask, jsonify, request, send_from_directory, send_file, redirect, url_for
 from flask_cors import CORS
 import pandas as pd
 import openpyxl
@@ -29,6 +29,9 @@ load_dotenv()
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)
+
+# PWA 웹 빌드 경로 (npx expo export 실행 후 생성됨)
+PWA_BUILD_DIR = Path(__file__).parent / 'StockPortfolioApp' / 'dist'
 
 # 로깅 설정
 logging.basicConfig(
@@ -293,10 +296,63 @@ def upload_file(file_id, file_content):
 
 
 # ==================== Flask 라우트 ====================
+
+# ── PWA 모바일 앱 서빙 (/mobile 경로) ──────────────────
+@app.route('/mobile/')
+@app.route('/mobile')
+def mobile_index():
+    """PWA 웹 앱 메인 페이지 (Expo 빌드 결과물)"""
+    index_path = PWA_BUILD_DIR / 'index.html'
+    if index_path.exists():
+        return send_file(str(index_path))
+    # 빌드가 없으면 안내 페이지 반환
+    return '''
+    <!DOCTYPE html>
+    <html lang="ko">
+    <head><meta charset="UTF-8"><title>주식 포트폴리오 앱</title>
+    <style>
+      body { font-family: sans-serif; background: #0F172A; color: #fff;
+             display: flex; flex-direction: column; align-items: center;
+             justify-content: center; height: 100vh; margin: 0; text-align: center; }
+      h1 { color: #D4AF37; }
+      p { color: #94A3B8; }
+      code { background: #1E293B; padding: 8px 16px; border-radius: 6px;
+             display: block; margin: 12px auto; max-width: 500px; text-align: left; }
+    </style></head>
+    <body>
+      <h1>⚙️ 앱 빌드가 필요합니다</h1>
+      <p>아래 명령어를 PC에서 실행한 뒤 다시 접속하세요:</p>
+      <code>cd StockPortfolioApp<br>npx expo export --platform web</code>
+    </body>
+    </html>
+    ''', 503
+
+@app.route('/mobile/<path:filename>')
+def mobile_static(filename):
+    """PWA 웹 앱 정적 파일 서빙"""
+    # sw.js, manifest.json은 public 폴더에서 서빙
+    public_file = Path(__file__).parent / 'StockPortfolioApp' / 'public' / filename
+    if public_file.exists():
+        return send_file(str(public_file))
+
+    # 나머지는 dist 폴더에서 서빙
+    file_path = PWA_BUILD_DIR / filename
+    if file_path.exists():
+        return send_file(str(file_path))
+
+    # SPA 폴백: 모든 경로를 index.html로 (React Router 지원)
+    index_path = PWA_BUILD_DIR / 'index.html'
+    if index_path.exists():
+        return send_file(str(index_path))
+
+    return "Not Found", 404
+
+
 @app.route('/')
 def index():
     """메인 페이지 서빙"""
     return send_from_directory('.', 'index.html')
+
 
 
 @app.route('/auth/login')

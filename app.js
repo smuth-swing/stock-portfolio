@@ -21,8 +21,35 @@ let reconnectCount = 0;           // 재연결 시도 횟수
 const RECONNECT_INTERVAL = 5000;  // 5초마다 재연결 시도
 const MAX_RECONNECT = 60;         // 최대 60회 (5분)
 
+// ===== 절전 복귀 감지 =====
+// ping 루프 없이 visibilitychange 하나로 처리.
+// 사용자가 화면으로 돌아왔을 때, 10분 이상 자리를 비웠으면 데이터 자동 새로고침.
+let lastActiveTime = Date.now(); // 마지막으로 페이지가 활성 상태였던 시각
+const RESUME_THRESHOLD = 600000; // 10분(600초) 이상 경과 시 절전 복귀로 간주
+
+/**
+ * 절전 복귀 감지 - ping 없이 visibilitychange 하나로 처리
+ * 사용자가 화면으로 돌아왔을 때 10분 이상 경과했으면 데이터 자동 새로고침
+ */
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        // 화면을 떠날 때 시각 기록
+        lastActiveTime = Date.now();
+    } else if (document.visibilityState === 'visible') {
+        const gap = Date.now() - lastActiveTime;
+        if (gap > RESUME_THRESHOLD && currentData && currentData._filePath) {
+            // 10분 이상 자리 비웠다가 복귀 → 절전 복귀로 간주하고 데이터 새로고침
+            console.log(`[절전 복귀] ${Math.round(gap / 60000)}분 경과 → 데이터 새로고침`);
+            showToast('🔄 절전 복귀 감지 — 데이터를 새로고침합니다.', 'info');
+            loadExcel(currentData._filePath, currentData.current_sheet || null);
+        }
+    }
+});
+
 // ===== 초기화 =====
 document.addEventListener('DOMContentLoaded', init);
+
+
 
 async function init() {
     const overlay = document.getElementById('loading-overlay');
@@ -38,6 +65,42 @@ async function init() {
             toggleStrikethrough();
         }
     });
+
+    // 포트폴리오 맵 차트 더블 클릭 이벤트: 매매일지 트렌드로 이동
+    const portfolioCanvas = document.getElementById('portfolio-chart');
+    if (portfolioCanvas) {
+        portfolioCanvas.addEventListener('dblclick', async (evt) => {
+            if (!portfolioChart) return;
+            // Chart.js API를 통해 클릭된 바(막대)의 정보 가져오기
+            const activePoints = portfolioChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+            if (activePoints.length > 0) {
+                const firstPoint = activePoints[0];
+                const label = portfolioChart.data.labels[firstPoint.index];
+                const stockName = Array.isArray(label) ? label.join('') : label;
+                const cleanName = stockName.trim();
+                
+                // 매매일지 시트로 탭 전환
+                if (currentData && currentData._filePath) {
+                    await loadExcel(currentData._filePath, '매매일지');
+                    
+                    // 로딩 후 매매일지 트렌드의 셀렉트 박스 값을 변경하고 차트를 업데이트
+                    setTimeout(() => {
+                        const chartStockSelect = document.getElementById('journal-chart-stock-select');
+                        if (chartStockSelect) {
+                            chartStockSelect.value = cleanName;
+                            updateJournalTrendChart();
+                            
+                            // 스크롤을 부드럽게 매매일지 차트 쪽으로 이동
+                            const chartPanel = document.querySelector('.chart-panel');
+                            if (chartPanel) {
+                                chartPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }
+                        }
+                    }, 400);
+                }
+            }
+        });
+    }
 
     // 매매일지 자동 투자금 계산 및 반올림 로직
     const quantityInput = document.getElementById('trade-quantity');
@@ -188,6 +251,7 @@ async function init() {
     }
 }
 
+
 // ===== 서버 자동 재연결 폴링 =====
 function startReconnectPolling() {
     // 이미 실행 중이면 중복 방지
@@ -298,8 +362,8 @@ async function loadExcel(filePath, sheetName = null) {
         // 포트폴리오 맵 데이터 캐싱 업데이트
         if (data.current_sheet === '포트폴리오 맵') {
             updatePortfolioMapCache(data);
-        } else {
-            // 다른 시트를 볼 때도 포트폴리오 맵 데이터를 별도로 요청하여 캐시를 최신으로 유지
+        } else if (Object.keys(portfolioMapCache).length === 0) {
+            // 캐시가 비어있을 때만 포트폴리오 맵 데이터 요청 (불필요한 중복 API 호출 방지)
             await fetchPortfolioMapData();
         }
     } catch (e) {
@@ -1689,7 +1753,6 @@ function updatePortfolioMapCache(data) {
             }
         }
     });
-    console.log('Portfolio Map Cache Updated (Robust):', portfolioMapCache);
 }
 
 async function fetchPortfolioMapData() {
@@ -2026,3 +2089,154 @@ async function deleteJournalEntry(e) {
         showToast('삭제 중 오류가 발생했습니다.', 'error');
     }
 }
+
+// ===== 종목 초성 검색 및 자동완성 (매매일지용) =====
+function getChosung(str) {
+    const cho = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+    let result = "";
+    for (let i = 0; i < str.length; i++) {
+        const code = str.charCodeAt(i) - 44032;
+        if (code > -1 && code < 11172) {
+            result += cho[Math.floor(code / 588)];
+        } else {
+            result += str.charAt(i);
+        }
+    }
+    return result;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('trade-stock');
+    const dropdown = document.getElementById('custom-stock-dropdown');
+    let activeIndex = -1;
+    
+    if (!input || !dropdown) return;
+    
+    const getAllStocks = () => {
+        const stocks = new Set(Object.keys(portfolioMapCache));
+        
+        if (currentData && currentData.data) {
+            const stockCol = findStockColumnName(currentData.columns);
+            currentData.data.forEach(row => {
+                const stockName = String(row[stockCol] || row['Unnamed: 1'] || '').trim();
+                if (stockName && stockName !== '종목' && stockName !== 'stock') {
+                    // 취소선 태그 제거
+                    const cleanName = stockName.replace(/~~/g, '');
+                    stocks.add(cleanName);
+                }
+            });
+        }
+        
+        return Array.from(stocks).sort();
+    };
+
+    const renderDropdown = (items, query) => {
+        dropdown.innerHTML = '';
+        if (items.length === 0) {
+            dropdown.classList.add('hidden');
+            return;
+        }
+        
+        items.forEach((item, idx) => {
+            const div = document.createElement('div');
+            div.className = 'autocomplete-item';
+            
+            // 일치하는 부분 하이라이팅 처리
+            const itemCho = getChosung(item);
+            const queryCho = getChosung(query);
+            const matchIndex = itemCho.indexOf(queryCho);
+            
+            if (matchIndex > -1) {
+                const before = item.substring(0, matchIndex);
+                const match = item.substring(matchIndex, matchIndex + query.length);
+                const after = item.substring(matchIndex + query.length);
+                div.innerHTML = `${escapeHtml(before)}<b>${escapeHtml(match)}</b>${escapeHtml(after)}`;
+            } else {
+                div.textContent = item;
+            }
+            
+            div.dataset.value = item;
+            
+            div.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                input.value = item;
+                dropdown.classList.add('hidden');
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+            
+            dropdown.appendChild(div);
+        });
+        dropdown.classList.remove('hidden');
+        activeIndex = -1;
+    };
+
+    input.addEventListener('input', (e) => {
+        const query = e.target.value.trim().toLowerCase();
+        if (!query) {
+            dropdown.classList.add('hidden');
+            return;
+        }
+        
+        const allStocks = getAllStocks();
+        const queryCho = getChosung(query);
+        
+        const matched = allStocks.filter(stock => {
+            const stockCho = getChosung(stock);
+            return stockCho.includes(queryCho) || stock.toLowerCase().includes(query);
+        });
+        
+        // 최대 15개까지만 표시
+        renderDropdown(matched.slice(0, 15), query);
+    });
+    
+    input.addEventListener('keydown', (e) => {
+        if (dropdown.classList.contains('hidden')) return;
+        
+        const items = dropdown.querySelectorAll('.autocomplete-item');
+        if (items.length === 0) return;
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeIndex = (activeIndex + 1) % items.length;
+            updateActive(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeIndex = (activeIndex - 1 + items.length) % items.length;
+            updateActive(items);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (activeIndex > -1) {
+                input.value = items[activeIndex].dataset.value;
+                dropdown.classList.add('hidden');
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        } else if (e.key === 'Escape') {
+            dropdown.classList.add('hidden');
+        }
+    });
+    
+    input.addEventListener('blur', () => {
+        setTimeout(() => {
+            dropdown.classList.add('hidden');
+        }, 150);
+    });
+    
+    input.addEventListener('focus', () => {
+        if (input.value.trim()) {
+            input.dispatchEvent(new Event('input'));
+        }
+    });
+
+    const updateActive = (items) => {
+        items.forEach((item, idx) => {
+            if (idx === activeIndex) {
+                item.classList.add('active');
+                item.scrollIntoView({ block: 'nearest' });
+            } else {
+                item.classList.remove('active');
+            }
+        });
+    };
+});

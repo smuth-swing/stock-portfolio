@@ -6,7 +6,6 @@ OneDrive 엑셀 데이터 분석 서버
 
 import os
 import sys
-import glob
 import json
 import re
 from pathlib import Path
@@ -14,6 +13,8 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import pandas as pd
 import openpyxl
+import subprocess
+import threading
 from openpyxl.styles import Font
 
 # Windows 콘솔 CP949 인코딩 충돌 방지 - stdout/stderr를 UTF-8로 강제 설정
@@ -24,7 +25,26 @@ if sys.stderr.encoding != 'utf-8':
 
 
 app = Flask(__name__, static_folder='.', static_url_path='')
-CORS(app)
+# 모든 경로와 오리진에 대해 CORS 허용 (모바일 앱 접속용)
+CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+# API 응답 gzip 압축 (대용량 JSON 전송 최적화 - 약 70~80% 크기 감소)
+try:
+    from flask_compress import Compress
+    compress = Compress()
+    app.config['COMPRESS_MIMETYPES'] = [
+        'application/json',
+        'text/html',
+        'text/css',
+        'application/javascript',
+    ]
+    app.config['COMPRESS_LEVEL'] = 6      # 압축 레벨 (1~9, 6이 속도/크기 균형)
+    app.config['COMPRESS_MIN_SIZE'] = 500 # 500바이트 이상만 압축
+    compress.init_app(app)
+    print("[COMPRESS] gzip 압축 활성화됨")
+except ImportError:
+    print("[COMPRESS] flask-compress 미설치 — pip install flask-compress 로 설치 가능")
+
 
 # 글로벌 OneDrive 경로 설정 (사용자 지정 경로 우선)
 def find_target_onedrive_path():
@@ -44,6 +64,20 @@ def find_target_onedrive_path():
     return None
 
 ONEDRIVE_PATH = find_target_onedrive_path()
+
+# ==================== 자동 동기화 트리거 ====================
+def trigger_export():
+    """데이터 변경 시 export_to_json.py를 실행하여 앱용 JSON 갱신"""
+    def run():
+        try:
+            print("[AUTO-SYNC] JSON 변환 시작...")
+            subprocess.run([sys.executable, "export_to_json.py"], check=True)
+            print("[AUTO-SYNC] ✅ JSON 변환 완료!")
+        except Exception as e:
+            print(f"[AUTO-SYNC] ❌ 변환 실패: {e}")
+
+    # 서버 응답을 방해하지 않도록 별도 스레드에서 실행
+    threading.Thread(target=run).start()
 
 # ==================== 유틸리티 함수 (취소선 처리) ====================
 def parse_strikethrough_text(text):
@@ -91,6 +125,56 @@ def extract_rich_text(cell):
 def index():
     """메인 페이지 서빙"""
     return send_from_directory('.', 'index.html')
+
+# ── PWA 모바일 앱 서빙 (/mobile 경로) ──────────────────────
+PWA_BUILD_DIR = Path(__file__).parent / 'StockPortfolioApp' / 'dist'
+
+@app.route('/mobile/')
+@app.route('/mobile')
+def mobile_index():
+    """PWA 웹 앱 메인 페이지 (Expo 빌드 결과물)"""
+    index_path = PWA_BUILD_DIR / 'index.html'
+    if index_path.exists():
+        from flask import send_file
+        return send_file(str(index_path))
+    return '''
+    <!DOCTYPE html>
+    <html lang="ko">
+    <head><meta charset="UTF-8"><title>주식 포트폴리오 앱</title>
+    <style>
+      body { font-family: sans-serif; background: #0F172A; color: #fff;
+             display: flex; flex-direction: column; align-items: center;
+             justify-content: center; height: 100vh; margin: 0; text-align: center; }
+      h1 { color: #D4AF37; }
+      p { color: #94A3B8; }
+      code { background: #1E293B; padding: 8px 16px; border-radius: 6px;
+             display: block; margin: 12px auto; max-width: 500px; text-align: left; }
+    </style></head>
+    <body>
+      <h1>⚙️ 앱 빌드가 필요합니다</h1>
+      <p>아래 명령어를 PC에서 실행한 뒤 다시 접속하세요:</p>
+      <code>cd StockPortfolioApp<br>npx expo export --platform web</code>
+    </body>
+    </html>
+    ''', 503
+
+@app.route('/mobile/<path:filename>')
+def mobile_static(filename):
+    """PWA 웹 앱 정적 파일 서빙"""
+    from flask import send_file
+    # sw.js, manifest.json은 public 폴더에서 우선 서빙
+    public_file = Path(__file__).parent / 'StockPortfolioApp' / 'public' / filename
+    if public_file.exists():
+        return send_file(str(public_file))
+    # 나머지는 dist 폴더에서 서빙
+    file_path = PWA_BUILD_DIR / filename
+    if file_path.exists():
+        return send_file(str(file_path))
+    # SPA 폴백: index.html 반환 (React Router 지원)
+    index_path = PWA_BUILD_DIR / 'index.html'
+    if index_path.exists():
+        return send_file(str(index_path))
+    return "Not Found", 404
 
 @app.route('/api/onedrive-status')
 def onedrive_status():
@@ -165,6 +249,9 @@ def list_excel_files():
         'files': sorted(files, key=lambda x: x['name'])
     })
 
+# 파일 파싱 캐시
+EXCEL_CACHE = {}
+
 @app.route('/api/read-excel')
 def read_excel():
     """엑셀 파일 데이터 읽기"""
@@ -181,6 +268,15 @@ def read_excel():
     
     try:
         import io
+        
+        # 캐시 확인 (수정 시간이 같으면 캐시 반환)
+        file_stat = os.stat(full_path)
+        last_modified = file_stat.st_mtime
+        
+        cache_key = f"{full_path}_{sheet_name}_{last_modified}"
+        if cache_key in EXCEL_CACHE:
+            return jsonify(EXCEL_CACHE[cache_key])
+            
         # 파일 잠금(Lock)을 방지하기 위해 메모리로 먼저 읽어오기
         with open(full_path, 'rb') as f:
             file_data = f.read()
@@ -289,7 +385,7 @@ def read_excel():
         file_stat = os.stat(full_path)
         last_modified = file_stat.st_mtime
 
-        return jsonify({
+        response_data = {
             'file_name': os.path.basename(file_path),
             'last_modified': last_modified,
             'sheet_names': sheet_names,
@@ -299,7 +395,13 @@ def read_excel():
             'data': data,
             'row_count': len(data),
             'stats': stats
-        })
+        }
+        
+        # 캐시 저장 (메모리 누수 방지를 위해 초기화 후 저장)
+        EXCEL_CACHE.clear()
+        EXCEL_CACHE[cache_key] = response_data
+
+        return jsonify(response_data)
     
     except Exception as e:
         return jsonify({'error': f'엑셀 파일 읽기 오류: {str(e)}'}), 500
@@ -449,10 +551,15 @@ def save_journal():
             
             # 최종 저장 (매매일지 + 포트폴리오 맵 모두 반영)
             wb.save(full_path)
+            wb.close()
+            
+            # 아이폰 앱용 데이터 자동 갱신
+            trigger_export()
                 
         finally:
             # 오류가 발생하더라도 확실하게 파일을 닫아 잠금 해제
-            wb.close()
+            try: wb.close()
+            except: pass
         
         return jsonify({'success': True, 'message': '성공적으로 저장되었습니다.'})
     
@@ -509,6 +616,10 @@ def update_row():
 
         wb.save(full_path)
         wb.close()
+        
+        # 아이폰 앱용 데이터 자동 갱신
+        trigger_export()
+        
         return jsonify({'success': True, 'message': '행이 업데이트되었습니다.'})
     except Exception as e:
         import traceback
@@ -597,6 +708,10 @@ def delete_row():
 
         wb.save(full_path)
         wb.close()
+        
+        # 아이폰 앱용 데이터 자동 갱신
+        trigger_export()
+        
         return jsonify({'success': True, 'message': '행이 삭제되었습니다.'})
     except Exception as e:
         import traceback
@@ -604,7 +719,22 @@ def delete_row():
         return jsonify({'error': f'삭제 오류: {str(e)}'}), 500
 
 
+@app.route('/api/ping')
+def ping():
+    """
+    절전 복귀 감지용 헬스체크 엔드포인트.
+    클라이언트(PWA)가 주기적으로 호출하여 서버 생존 및 절전 복귀를 감지한다.
+    """
+    import time
+    return jsonify({
+        'alive': True,
+        'timestamp': time.time(),
+        'server_time': __import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    })
+
+
 if __name__ == '__main__':
+
     print("=" * 60)
     print("  Stock Portfolio Analysis Server")
     print("=" * 60)

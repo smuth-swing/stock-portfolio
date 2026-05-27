@@ -2461,3 +2461,1499 @@ Press CTRL+C to quit
 127.0.0.1 - - [16/May/2026 21:49:15] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1778935754787&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
 127.0.0.1 - - [16/May/2026 21:49:26] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1778935766069&sheet=매매일지 HTTP/1.1" 200 -
 127.0.0.1 - - [16/May/2026 21:49:26] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1778935766443 HTTP/1.1" 200 -
+============================================================
+  Stock Portfolio Analysis Server
+============================================================
+  OneDrive Path: C:\Users\zerod\OneDrive
+  Server Address: http://localhost:5000
+============================================================
+ * Serving Flask app 'server'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+Press CTRL+C to quit
+127.0.0.1 - - [17/May/2026 08:42:36] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [17/May/2026 08:42:36] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [17/May/2026 08:42:36] "GET /app.js HTTP/1.1" 304 -
+127.0.0.1 - - [17/May/2026 08:42:36] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 08:42:36] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [17/May/2026 08:42:37] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1778974956919 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 08:42:37] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1778974957578 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 08:42:40] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1778974960496&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 08:42:46] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1778974965993&sheet=탐구생활 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 08:42:46] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1778974966169 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 08:42:48] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1778974968121&sheet=실적 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 08:42:48] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1778974968283 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 08:42:50] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1778974970833&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+============================================================
+  Stock Portfolio Analysis Server
+============================================================
+  OneDrive Path: C:\Users\zerod\OneDrive
+  Server Address: http://localhost:5000
+============================================================
+ * Serving Flask app 'server'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+Press CTRL+C to quit
+127.0.0.1 - - [17/May/2026 12:54:34] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [17/May/2026 12:54:34] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [17/May/2026 12:54:34] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [17/May/2026 12:54:34] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [17/May/2026 12:54:34] "GET /app.js HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 12:54:34] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 12:54:35] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1778990074974 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 12:54:35] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1778990075620 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 12:54:39] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1778990078770&sheet=탐구생활 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 12:54:39] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1778990079797 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 12:54:41] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1778990081115&sheet=실적 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 12:54:41] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1778990081567 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 12:54:43] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1778990083787&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+============================================================
+  Stock Portfolio Analysis Server
+============================================================
+  OneDrive Path: C:\Users\zerod\OneDrive
+  Server Address: http://localhost:5000
+============================================================
+ * Serving Flask app 'server'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+Press CTRL+C to quit
+127.0.0.1 - - [17/May/2026 21:40:53] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [17/May/2026 21:40:53] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [17/May/2026 21:40:53] "GET /app.js HTTP/1.1" 304 -
+127.0.0.1 - - [17/May/2026 21:40:54] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 21:40:54] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779021654007 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 21:40:54] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779021654636 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 21:40:58] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779021657646&sheet=탐구생활 HTTP/1.1" 200 -
+127.0.0.1 - - [17/May/2026 21:40:58] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779021658674 HTTP/1.1" 200 -
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [17/May/2026 21:41:02] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1191행, 1473.8 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (25행, 21.6 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (44행, 17.2 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 17일 21:41
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [17/May/2026 21:41:09] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1191행, 1473.8 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (25행, 21.6 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (44행, 17.2 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 17일 21:41
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [17/May/2026 21:41:34] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1191행, 1473.8 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (25행, 21.6 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (44행, 17.2 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 17일 21:41
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [17/May/2026 21:42:18] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1191행, 1473.8 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (25행, 21.6 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (44행, 17.2 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 17일 21:42
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [17/May/2026 21:42:22] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1191행, 1473.8 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (25행, 21.6 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (44행, 17.2 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 17일 21:42
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [17/May/2026 21:42:37] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1191행, 1473.8 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (25행, 21.6 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (44행, 17.3 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 17일 21:42
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [19/May/2026 18:30:02] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [19/May/2026 18:30:02] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [19/May/2026 18:30:03] "GET /app.js HTTP/1.1" 304 -
+127.0.0.1 - - [19/May/2026 18:30:03] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2026 18:30:03] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779183003330 HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2026 18:30:04] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779183004080 HTTP/1.1" 200 -
+📊 [노바렉스] 포트폴리오 동기화: 4개
+[OK] [노바렉스] sync done: marks=4
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [19/May/2026 18:39:53] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2026 18:39:54] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779183593772&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2026 18:39:55] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779183594716 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1192행, 1475.0 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (25행, 21.6 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (44행, 17.3 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 19일 18:39
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+📊 [보로노이] 포트폴리오 동기화: 13개
+[OK] [보로노이] sync done: marks=13
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [19/May/2026 18:40:12] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2026 18:40:13] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779183612985&sheet=매매일지 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1193행, 1476.2 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (25행, 21.6 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (44행, 17.3 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 19일 18:40
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [19/May/2026 18:40:14] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779183614588 HTTP/1.1" 200 -
+📊 [필에너지] 포트폴리오 동기화: 7개
+[OK] [필에너지] sync done: marks=7
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [19/May/2026 18:40:40] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2026 18:40:40] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779183640176&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2026 18:40:41] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779183641153 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1194행, 1477.4 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (25행, 21.6 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (44행, 17.3 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 19일 18:40
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+📊 [로봇 ETF] 포트폴리오 동기화: 13개
+[OK] [로봇 ETF] sync done: marks=13
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [19/May/2026 18:41:42] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2026 18:41:43] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779183702747&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2026 18:41:44] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779183703766 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1195행, 1478.6 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (25행, 21.6 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (44행, 17.3 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 19일 18:41
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+📊 [노머스] 포트폴리오 동기화: 2개
+[OK] [노머스] sync done: marks=2
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [19/May/2026 18:42:11] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2026 18:42:12] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779183731717&sheet=매매일지 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1196행, 1479.8 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (25행, 21.6 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (44행, 17.3 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 19일 18:42
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [19/May/2026 18:42:13] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779183733369 HTTP/1.1" 200 -
+📊 [노머스] 포트폴리오 동기화: 0개
+[OK] [노머스] sync done: marks=0
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [19/May/2026 18:42:39] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2026 18:42:40] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779183759822&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2026 18:42:41] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779183760750 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1197행, 1481.0 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (25행, 21.6 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (44행, 17.3 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 19일 18:42
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+📊 [보로노이] 포트폴리오 동기화: 10개
+[OK] [보로노이] sync done: marks=10
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [19/May/2026 18:43:22] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2026 18:43:23] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779183802797&sheet=매매일지 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1198행, 1482.3 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (25행, 21.6 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (44행, 17.3 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 19일 18:43
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [19/May/2026 18:43:24] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779183804743 HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2026 18:43:52] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779183832422&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2026 19:36:38] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779186997977&sheet=탐구생활 HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2026 19:36:38] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779186998495 HTTP/1.1" 200 -
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [19/May/2026 19:36:40] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1198행, 1482.3 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 20.7 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (45행, 17.5 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 19일 19:36
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [19/May/2026 19:36:49] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1198행, 1482.3 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 20.7 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (45행, 17.5 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 19일 19:36
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [19/May/2026 19:36:53] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1198행, 1482.3 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 20.7 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (45행, 17.5 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 19일 19:36
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [19/May/2026 19:37:01] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1198행, 1482.3 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 20.7 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (45행, 17.5 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 19일 19:37
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [19/May/2026 19:37:25] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1198행, 1482.3 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 20.7 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (45행, 17.6 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 19일 19:37
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [19/May/2026 19:37:36] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1198행, 1482.3 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 20.7 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (45행, 17.7 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 19일 19:37
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [19/May/2026 22:41:43] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1198행, 1482.3 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 20.7 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 17.9 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 19일 22:41
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [19/May/2026 22:41:53] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1198행, 1482.3 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 20.7 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 17.9 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 19일 22:41
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [19/May/2026 22:42:17] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1198행, 1482.3 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 20.7 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 17.9 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 19일 22:42
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [19/May/2026 22:42:27] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1198행, 1482.3 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 20.7 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 19일 22:42
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [19/May/2026 22:43:04] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1198행, 1482.3 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 20.7 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 19일 22:43
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [20/May/2026 21:21:14] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [20/May/2026 21:21:14] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [20/May/2026 21:21:14] "GET /app.js HTTP/1.1" 304 -
+127.0.0.1 - - [20/May/2026 21:21:15] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 21:21:15] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779279675462 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 21:21:16] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779279676104 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 21:21:19] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779279679221&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 21:29:08] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779280147498&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 21:29:08] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779280148175 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:10:04] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [20/May/2026 22:10:04] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [20/May/2026 22:10:05] "GET /app.js HTTP/1.1" 304 -
+127.0.0.1 - - [20/May/2026 22:10:05] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:10:05] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779282605425 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:10:06] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779282606036 HTTP/1.1" 200 -
+📊 [파크시스템스] 포트폴리오 동기화: 3개
+[OK] [파크시스템스] sync done: marks=3
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [20/May/2026 22:10:32] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:10:32] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779282632517&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:10:34] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779282633281 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1199행, 1483.5 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (26행, 22.4 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 20일 22:10
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+📊 [토모큐브] 포트폴리오 동기화: 7개
+[OK] [토모큐브] sync done: marks=7
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [20/May/2026 22:11:16] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:11:16] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779282676307&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:11:17] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779282677427 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1200행, 1484.7 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (26행, 22.4 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 20일 22:11
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+📊 [토모큐브] 포트폴리오 동기화: 4개
+[OK] [토모큐브] sync done: marks=4
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [20/May/2026 22:11:41] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:11:42] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779282701984&sheet=매매일지 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1201행, 1485.9 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (26행, 22.4 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 20일 22:11
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [20/May/2026 22:11:43] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779282703077 HTTP/1.1" 200 -
+📊 [리가켐바이오] 포트폴리오 동기화: 21개
+[OK] [리가켐바이오] sync done: marks=21
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [20/May/2026 22:12:11] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:12:11] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779282731073&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:12:12] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779282732242 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1202행, 1487.1 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (26행, 22.4 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 20일 22:12
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+📊 [보로노이] 포트폴리오 동기화: 7개
+[OK] [보로노이] sync done: marks=7
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [20/May/2026 22:12:30] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:12:31] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779282750869&sheet=매매일지 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1203행, 1488.3 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (26행, 22.4 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 20일 22:12
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [20/May/2026 22:12:32] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779282751947 HTTP/1.1" 200 -
+📊 [리노공업] 포트폴리오 동기화: 0개
+[OK] [리노공업] sync done: marks=0
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [20/May/2026 22:12:55] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:12:56] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779282775501&sheet=매매일지 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1204행, 1489.5 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (26행, 22.4 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 20일 22:12
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [20/May/2026 22:12:57] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779282777315 HTTP/1.1" 200 -
+📊 [TS인베스트먼트] 포트폴리오 동기화: 3개
+[OK] [TS인베스트먼트] sync done: marks=0
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [20/May/2026 22:13:21] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:13:21] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779282801254&sheet=매매일지 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1205행, 1490.7 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (26행, 22.4 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 20일 22:13
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [20/May/2026 22:13:22] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779282802050 HTTP/1.1" 200 -
+📊 [파크시스템스] 포트폴리오 동기화: 6개
+[OK] [파크시스템스] sync done: marks=6
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [20/May/2026 22:13:40] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:13:40] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779282820408&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:13:41] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779282821494 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1206행, 1491.9 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (26행, 22.4 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 20일 22:13
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+📊 [SK하이닉스] 포트폴리오 동기화: 0개
+[OK] [SK하이닉스] sync done: marks=0
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [20/May/2026 22:14:10] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:14:10] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779282850383&sheet=매매일지 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1207행, 1493.1 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (26행, 22.4 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 20일 22:14
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [20/May/2026 22:14:12] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779282851475 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:14:21] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779282861154&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:14:31] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779282870739&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:14:31] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779282871749 HTTP/1.1" 200 -
+📊 [보로노이] 포트폴리오 동기화: 4개
+[OK] [보로노이] sync done: marks=4
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [20/May/2026 22:15:12] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:15:12] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779282912142&sheet=매매일지 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1208행, 1494.4 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (26행, 22.4 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 20일 22:15
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [20/May/2026 22:15:13] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779282913257 HTTP/1.1" 200 -
+📊 [SK하이닉스] 포트폴리오 동기화: 2개
+[OK] [SK하이닉스] sync done: marks=2
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [20/May/2026 22:15:46] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:15:47] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779282946837&sheet=매매일지 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1209행, 1495.6 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (26행, 22.4 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 20일 22:15
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [20/May/2026 22:15:48] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779282948728 HTTP/1.1" 200 -
+📊 [SK하이닉스] 포트폴리오 동기화: 5개
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [20/May/2026 22:15:59] "POST /api/update-row HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:16:00] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779282959789&sheet=매매일지 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1209행, 1495.6 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (26행, 22.4 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 20일 22:16
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [20/May/2026 22:16:01] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779282960924 HTTP/1.1" 200 -
+📊 [SK하이닉스] 포트폴리오 동기화: 2개
+🗑️ [SK하이닉스] 삭제 및 이전 데이터(200.0) 동기화
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [20/May/2026 22:16:17] "POST /api/delete-row HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:16:17] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779282977203&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:16:18] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779282978371 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1208행, 1494.4 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (26행, 22.4 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 20일 22:16
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+📊 [SK하이닉스] 포트폴리오 동기화: 2개
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [20/May/2026 22:16:22] "POST /api/update-row HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:16:22] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779282982596&sheet=매매일지 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1208행, 1494.4 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (26행, 22.4 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 20일 22:16
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [20/May/2026 22:16:24] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779282983716 HTTP/1.1" 200 -
+📊 [SK하이닉스] 포트폴리오 동기화: 7개
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [20/May/2026 22:16:31] "POST /api/update-row HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:16:32] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779282991584&sheet=매매일지 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1208행, 1494.4 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (26행, 22.4 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 20일 22:16
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [20/May/2026 22:16:33] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779282993368 HTTP/1.1" 200 -
+📊 [SK하이닉스] 포트폴리오 동기화: 0개
+🗑️ [SK하이닉스] 삭제 및 이전 데이터(0) 동기화
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [20/May/2026 22:16:40] "POST /api/delete-row HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:16:40] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779283000665&sheet=매매일지 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1207행, 1493.1 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (26행, 22.4 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 20일 22:16
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [20/May/2026 22:16:42] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779283001785 HTTP/1.1" 200 -
+📊 [SK하이닉스] 포트폴리오 동기화: 5개
+[OK] [SK하이닉스] sync done: marks=5
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [20/May/2026 22:17:12] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:17:13] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779283032630&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:17:14] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779283033827 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1208행, 1494.4 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (26행, 22.4 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 20일 22:17
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [20/May/2026 22:18:46] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [20/May/2026 22:18:46] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [20/May/2026 22:18:47] "GET /app.js HTTP/1.1" 304 -
+127.0.0.1 - - [20/May/2026 22:18:47] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:18:47] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779283127344 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:18:47] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779283127931 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:18:51] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779283130807&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:19:38] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779283177884&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 22:19:38] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779283178230 HTTP/1.1" 200 -
+127.0.0.1 - - [20/May/2026 23:13:52] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779286431668&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 09:41:18] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779324077566&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 09:41:18] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779324078730 HTTP/1.1" 200 -
+📊 [그래피] 포트폴리오 동기화: 0개
+[OK] [그래피] sync done: marks=0
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [21/May/2026 09:42:10] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 09:42:10] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779324130722&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 09:42:12] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779324131840 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1209행, 1495.6 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (27행, 23.2 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (46행, 18.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 21일 09:42
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [21/May/2026 09:42:14] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779324134076&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 09:42:18] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779324137710&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 09:42:18] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779324138718 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 10:02:54] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779325374077&sheet=탐구생활 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 10:02:55] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779325374715 HTTP/1.1" 200 -
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [21/May/2026 10:02:57] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1209행, 1495.6 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (27행, 23.2 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (47행, 18.2 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 21일 10:02
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [21/May/2026 10:03:29] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1209행, 1495.6 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (27행, 23.2 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (47행, 18.2 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 21일 10:03
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [21/May/2026 10:03:47] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1209행, 1495.6 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (27행, 23.2 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (47행, 18.3 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 21일 10:03
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [21/May/2026 10:03:57] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1209행, 1495.6 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (27행, 23.2 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (47행, 18.4 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 21일 10:03
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [21/May/2026 10:05:08] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779325508151&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 10:06:50] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779325610247&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 10:06:51] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779325611318 HTTP/1.1" 200 -
+📊 [TS인베스트먼트] 포트폴리오 동기화: 6개
+[OK] [TS인베스트먼트] sync done: marks=6
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [21/May/2026 10:07:34] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 10:07:34] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779325654237&sheet=매매일지 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1210행, 1496.8 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (27행, 23.2 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (47행, 18.4 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 21일 10:07
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [21/May/2026 10:07:36] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779325655429 HTTP/1.1" 200 -
+📊 [삼성전자] 포트폴리오 동기화: 7개
+[OK] [삼성전자] sync done: marks=7
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [21/May/2026 10:07:51] "POST /api/save-journal HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 10:07:52] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779325671600&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 10:07:53] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779325672732 HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1211행, 1498.0 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (27행, 23.2 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (47행, 18.4 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 21일 10:07
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [21/May/2026 10:12:54] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779325974038&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 12:39:56] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 12:39:56] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 12:39:57] "GET /app.js HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 12:39:57] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 12:39:58] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779334797556 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 12:39:58] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779334798187 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 12:40:42] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779334842117&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:21:57] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [21/May/2026 13:21:57] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [21/May/2026 13:21:57] "GET /app.js HTTP/1.1" 304 -
+127.0.0.1 - - [21/May/2026 13:21:57] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:21:57] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [21/May/2026 13:21:58] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779337317761 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:21:58] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779337318391 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:22:01] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779337321512&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:22:06] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779337326311&sheet=탐구생활 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:22:06] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779337326471 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:22:08] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779337328655&sheet=실적 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:22:09] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779337328839 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:29:40] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779337780015&sheet=탐구생활 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:29:40] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779337780466 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:29:41] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779337781399&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:29:43] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779337782807&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:29:43] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779337783503 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 14:15:27] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779340526769&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 14:15:34] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779340533990&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 14:15:34] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779340534344 HTTP/1.1" 200 -
+============================================================
+  Stock Portfolio Analysis Server
+============================================================
+  OneDrive Path: C:\Users\zerod\OneDrive
+  Server Address: http://localhost:5000
+============================================================
+ * Serving Flask app 'server'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+Press CTRL+C to quit
+127.0.0.1 - - [25/May/2026 13:02:17] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [25/May/2026 13:02:17] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [25/May/2026 13:02:18] "GET /app.js HTTP/1.1" 304 -
+127.0.0.1 - - [25/May/2026 13:02:18] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [25/May/2026 13:02:18] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [25/May/2026 13:02:23] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779681738583 HTTP/1.1" 200 -
+127.0.0.1 - - [25/May/2026 13:02:23] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779681743492 HTTP/1.1" 200 -
+127.0.0.1 - - [25/May/2026 13:02:33] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779681753142&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+127.0.0.1 - - [25/May/2026 13:21:22] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779682881679&sheet=탐구생활 HTTP/1.1" 200 -
+127.0.0.1 - - [25/May/2026 13:21:22] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779682882172 HTTP/1.1" 200 -
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [25/May/2026 13:21:24] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1211행, 1498.0 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (27행, 23.2 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (48행, 18.5 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 25일 13:21
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [25/May/2026 13:21:31] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1211행, 1498.0 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (27행, 23.2 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (48행, 18.6 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 25일 13:21
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+============================================================
+  Stock Portfolio Analysis Server
+============================================================
+  OneDrive Path: C:\Users\zerod\OneDrive
+  Server Address: http://localhost:5000
+============================================================
+ * Serving Flask app 'server'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+Press CTRL+C to quit
+127.0.0.1 - - [25/May/2026 13:43:48] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [25/May/2026 13:43:49] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [25/May/2026 13:43:50] "GET /app.js HTTP/1.1" 304 -
+127.0.0.1 - - [25/May/2026 13:43:52] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [25/May/2026 13:43:54] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [25/May/2026 13:43:55] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779684234271 HTTP/1.1" 200 -
+127.0.0.1 - - [25/May/2026 13:43:55] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779684235269 HTTP/1.1" 200 -
+127.0.0.1 - - [25/May/2026 13:43:58] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779684238245&sheet=탐구생활 HTTP/1.1" 200 -
+127.0.0.1 - - [25/May/2026 13:43:59] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779684238709 HTTP/1.1" 200 -
+127.0.0.1 - - [25/May/2026 13:51:21] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779684680495&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [25/May/2026 13:51:21] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779684681681 HTTP/1.1" 200 -
+127.0.0.1 - - [25/May/2026 13:51:24] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779684684042&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+127.0.0.1 - - [25/May/2026 13:53:29] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1779684808735&sheet=탐구생활 HTTP/1.1" 200 -
+127.0.0.1 - - [25/May/2026 13:53:29] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1779684809220 HTTP/1.1" 200 -
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [25/May/2026 13:53:40] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1211행, 1498.0 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (27행, 23.2 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (48행, 18.6 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 25일 13:53
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [25/May/2026 13:53:56] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1211행, 1498.0 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (27행, 23.2 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (48행, 18.6 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 25일 13:53
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [25/May/2026 14:06:45] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1211행, 1498.0 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (27행, 23.2 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (48행, 18.7 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 25일 14:06
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [25/May/2026 14:07:04] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1211행, 1498.0 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (27행, 23.2 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (48행, 18.7 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 8.3 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 25일 14:07
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [25/May/2026 15:35:43] "GET /mobile/ HTTP/1.1" 404 -
+127.0.0.1 - - [25/May/2026 15:35:43] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [25/May/2026 15:36:30] "GET /mobile/ HTTP/1.1" 404 -
+127.0.0.1 - - [25/May/2026 15:37:13] "GET /mobile/ HTTP/1.1" 404 -
+127.0.0.1 - - [25/May/2026 15:39:09] "GET /mobile/ HTTP/1.1" 404 -

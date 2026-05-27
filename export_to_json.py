@@ -187,13 +187,13 @@ def export_all():
             output_path = OUTPUT_DIR / filename
             app_path = APP_DATA_DIR / filename
             
-            # OneDrive 폴더에 저장
+            # OneDrive 폴더에 저장 (압축 JSON - 네트워크 전송 최적화)
             with open(output_path, 'w', encoding='utf-8') as f:
-                json.dump(json_data, f, ensure_ascii=False, indent=2, default=str)
+                json.dump(json_data, f, ensure_ascii=False, separators=(',', ':'), default=str)
                 
             # 앱 public 폴더에도 복사 저장 (아이폰 직접 연동용)
             with open(app_path, 'w', encoding='utf-8') as f:
-                json.dump(json_data, f, ensure_ascii=False, indent=2, default=str)
+                json.dump(json_data, f, ensure_ascii=False, separators=(',', ':'), default=str)
                 
             size_kb = output_path.stat().st_size / 1024
             print(f'완료! ({json_data["row_count"]}행, {size_kb:.1f} KB) -> {filename}')

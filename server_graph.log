@@ -101,3 +101,180 @@
 2026-05-16 22:00:25,359 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 22:00:25] "[33mGET /static/js/app.js HTTP/1.1[0m" 404 -
 2026-05-16 22:00:29,186 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 22:00:29] "[36mGET /app.js HTTP/1.1[0m" 304 -
 2026-05-16 22:00:33,828 - werkzeug - INFO - 127.0.0.1 - - [16/May/2026 22:00:33] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-25 15:18:08,594 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+2026-05-25 15:18:08,595 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-05-25 15:27:40,761 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+2026-05-25 15:27:40,761 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-05-25 15:29:34,661 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+2026-05-25 15:29:34,661 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-05-25 15:29:51,555 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+2026-05-25 15:29:51,555 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-05-25 15:32:39,994 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+2026-05-25 15:32:39,995 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-05-25 15:34:57,915 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+2026-05-25 15:34:57,915 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-05-25 15:43:39,614 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+2026-05-25 15:43:39,616 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-05-25 15:43:48,239 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:43:48] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-25 15:43:48,260 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:43:48] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-25 15:43:48,478 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:43:48] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-25 15:43:48,784 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:43:48] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-25 15:43:51,985 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:43:51] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-25 15:43:52,295 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:43:52] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-25 15:43:52,297 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:43:52] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-25 15:43:52,551 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:43:52] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-25 15:44:28,584 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:44:28] "GET /mobile/ HTTP/1.1" 200 -
+2026-05-25 15:44:29,120 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:44:29] "GET /mobile/_expo/static/js/web/index-b8d7e9f1c2865c6c2301f119abf1268a.js HTTP/1.1" 200 -
+2026-05-25 15:44:31,288 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:44:31] "GET /mobile/favicon.ico HTTP/1.1" 200 -
+2026-05-25 15:44:31,349 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:44:31] "GET /mobile/data/trade_journal.json HTTP/1.1" 200 -
+2026-05-25 15:44:31,488 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:44:31] "GET /mobile/data/meta.json HTTP/1.1" 200 -
+2026-05-25 15:44:31,489 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:44:31] "GET /mobile/data/investigation.json HTTP/1.1" 200 -
+2026-05-25 15:44:31,491 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:44:31] "HEAD / HTTP/1.1" 200 -
+2026-05-25 15:44:31,492 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:44:31] "GET /mobile/data/performance.json HTTP/1.1" 200 -
+2026-05-25 15:44:31,493 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:44:31] "GET /mobile/data/portfolio_map.json HTTP/1.1" 200 -
+2026-05-25 15:44:31,880 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:44:31] "[36mGET /mobile/favicon.ico HTTP/1.1[0m" 304 -
+2026-05-25 15:44:31,886 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:44:31] "GET /mobile/sw.js HTTP/1.1" 200 -
+2026-05-25 15:44:32,408 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:44:32] "GET /mobile/_expo/static/js/web/AppEntry.web.js HTTP/1.1" 200 -
+2026-05-25 15:44:32,414 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:44:32] "GET /mobile/index.html HTTP/1.1" 200 -
+2026-05-25 15:44:32,415 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:44:32] "[36mGET /mobile/ HTTP/1.1[0m" 304 -
+2026-05-25 15:44:55,866 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:44:55] "GET /mobile/ HTTP/1.1" 200 -
+2026-05-25 15:45:05,919 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:45:05] "GET /mobile/ HTTP/1.1" 200 -
+2026-05-25 15:45:06,468 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:45:06] "GET /mobile/_expo/static/js/web/index-b8d7e9f1c2865c6c2301f119abf1268a.js HTTP/1.1" 200 -
+2026-05-25 15:45:08,256 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:45:08] "GET /mobile/data/trade_journal.json HTTP/1.1" 200 -
+2026-05-25 15:45:08,459 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:45:08] "GET /mobile/data/performance.json HTTP/1.1" 200 -
+2026-05-25 15:45:08,460 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:45:08] "HEAD / HTTP/1.1" 200 -
+2026-05-25 15:45:08,461 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:45:08] "GET /mobile/data/meta.json HTTP/1.1" 200 -
+2026-05-25 15:45:08,462 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:45:08] "GET /mobile/data/investigation.json HTTP/1.1" 200 -
+2026-05-25 15:45:08,463 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:45:08] "GET /mobile/data/portfolio_map.json HTTP/1.1" 200 -
+2026-05-25 15:45:29,112 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:45:29] "GET /mobile/ HTTP/1.1" 200 -
+2026-05-25 15:45:29,704 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:45:29] "GET /mobile/_expo/static/js/web/index-b8d7e9f1c2865c6c2301f119abf1268a.js HTTP/1.1" 200 -
+2026-05-25 15:45:31,380 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:45:31] "HEAD / HTTP/1.1" 200 -
+2026-05-25 15:45:31,582 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:45:31] "GET /mobile/data/meta.json HTTP/1.1" 200 -
+2026-05-25 15:45:31,583 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:45:31] "GET /mobile/data/portfolio_map.json HTTP/1.1" 200 -
+2026-05-25 15:45:31,585 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:45:31] "GET /mobile/data/trade_journal.json HTTP/1.1" 200 -
+2026-05-25 15:45:31,586 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:45:31] "GET /mobile/data/performance.json HTTP/1.1" 200 -
+2026-05-25 15:45:31,588 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:45:31] "GET /mobile/data/investigation.json HTTP/1.1" 200 -
+2026-05-25 15:47:01,828 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:47:01] "HEAD / HTTP/1.1" 200 -
+2026-05-25 15:47:07,219 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:47:07] "[33mGET /apple-touch-icon.png HTTP/1.1[0m" 404 -
+2026-05-25 15:47:07,417 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:47:07] "GET /mobile/favicon.ico HTTP/1.1" 200 -
+2026-05-25 15:47:07,418 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:47:07] "[33mGET /apple-touch-icon-precomposed.png HTTP/1.1[0m" 404 -
+2026-05-25 15:47:07,418 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:47:07] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2026-05-25 15:47:13,921 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:47:13] "[33mGET /apple-touch-icon-120x120-precomposed.png HTTP/1.1[0m" 404 -
+2026-05-25 15:47:14,526 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:47:14] "[33mGET /apple-touch-icon-120x120.png HTTP/1.1[0m" 404 -
+2026-05-25 15:47:15,240 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:47:15] "[33mGET /apple-touch-icon.png HTTP/1.1[0m" 404 -
+2026-05-25 15:47:16,465 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:47:16] "[33mGET /apple-touch-icon.png HTTP/1.1[0m" 404 -
+2026-05-25 15:47:29,411 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:47:29] "GET /mobile/ HTTP/1.1" 200 -
+2026-05-25 15:47:30,011 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:47:30] "GET /mobile/_expo/static/js/web/index-b8d7e9f1c2865c6c2301f119abf1268a.js HTTP/1.1" 200 -
+2026-05-25 15:47:31,672 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:47:31] "HEAD / HTTP/1.1" 200 -
+2026-05-25 15:47:31,674 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:47:31] "GET /mobile/data/investigation.json HTTP/1.1" 200 -
+2026-05-25 15:47:31,694 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:47:31] "GET /mobile/data/portfolio_map.json HTTP/1.1" 200 -
+2026-05-25 15:47:31,704 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:47:31] "GET /mobile/data/trade_journal.json HTTP/1.1" 200 -
+2026-05-25 15:47:31,706 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:47:31] "GET /mobile/data/performance.json HTTP/1.1" 200 -
+2026-05-25 15:47:31,707 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:47:31] "GET /mobile/data/meta.json HTTP/1.1" 200 -
+2026-05-25 15:48:43,730 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+2026-05-25 15:48:43,730 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-05-25 15:48:51,577 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:48:51] "GET / HTTP/1.1" 200 -
+2026-05-25 15:48:54,581 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:48:54] "GET /mobile/ HTTP/1.1" 200 -
+2026-05-25 15:50:44,080 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:50:44] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-25 15:50:44,098 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:50:44] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-25 15:50:44,325 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:50:44] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-25 15:50:44,642 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:50:44] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-25 15:50:46,856 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:50:46] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-25 15:50:47,179 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:50:47] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-25 15:50:47,179 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:50:47] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-25 15:50:47,421 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:50:47] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-25 15:50:56,020 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:50:56] "HEAD / HTTP/1.1" 200 -
+2026-05-25 15:51:00,325 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:51:00] "[36mGET /mobile/ HTTP/1.1[0m" 304 -
+2026-05-25 15:51:00,857 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:51:00] "[36mGET /mobile/_expo/static/js/web/index-b8d7e9f1c2865c6c2301f119abf1268a.js HTTP/1.1[0m" 304 -
+2026-05-25 15:51:01,612 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:51:01] "HEAD / HTTP/1.1" 200 -
+2026-05-25 15:51:01,612 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:51:01] "[36mGET /mobile/data/portfolio_map.json HTTP/1.1[0m" 304 -
+2026-05-25 15:51:01,689 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:51:01] "[36mGET /mobile/data/performance.json HTTP/1.1[0m" 304 -
+2026-05-25 15:51:01,689 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:51:01] "[36mGET /mobile/data/meta.json HTTP/1.1[0m" 304 -
+2026-05-25 15:51:01,711 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:51:01] "[36mGET /mobile/data/trade_journal.json HTTP/1.1[0m" 304 -
+2026-05-25 15:51:01,711 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:51:01] "[36mGET /mobile/data/investigation.json HTTP/1.1[0m" 304 -
+2026-05-25 15:51:38,547 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:51:38] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-25 15:51:38,863 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:51:38] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-25 15:51:38,863 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:51:38] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-25 15:51:39,121 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:51:39] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-25 15:51:41,607 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:51:41] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-25 15:51:41,917 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:51:41] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-25 15:51:41,917 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:51:41] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-25 15:51:42,173 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:51:42] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-25 15:52:20,722 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+2026-05-25 15:52:20,722 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-05-25 15:52:25,620 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:52:25] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-25 15:52:25,943 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:52:25] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-25 15:52:25,943 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:52:25] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-25 15:52:26,187 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:52:26] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-25 15:52:28,052 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:52:28] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-25 15:52:28,354 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:52:28] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-25 15:52:28,383 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:52:28] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-25 15:52:28,689 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:52:28] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-25 15:53:57,689 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:53:57] "GET / HTTP/1.1" 200 -
+2026-05-25 15:54:03,393 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:54:03] "GET / HTTP/1.1" 200 -
+2026-05-25 15:55:17,736 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:55:17] "GET / HTTP/1.1" 200 -
+2026-05-25 15:55:17,977 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:55:17] "GET /mobile/ HTTP/1.1" 200 -
+2026-05-25 15:56:13,588 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:56:13] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-25 15:56:13,602 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:56:13] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-25 15:56:13,828 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:56:13] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-25 15:56:14,148 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:56:14] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-25 15:56:16,992 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:56:16] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-25 15:56:17,309 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:56:17] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-25 15:56:17,309 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:56:17] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-25 15:56:17,565 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:56:17] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-25 15:57:10,174 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+2026-05-25 15:57:10,175 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-05-25 15:57:19,770 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:57:19] "GET / HTTP/1.1" 200 -
+2026-05-25 15:57:19,998 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:57:19] "GET /mobile/ HTTP/1.1" 200 -
+2026-05-25 15:58:05,636 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:58:05] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-25 15:58:05,660 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:58:05] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-25 15:58:05,894 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:58:05] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-25 15:58:06,211 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:58:06] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-25 15:58:41,158 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:58:41] "GET / HTTP/1.1" 200 -
+2026-05-25 15:58:41,386 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:58:41] "GET /mobile/ HTTP/1.1" 200 -
+2026-05-25 15:58:48,215 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:58:48] "GET / HTTP/1.1" 200 -
+2026-05-25 15:59:38,165 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:59:38] "[36mGET / HTTP/1.1[0m" 304 -
+2026-05-25 15:59:38,195 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:59:38] "[36mGET /styles.css HTTP/1.1[0m" 304 -
+2026-05-25 15:59:38,423 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:59:38] "[36mGET /app.js HTTP/1.1[0m" 304 -
+2026-05-25 15:59:38,738 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 15:59:38] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-25 16:00:00,947 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 16:00:00] "GET / HTTP/1.1" 200 -
+2026-05-25 16:00:01,258 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 16:00:01] "GET /styles.css HTTP/1.1" 200 -
+2026-05-25 16:00:01,258 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 16:00:01] "GET /app.js HTTP/1.1" 200 -
+2026-05-25 16:00:01,515 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 16:00:01] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-25 16:00:01,590 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 16:00:01] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2026-05-25 16:00:02,938 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 16:00:02] "GET / HTTP/1.1" 200 -
+2026-05-25 16:00:03,242 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 16:00:03] "GET /styles.css HTTP/1.1" 200 -
+2026-05-25 16:00:03,272 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 16:00:03] "GET /app.js HTTP/1.1" 200 -
+2026-05-25 16:00:03,590 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 16:00:03] "GET /api/onedrive-status HTTP/1.1" 200 -
+2026-05-25 16:00:03,711 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 16:00:03] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2026-05-25 16:01:44,738 - werkzeug - INFO - 127.0.0.1 - - [25/May/2026 16:01:44] "GET /api/onedrive-status HTTP/1.1" 200 -
