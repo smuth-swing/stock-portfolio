@@ -76,17 +76,7 @@ function OfflineBanner({
     );
   }
 
-  // 온라인 - 마지막 동기화 시간만 표시 (작게)
-  if (lastSyncTime) {
-    return (
-      <View style={[styles.banner, styles.bannerOnline]}>
-        <Text style={styles.bannerTextOnline}>
-          ✅ 업데이트 완료 · {formatSyncTime(lastSyncTime)}
-        </Text>
-      </View>
-    );
-  }
-
+  
   return null;
 }
 
