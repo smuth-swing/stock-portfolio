@@ -76,17 +76,7 @@ function OfflineBanner({
     );
   }
 
-  // 온라인 - 마지막 동기화 시간만 표시 (작게)
-  if (lastSyncTime) {
-    return (
-      <View style={[styles.banner, styles.bannerOnline]}>
-        <Text style={styles.bannerTextOnline}>
-          ✅ 업데이트 완료 · {formatSyncTime(lastSyncTime)}
-        </Text>
-      </View>
-    );
-  }
-
+  // 온라인 상태에서는 배너 미표시
   return null;
 }
 
@@ -282,10 +272,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingVertical: 8,
   },
-  bannerOnline: {
-    backgroundColor: 'rgba(6, 78, 59, 0.9)',
-  },
-
   bannerTextSyncing: {
     color: '#93C5FD',
     fontSize: 12,
@@ -295,11 +281,6 @@ const styles = StyleSheet.create({
     color: '#FCD34D',
     fontSize: 12,
     fontWeight: '700',
-  },
-  bannerTextOnline: {
-    color: '#6EE7B7',
-    fontSize: 11,
-    fontWeight: '600',
   },
   bannerRight: {
     flexDirection: 'row',

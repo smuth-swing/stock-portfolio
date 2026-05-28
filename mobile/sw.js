@@ -9,9 +9,9 @@ const DATA_CACHE_NAME = 'stock-portfolio-data-v1';
 
 // 앱 쉘 파일 목록 (빌드 후 자동 생성되는 파일들 포함)
 const APP_SHELL_URLS = [
-  '/mobile/',
-  '/mobile/index.html',
-  '/mobile/_expo/static/js/web/AppEntry.web.js',
+  '/stock-portfolio/mobile/',
+  '/stock-portfolio/mobile/index.html',
+  '/stock-portfolio/mobile/_expo/static/js/web/AppEntry.web.js',
 ];
 
 // 서비스 워커 설치: 앱 쉘 사전 캐싱
@@ -54,7 +54,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   // /mobile/data/*.json → 네트워크 우선, 실패 시 캐시 (최신 데이터 우선)
-  if (url.pathname.startsWith('/mobile/data/') && request.method === 'GET') {
+  if (url.pathname.startsWith('/stock-portfolio/mobile/data/') && request.method === 'GET') {
     event.respondWith(
       caches.open(DATA_CACHE_NAME).then((cache) => {
         return fetch(request)
