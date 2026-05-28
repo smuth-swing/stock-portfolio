@@ -13,6 +13,7 @@ import TradeScreen from './src/screens/TradeScreen';
 import PortfolioScreen from './src/screens/PortfolioScreen';
 import InvestigationScreen from './src/screens/InvestigationScreen';
 import PerformanceScreen from './src/screens/PerformanceScreen';
+import ImportTradeScreen from './src/screens/ImportTradeScreen';
 import { useDataStore } from './src/store/useDataStore';
 import { useServiceWorker } from './src/hooks/useServiceWorker';
 
@@ -175,6 +176,7 @@ export default function App() {
           <Tab.Screen name="포트폴리오" component={PortfolioScreen} />
           <Tab.Screen name="탐구생활" component={InvestigationScreen} />
           <Tab.Screen name="실적" component={PerformanceScreen} />
+          <Tab.Screen name="가져오기" component={ImportTradeScreen} />
         </Tab.Navigator>
       </NavigationContainer>
 
