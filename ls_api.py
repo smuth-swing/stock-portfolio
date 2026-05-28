@@ -113,9 +113,9 @@ def fetch_trade_history(
             "accno": account,
             "passwd": account_pw,
             "expcode": stock_code,     # 공백 = 전종목
-            "chegb": "2",              # 2=체결만 (0=전체, 1=미체결)
+            "chegb": "0",              # 0=전체 (체결 포함)
             "medosu": "0",             # 0=전체 (1=매도, 2=매수)
-            "sortgb": "1",             # 1=체결일시 오름차순
+            "sortgb": "1",             # 1=주문번호 오름차순
             "cts_ordno": "",           # 연속 조회 키 (첫 조회는 공백)
             "fromdate": from_date,
             "todate": to_date
@@ -140,39 +140,53 @@ def fetch_trade_history(
         return []
 
     trades = []
-    for item in raw_list:
-        # 매도/매수 구분
-        medosu_code = str(item.get("medosu", "")).strip()
-        trade_type = "매도" if medosu_code in ("1", "매도") else "매수"
+    # t0425는 날짜를 반환하지 않으므로 조회 기간의 시작일을 기본값으로 사용
+    default_date = f"{from_date[:4]}-{from_date[4:6]}-{from_date[6:8]}"
 
-        # 날짜 포맷 변환: YYYYMMDD → YYYY-MM-DD
+    for item in raw_list:
+        # 체결 상태만 포함 (미체결 제외)
+        status = str(item.get("status", "")).strip()
+        cheqty = int(item.get("cheqty", 0) or 0)
+        if cheqty == 0:  # 체결 수량이 0이면 미체결 → 건너뜀
+            continue
+
+        # 매도/매수 구분 (한글 또는 코드 모두 처리)
+        medosu_val = str(item.get("medosu", "")).strip()
+        trade_type = "매도" if (medosu_val in ("1", "매도") or "도" in medosu_val) else "매수"
+
+        # 날짜: trddate 있으면 사용, 없으면 조회 기간 시작일
         raw_date = str(item.get("trddate", "")).strip()
         if len(raw_date) == 8:
             trade_date = f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:8]}"
         else:
-            trade_date = raw_date
+            trade_date = default_date
 
-        # 수량, 단가, 체결금액
-        qty = int(item.get("qty", 0) or 0)
-        price = int(item.get("price", 0) or 0)
-        amount = int(item.get("amount", 0) or 0)
+        # 체결수량 / 체결단가 사용 (주문수량/단가 아님)
+        price = int(item.get("cheprice", 0) or item.get("price", 0) or 0)
+        amount = cheqty * price
         fee = int(item.get("fee", 0) or 0)
 
-        # 투자금 = 체결금액 기준 (만원 단위로 변환)
+        # 투자금 = 체결금액 (만원 단위)
         investment = round(amount / 10000, 1)
+
+        # 종목명: expname이 있으면 사용, 없으면 종목코드로 표시
+        name = str(item.get("expname", "")).strip()
+        ticker = str(item.get("expcode", "")).strip()
+        if not name:
+            name = ticker  # 종목명 없으면 코드로 대체 (앱에서 수정 가능)
 
         trades.append({
             "date": trade_date,
-            "ticker": str(item.get("expcode", "")).strip(),
-            "name": str(item.get("expname", "")).strip(),
+            "ticker": ticker,
+            "name": name,
             "type": trade_type,
-            "qty": qty,
+            "qty": cheqty,
             "price": price,
-            "amount": amount,       # 원 단위
-            "investment": investment,  # 만원 단위 (기존 Excel DB 형식)
+            "amount": amount,
+            "investment": investment,
             "fee": fee,
             "ordno": str(item.get("ordno", "")).strip(),
-            "_source": "ls_api"     # 가져온 출처 표시
+            "_source": "ls_api"
         })
 
     return trades
