@@ -2,7 +2,6 @@
 sys.path.append(r'C:\Users\zerod\.antigravity\주식 포트폴리오 관리')
 from ls_api import load_config, get_access_token, LS_BASE_URL
 import requests
-from datetime import datetime
 
 cfg = load_config()
 token = get_access_token(cfg['app_key'], cfg['app_secret'])
@@ -30,7 +29,4 @@ body = {
     }
 }
 resp = requests.post(f'{LS_BASE_URL}/stock/accno', headers=headers, json=body)
-res = resp.json()
-print("rsp_cd:", res.get("rsp_cd"))
-print("tr_cont:", resp.headers.get('tr_cont'))
-print("tr_cont_key:", resp.headers.get('tr_cont_key'))
+print(resp.json().get('rsp_cd'), resp.json().get('rsp_msg'))

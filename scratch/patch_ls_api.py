@@ -1,110 +1,12 @@
-"""
-ls_api.py — LS증권 OpenAPI REST 클라이언트
-============================================================
-LS증권 OpenAPI 문서: https://openapi.ls-sec.co.kr
-주요 TR 코드:
-  t0425 : 주식 주문/체결 내역 조회 (날짜 + 계좌 기준)
-  t0424 : 계좌 잔고 조회
-"""
+﻿import sys, re
+with open(r'C:\Users\zerod\.antigravity\주식 포트폴리오 관리\ls_api.py', 'r', encoding='utf-8') as f:
+    content = f.read()
 
-import os
-import json
-import time
-import requests
-from pathlib import Path
-from datetime import datetime, timedelta
-
-# ── 설정 파일 경로 ─────────────────────────────────────────
-CONFIG_PATH = Path(__file__).parent / "ls_api_config.json"
-LS_BASE_URL = "https://openapi.ls-sec.co.kr:8080"
-
-# ── 토큰 캐시 (메모리) ────────────────────────────────────
-_token_cache = {
-    "access_token": None,
-    "expires_at": 0  # Unix timestamp
-}
-
-
-def load_config() -> dict:
-    """저장된 API 설정 로드 (앱키, 계좌번호 등)"""
-    if CONFIG_PATH.exists():
-        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
-
-
-def save_config(config: dict):
-    """API 설정 저장"""
-    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-        json.dump(config, f, ensure_ascii=False, indent=2)
-
-
-def get_access_token(app_key: str, app_secret: str) -> str:
-    """OAuth 2.0 액세스 토큰 발급 (캐시 활용)"""
-    global _token_cache
-
-    # 캐시가 유효한 경우 재사용 (만료 60초 전에 갱신)
-    if _token_cache["access_token"] and time.time() < _token_cache["expires_at"] - 60:
-        return _token_cache["access_token"]
-
-    url = f"{LS_BASE_URL}/oauth2/token"
-    data = {
-        "grant_type": "client_credentials",
-        "appkey": app_key,
-        "appsecretkey": app_secret,
-        "scope": "oob"
-    }
-
-    resp = requests.post(url, data=data, timeout=10)
-    resp.raise_for_status()
-    result = resp.json()
-
-    token = result.get("access_token")
-    expires_in = int(result.get("expires_in", 86400))  # 기본 24시간
-
-    # 캐시 저장
-    _token_cache["access_token"] = token
-    _token_cache["expires_at"] = time.time() + expires_in
-
-    return token
-_stock_name_cache = {}
-
-def get_stock_name(token: str, shcode: str) -> str:
-    global _stock_name_cache
-    if not _stock_name_cache:
-        headers = {
-            "content-type": "application/json; charset=utf-8",
-            "authorization": f"Bearer {token}",
-            "tr_cd": "t8436",
-            "tr_cont": "N",
-            "tr_cont_key": "",
-            "mac_address": ""
-        }
-        body = {
-            "t8436InBlock": {
-                "gubun": "0"
-            }
-        }
-        try:
-            resp = requests.post(f"{LS_BASE_URL}/stock/etc", headers=headers, json=body, timeout=15)
-            if resp.status_code == 200:
-                out = resp.json().get("t8436OutBlock", [])
-                for item in out:
-                    _stock_name_cache[item.get("shcode", "")] = item.get("hname", "")
-        except Exception:
-            pass
-            
-    return _stock_name_cache.get(shcode, shcode)
-
-
-def fetch_trade_history(from_date, to_date, stock_code=""):
+new_func = '''def fetch_trade_history(account, account_pw, from_date, to_date, stock_code=""):
     """
     LS증권 기간별 체결내역(CDPCQ04700) API 호출 및 정제 (페이징 포함)
     """
-    cfg = load_config()
-    account = cfg["account"]
-    account_pw = cfg["account_pw"]
-    token = get_access_token(cfg["app_key"], cfg["app_secret"])
+    token = get_access_token(CONFIG["app_key"], CONFIG["app_secret"])
     if not token:
         raise RuntimeError("LS API 토큰 발급 실패 (설정을 확인하세요).")
 
@@ -137,8 +39,6 @@ def fetch_trade_history(from_date, to_date, stock_code=""):
         }
 
         import requests
-        import time
-        time.sleep(1)
         resp = requests.post(
             f"{LS_BASE_URL}/stock/accno",
             headers=headers,
@@ -149,7 +49,7 @@ def fetch_trade_history(from_date, to_date, stock_code=""):
         result = resp.json()
 
         # 에러 체크 (00000: 정상, 00136: 정상 및 연속데이터 있음)
-        if "rsp_cd" in result and result["rsp_cd"] not in ("00000", "00136", "00133", "00200"):
+        if "rsp_cd" in result and result["rsp_cd"] not in ("00000", "00136"):
             raise RuntimeError(f"LS API 오류: [{result.get('rsp_cd')}] {result.get('rsp_msg', '알 수 없는 오류')}")
 
         raw_list = result.get("CDPCQ04700OutBlock3", [])
@@ -212,11 +112,10 @@ def fetch_trade_history(from_date, to_date, stock_code=""):
             "_source": "ls_api"
         })
 
-    return trades
+    return trades'''
 
-
-def invalidate_token():
-    """토큰 캐시 강제 초기화 (재로그인 필요 시)"""
-    global _token_cache
-    _token_cache["access_token"] = None
-    _token_cache["expires_at"] = 0
+# Regex to find fetch_trade_history and replace until invalidate_token
+pattern = re.compile(r'def fetch_trade_history\(.*?\):.*?return trades', re.DOTALL)
+new_content = pattern.sub(new_func, content)
+with open(r'C:\Users\zerod\.antigravity\주식 포트폴리오 관리\ls_api.py', 'w', encoding='utf-8') as f:
+    f.write(new_content)
