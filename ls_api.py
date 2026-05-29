@@ -67,6 +67,34 @@ def get_access_token(app_key: str, app_secret: str) -> str:
     _token_cache["expires_at"] = time.time() + expires_in
 
     return token
+_stock_name_cache = {}
+
+def get_stock_name(token: str, shcode: str) -> str:
+    global _stock_name_cache
+    if not _stock_name_cache:
+        headers = {
+            "content-type": "application/json; charset=utf-8",
+            "authorization": f"Bearer {token}",
+            "tr_cd": "t8436",
+            "tr_cont": "N",
+            "tr_cont_key": "",
+            "mac_address": ""
+        }
+        body = {
+            "t8436InBlock": {
+                "gubun": "0"
+            }
+        }
+        try:
+            resp = requests.post(f"{LS_BASE_URL}/stock/etc", headers=headers, json=body, timeout=15)
+            if resp.status_code == 200:
+                out = resp.json().get("t8436OutBlock", [])
+                for item in out:
+                    _stock_name_cache[item.get("shcode", "")] = item.get("hname", "")
+        except Exception:
+            pass
+            
+    return _stock_name_cache.get(shcode, shcode)
 
 
 def fetch_trade_history(
@@ -169,11 +197,11 @@ def fetch_trade_history(
         # 투자금 = 체결금액 (만원 단위)
         investment = round(amount / 10000, 1)
 
-        # 종목명: expname이 있으면 사용, 없으면 종목코드로 표시
+        # 종목명: expname이 있으면 사용, 없으면 종목코드로 조회 (t8436)
         name = str(item.get("expname", "")).strip()
         ticker = str(item.get("expcode", "")).strip()
         if not name:
-            name = ticker  # 종목명 없으면 코드로 대체 (앱에서 수정 가능)
+            name = get_stock_name(token, ticker)
 
         trades.append({
             "date": trade_date,
