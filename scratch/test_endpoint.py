@@ -8,7 +8,7 @@ payload = {
     'stock_code': ''
 }
 try:
-    resp = requests.post(url, json=payload, timeout=10)
+    resp = requests.post(url, json=payload, timeout=30)
     print("Status:", resp.status_code)
     data = resp.json()
     if 'trades' in data:

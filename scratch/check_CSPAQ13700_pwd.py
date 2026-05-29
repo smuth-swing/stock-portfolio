@@ -18,13 +18,11 @@ body = {
     'CSPAQ13700InBlock1': {
         'OrdDt': '20260527',
         'AcntNo': cfg['account'],
-        'Pwd': cfg['account_pw'],
-        'QryTp': '0', # 0: 전체
-        'OrdPtnCode': '00',
+        'InptPwd': cfg['account_pw'],
         'OrdMktCode': '00',
-        'BnsTpCode': '0', # 0: 전체
+        'BnsTpCode': '0',
         'IsuNo': '',
-        'ExecYn': '1', # 0: 전체, 1: 체결, 2: 미체결, 3: 체결+미체결
+        'ExecYn': '0',
         'OrdDt1': '20260527'
     }
 }

@@ -16,16 +16,15 @@ headers = {
 
 body = {
     'CSPAQ13700InBlock1': {
-        'OrdDt': '20260527',
-        'AcntNo': cfg['account'],
-        'Pwd': cfg['account_pw'],
-        'QryTp': '0', # 0: 전체
-        'OrdPtnCode': '00',
         'OrdMktCode': '00',
-        'BnsTpCode': '0', # 0: 전체
+        'BnsTpCode': '0',
         'IsuNo': '',
-        'ExecYn': '1', # 0: 전체, 1: 체결, 2: 미체결, 3: 체결+미체결
-        'OrdDt1': '20260527'
+        'ExecYn': '0',
+        'OrdDt': '20260527',
+        'SrtSeqNo': 0,
+        'QryTp': '0',
+        'AcntNo': cfg['account'],
+        'InptPwd': cfg['account_pw'],
     }
 }
 resp = requests.post(f'{LS_BASE_URL}/stock/accno', headers=headers, json=body)

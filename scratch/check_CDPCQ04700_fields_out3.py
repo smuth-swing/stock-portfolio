@@ -9,24 +9,29 @@ token = get_access_token(cfg['app_key'], cfg['app_secret'])
 headers = {
     'content-type': 'application/json; charset=utf-8',
     'authorization': f'Bearer {token}',
-    'tr_cd': 'CSPAQ13700',
+    'tr_cd': 'CDPCQ04700',
     'tr_cont': 'N',
+    'tr_cont_key': '',
     'mac_address': ''
 }
 
 body = {
-    'CSPAQ13700InBlock1': {
-        'OrdDt': '20260527',
+    'CDPCQ04700InBlock1': {
+        'QryTp': '0',
+        'QrySrtDt': '20260522',
+        'QryEndDt': '20260529',
         'AcntNo': cfg['account'],
         'Pwd': cfg['account_pw'],
-        'QryTp': '0', # 0: 전체
-        'OrdPtnCode': '00',
-        'OrdMktCode': '00',
-        'BnsTpCode': '0', # 0: 전체
+        'PdptnCode': '00',
+        'IsuLgclssCode': '00',
         'IsuNo': '',
-        'ExecYn': '1', # 0: 전체, 1: 체결, 2: 미체결, 3: 체결+미체결
-        'OrdDt1': '20260527'
+        'SrtNo': 0
     }
 }
 resp = requests.post(f'{LS_BASE_URL}/stock/accno', headers=headers, json=body)
-print(resp.json())
+res = resp.json()
+out3 = res.get('CDPCQ04700OutBlock3', [])
+if len(out3) > 0:
+    print(list(out3[0].keys()))
+    print("Example data:")
+    print(json.dumps(out3[0], ensure_ascii=False, indent=2))

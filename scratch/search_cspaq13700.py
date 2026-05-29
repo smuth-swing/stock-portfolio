@@ -1,4 +1,7 @@
-﻿import sys, json
+﻿import urllib.request, json
+# I will use a simple script to test CSPAQ13700 fields.
+# Maybe 'OrdDt1' is wrong? Let's just use the minimum required fields.
+import sys
 sys.path.append(r'C:\Users\zerod\.antigravity\주식 포트폴리오 관리')
 from ls_api import load_config, get_access_token, LS_BASE_URL
 import requests
@@ -16,17 +19,15 @@ headers = {
 
 body = {
     'CSPAQ13700InBlock1': {
-        'OrdDt': '20260527',
-        'AcntNo': cfg['account'],
-        'Pwd': cfg['account_pw'],
-        'QryTp': '0', # 0: 전체
-        'OrdPtnCode': '00',
-        'OrdMktCode': '00',
-        'BnsTpCode': '0', # 0: 전체
+        'OrdMktCode': '00', 
+        'BnsTpCode': '0', 
         'IsuNo': '',
-        'ExecYn': '1', # 0: 전체, 1: 체결, 2: 미체결, 3: 체결+미체결
-        'OrdDt1': '20260527'
+        'ExecYn': '0', 
+        'OrdDt': '20260527',
+        'SrtOrdNo2': 999999999, 
+        'BkseqTpCode': '1', 
+        'OrdPtnCode': '00'
     }
 }
 resp = requests.post(f'{LS_BASE_URL}/stock/accno', headers=headers, json=body)
-print(resp.json())
+print("No AcntNo/Pwd:", resp.json())

@@ -16,16 +16,16 @@ headers = {
 
 body = {
     'CSPAQ13700InBlock1': {
-        'OrdDt': '20260527',
-        'AcntNo': cfg['account'],
-        'Pwd': cfg['account_pw'],
-        'QryTp': '0', # 0: 전체
-        'OrdPtnCode': '00',
-        'OrdMktCode': '00',
-        'BnsTpCode': '0', # 0: 전체
+        'OrdMktCode': '00', # 00:전체 01:코스피 02:코스닥
+        'BnsTpCode': '0', # 0:전체 1:매도 2:매수
         'IsuNo': '',
-        'ExecYn': '1', # 0: 전체, 1: 체결, 2: 미체결, 3: 체결+미체결
-        'OrdDt1': '20260527'
+        'ExecYn': '0', # 0:전체 1:체결 2:미체결
+        'OrdDt': '20260527',
+        'SrtOrdNo2': 999999999, # SrtOrdNo2
+        'BkseqTpCode': '1', # 1:역순 0:정순
+        'OrdPtnCode': '00',
+        'AcntNo': cfg['account'],
+        'InptPwd': cfg['account_pw'],
     }
 }
 resp = requests.post(f'{LS_BASE_URL}/stock/accno', headers=headers, json=body)
