@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Excel Viewer - 주식 체크 리스트 고정 뷰어
  */
 
@@ -468,7 +468,7 @@ function renderChart(data) {
     if (data.current_sheet === '매매일지') {
         if (chartPanel) chartPanel.classList.add('hidden');
         if (journalPanel) journalPanel.classList.remove('hidden');
-        if (tablePanel) tablePanel.classList.remove('hidden'); // 테이블 표시 추가
+        if (tablePanel) tablePanel.classList.add('hidden'); // 테이블 표시 추가
         const investigationPanel = document.getElementById('investigation-panel');
         if (investigationPanel) investigationPanel.classList.add('hidden');
 
@@ -2295,7 +2295,7 @@ function toggleLsImportPanel() {
 
 async function initLsImportPanel() {
     // 날짜 기본값 세팅 (최근 1년)
-    setLsDateRange(365);
+    setLsDateRange(0);
     
     // 설정 불러와서 계좌 셀렉트 구성
     try {
