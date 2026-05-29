@@ -4,3 +4,7 @@
 [2026-05-29 20:45:21] ===== Health check start =====
 [2026-05-29 20:45:23] OK - Server running HTTP 200
 [2026-05-29 20:45:23] ===== Health check done =====
+[2026-05-29 20:56:43] ===== Health check start =====
+[2026-05-29 20:56:43] ALERT - Server down. Starting...
+[2026-05-29 20:56:50] SUCCESS - Restarted on port 5000
+[2026-05-29 20:56:50] ===== Health check done =====

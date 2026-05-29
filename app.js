@@ -2294,8 +2294,8 @@ function toggleLsImportPanel() {
 }
 
 async function initLsImportPanel() {
-    // 날짜 기본값 세팅 (최근 1주일)
-    setLsDateRange(7);
+    // 날짜 기본값 세팅 (최근 1년)
+    setLsDateRange(365);
     
     // 설정 불러와서 계좌 셀렉트 구성
     try {

@@ -138,7 +138,7 @@ function ConfigPanel({ onSaved }: { onSaved: () => void }) {
 // ─── 메인 화면 ────────────────────────────────────────────
 export default function ImportTradeScreen() {
   const [tab, setTab] = useState<'fetch' | 'config'>('fetch');
-  const [fromDate, setFromDate] = useState(toYYYYMMDD(new Date(Date.now() - 7 * 86400000)));
+  const [fromDate, setFromDate] = useState(toYYYYMMDD(new Date(Date.now() - 365 * 86400000)));
   const [toDate, setToDate] = useState(toYYYYMMDD(new Date()));
   const [stockCode, setStockCode] = useState('');
   const [trades, setTrades] = useState<Trade[]>([]);

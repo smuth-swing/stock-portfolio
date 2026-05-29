@@ -107,19 +107,20 @@ def fetch_trade_history(
     stock_code: str = ""
 ) -> list[dict]:
     """
-    t0425 TR: 주식 주문/체결 내역 조회
+    t0425 TR: 주식 주문/체결 내역 조회 (연속 조회로 전체 데이터 수집)
+    - 1회 최대 100건 반환 → tr_cont='Y' 동안 cts_ordno 로 계속 요청
     Args:
-        from_date: 조회 시작일 (YYYYMMDD)
-        to_date  : 조회 종료일 (YYYYMMDD)
+        from_date : 조회 시작일 (YYYYMMDD)
+        to_date   : 조회 종료일 (YYYYMMDD)
         stock_code: 종목코드 (공백=전종목)
     Returns:
         거래내역 리스트 [{ date, ticker, name, type, qty, price, amount, fee, ... }, ...]
     """
     # 설정 파일에서 기본값 로드
     cfg = load_config()
-    app_key = app_key or cfg.get("app_key", "")
+    app_key    = app_key    or cfg.get("app_key", "")
     app_secret = app_secret or cfg.get("app_secret", "")
-    account = account or cfg.get("account", "")
+    account    = account    or cfg.get("account", "")
     account_pw = account_pw or cfg.get("account_pw", "")
 
     if not all([app_key, app_secret, account, account_pw]):
@@ -127,77 +128,90 @@ def fetch_trade_history(
 
     token = get_access_token(app_key, app_secret)
 
-    headers = {
-        "content-type": "application/json; charset=utf-8",
-        "authorization": f"Bearer {token}",
-        "tr_cd": "t0425",
-        "tr_cont": "N",
-        "tr_cont_key": "",
-        "mac_address": ""
-    }
+    # ── 연속 조회 루프 ────────────────────────────────────────────
+    all_raw   = []    # 전체 원시 데이터 누적
+    cts_ordno = ""    # 연속 조회 키 (첫 번째는 공백)
+    MAX_PAGES = 100   # 무한루프 방지 (100회×100건 = 최대 10,000건)
 
-    body = {
-        "t0425InBlock": {
-            "accno": account,
-            "passwd": account_pw,
-            "expcode": stock_code,     # 공백 = 전종목
-            "chegb": "0",              # 0=전체 (체결 포함)
-            "medosu": "0",             # 0=전체 (1=매도, 2=매수)
-            "sortgb": "1",             # 1=주문번호 오름차순
-            "cts_ordno": "",           # 연속 조회 키 (첫 조회는 공백)
-            "fromdate": from_date,
-            "todate": to_date
+    for page in range(MAX_PAGES):
+        headers = {
+            "content-type": "application/json; charset=utf-8",
+            "authorization": f"Bearer {token}",
+            "tr_cd": "t0425",
+            "tr_cont": "Y" if cts_ordno else "N",  # 연속 조회 시 'Y'
+            "tr_cont_key": cts_ordno,
+            "mac_address": ""
         }
-    }
 
-    resp = requests.post(
-        f"{LS_BASE_URL}/stock/accno",
-        headers=headers,
-        json=body,
-        timeout=15
-    )
-    resp.raise_for_status()
-    result = resp.json()
+        body = {
+            "t0425InBlock": {
+                "accno":    account,
+                "passwd":   account_pw,
+                "expcode":  stock_code,   # 공백 = 전종목
+                "chegb":    "0",          # 0=전체
+                "medosu":   "0",          # 0=전체 (1=매도, 2=매수)
+                "sortgb":   "1",          # 1=주문번호 오름차순
+                "cts_ordno": cts_ordno,   # 연속 조회 키
+                "fromdate": from_date,
+                "todate":   to_date
+            }
+        }
 
-    # 에러 체크
-    if "rsp_cd" in result and result["rsp_cd"] != "00000":
-        raise RuntimeError(f"LS API 오류: [{result.get('rsp_cd')}] {result.get('rsp_msg', '알 수 없는 오류')}")
+        resp = requests.post(
+            f"{LS_BASE_URL}/stock/accno",
+            headers=headers,
+            json=body,
+            timeout=15
+        )
+        resp.raise_for_status()
+        result = resp.json()
 
-    raw_list = result.get("t0425OutBlock1", [])
-    if not raw_list:
+        # 에러 체크
+        if "rsp_cd" in result and result["rsp_cd"] != "00000":
+            raise RuntimeError(f"LS API 오류: [{result.get('rsp_cd')}] {result.get('rsp_msg', '알 수 없는 오류')}")
+
+        raw_list = result.get("t0425OutBlock1", [])
+        if raw_list:
+            all_raw.extend(raw_list)
+
+        # ── 다음 페이지 확인 ──────────────────────────────────────
+        # 응답 헤더 tr_cont='Y' → 다음 페이지 있음
+        resp_tr_cont = resp.headers.get("tr_cont", "").strip()
+        out_block = result.get("t0425OutBlock", {})
+        next_key = str(out_block.get("cts_ordno", "")).strip() if out_block else ""
+
+        if resp_tr_cont == "Y" and next_key and next_key != "0000000000":
+            cts_ordno = next_key   # 다음 페이지 키로 갱신
+        else:
+            break  # 마지막 페이지 → 루프 종료
+
+    # ── 원시 데이터 → 정제된 거래 목록 변환 ─────────────────────
+    if not all_raw:
         return []
 
     trades = []
-    # t0425는 날짜를 반환하지 않으므로 조회 기간의 시작일을 기본값으로 사용
     default_date = f"{from_date[:4]}-{from_date[4:6]}-{from_date[6:8]}"
 
-    for item in raw_list:
-        # 체결 상태만 포함 (미체결 제외)
-        status = str(item.get("status", "")).strip()
+    for item in all_raw:
         cheqty = int(item.get("cheqty", 0) or 0)
-        if cheqty == 0:  # 체결 수량이 0이면 미체결 → 건너뜀
+        if cheqty == 0:  # 미체결 건너뜀
             continue
 
-        # 매도/매수 구분 (한글 또는 코드 모두 처리)
         medosu_val = str(item.get("medosu", "")).strip()
         trade_type = "매도" if (medosu_val in ("1", "매도") or "도" in medosu_val) else "매수"
 
-        # 날짜: trddate 있으면 사용, 없으면 조회 기간 시작일
-        raw_date = str(item.get("trddate", "")).strip()
+        raw_date = str(item.get("trddate", "")).strip() or str(item.get("orddt", "")).strip()
         if len(raw_date) == 8:
             trade_date = f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:8]}"
         else:
-            trade_date = default_date
+            # t0425는 기본적으로 당일 체결 내역만 반환하므로, 날짜가 없으면 오늘 날짜(또는 요청한 to_date)를 사용
+            trade_date = f"{to_date[:4]}-{to_date[4:6]}-{to_date[6:8]}"
 
-        # 체결수량 / 체결단가 사용 (주문수량/단가 아님)
         price = int(item.get("cheprice", 0) or item.get("price", 0) or 0)
         amount = cheqty * price
         fee = int(item.get("fee", 0) or 0)
-
-        # 투자금 = 체결금액 (만원 단위)
         investment = round(amount / 10000, 1)
 
-        # 종목명: expname이 있으면 사용, 없으면 종목코드로 조회 (t8436)
         name = str(item.get("expname", "")).strip()
         ticker = str(item.get("expcode", "")).strip()
         if not name:

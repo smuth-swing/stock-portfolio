@@ -1,4 +1,6 @@
-"""
+﻿path = r"C:\Users\zerod\.antigravity\주식 포트폴리오 관리\auto_github_uploader.py"
+
+content = '''"""
 auto_github_uploader.py -- 엑셀 파일 변경 감지 시 GitHub 자동 업로드
 
 동작 방식:
@@ -17,9 +19,9 @@ from datetime import datetime
 CREATE_NO_WINDOW = 0x08000000
 
 # ==================== 설정 ====================
-WATCH_FILE  = r"C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx"
-PROJECT_DIR = r"c:\Users\zerod\.antigravity\주식 포트폴리오 관리"
-PYTHON_EXE  = r"C:\Users\zerod\AppData\Local\Programs\Python\Python312\python.exe"
+WATCH_FILE  = r"C:\\Users\\zerod\\OneDrive\\주식 체크 리스트_20220328.xlsx"
+PROJECT_DIR = r"c:\\Users\\zerod\\.antigravity\\주식 포트폴리오 관리"
+PYTHON_EXE  = r"C:\\Users\\zerod\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"
 LOG_FILE    = os.path.join(PROJECT_DIR, "upload_log.txt")
 EXPORT_SCRIPT = os.path.join(PROJECT_DIR, "export_to_json.py")
 
@@ -70,7 +72,7 @@ def run_git_upload():
         dst = os.path.join(PROJECT_DIR, "mobile", "data")
         if os.path.exists(src):
             subprocess.run(
-                f'xcopy "{src}" "{dst}" /E /I /Y',
+                f\'xcopy "{src}" "{dst}" /E /I /Y\',
                 shell=True,
                 creationflags=CREATE_NO_WINDOW,
                 capture_output=True,
@@ -83,7 +85,7 @@ def run_git_upload():
 
         # 4단계: git commit
         log.info("4. Git 커밋 중...")
-        commit_msg = f"Auto update data {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        commit_msg = f"Auto update data {datetime.now().strftime(\'%Y-%m-%d %H:%M\')}"
         result = run_no_window(
             ["git", "commit", "-m", commit_msg],
             cwd=PROJECT_DIR,
@@ -145,3 +147,8 @@ if __name__ == "__main__":
     while True:
         check_file()
         time.sleep(10)
+'''
+
+with open(path, "w", encoding="utf-8") as f:
+    f.write(content)
+print("Saved:", path)
