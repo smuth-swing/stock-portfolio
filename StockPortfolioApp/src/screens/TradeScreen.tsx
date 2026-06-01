@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView, Dimensions, TextInput } from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { useDataStore } from '../store/useDataStore';
 import { LinearGradient } from 'expo-linear-gradient';

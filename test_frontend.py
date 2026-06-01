@@ -1,22 +1,29 @@
-import json
-import requests
-import time
-import urllib.parse
+import asyncio
+from playwright.async_api import async_playwright
 
-def test_fetch():
-    stocks = ["삼성전자", "SK하이닉스", "카카오", "NAVER", "현대차", "기아", "LG화학", "셀트리온", "POSCO홀딩스", "KB금융"]
-    
-    for stock in stocks:
-        url = f"http://127.0.0.1:5000/api/ls/moving-averages?name={urllib.parse.quote(stock)}"
-        try:
-            res = requests.get(url)
-            data = res.json()
-            if data.get('success') and data.get('data') and data['data'].get('current'):
-                print(f"[OK] {stock}: {data['data']['current']}")
-            else:
-                print(f"[FAIL] {stock}: {data}")
-        except Exception as e:
-            print(f"[ERROR] {stock}: {e}")
+async def main():
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        page = await browser.new_page()
         
-if __name__ == "__main__":
-    test_fetch()
+        # Capture console messages
+        page.on("console", lambda msg: print(f"Console {msg.type}: {msg.text}"))
+        # Capture page errors (uncaught exceptions)
+        page.on("pageerror", lambda err: print(f"PageError: {err.message}"))
+        
+        print("Navigating to URL...")
+        response = await page.goto("https://smuth-swing.github.io/stock-portfolio/mobile/")
+        print(f"Status code: {response.status}")
+        
+        # Wait a few seconds for JS to execute
+        await page.wait_for_timeout(5000)
+        
+        # Print the body HTML
+        body_html = await page.evaluate("document.body.innerHTML")
+        print("\n--- BODY HTML ---")
+        print(body_html[:1000]) # Print first 1000 chars
+        print("--- END BODY ---")
+        
+        await browser.close()
+
+asyncio.run(main())
