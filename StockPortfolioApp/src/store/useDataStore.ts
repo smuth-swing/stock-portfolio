@@ -39,6 +39,8 @@ interface AppState {
   addToSyncQueue: (editData: any) => Promise<void>;
   clearSyncQueue: () => Promise<void>;
   loadSyncQueue: () => Promise<void>;
+  markQueueAsSynced: () => Promise<void>;
+  cleanupSyncQueue: () => Promise<void>;
 }
 
 // ─────────────────────────────────────────────
@@ -188,6 +190,9 @@ export const useDataStore = create<AppState>((set, get) => ({
       });
       console.log(`[useDataStore] ${serverFailed ? '⚠️ 서버 연결 실패 (오프라인 모드)' : '✅ 동기화 종료'}`);
     }
+    
+    // 서버 데이터를 다 불러온 후에, 서버의 갱신 시간과 비교하여 이미 반영된 큐 정리
+    await get().cleanupSyncQueue();
   },
 
   // ────────────────────────────────────────────
@@ -231,6 +236,31 @@ export const useDataStore = create<AppState>((set, get) => ({
   clearSyncQueue: async () => {
     set({ syncQueue: [] });
     await AsyncStorage.removeItem('@sync_queue');
+  },
+
+  markQueueAsSynced: async () => {
+    const { syncQueue } = get();
+    const newQueue = syncQueue.map(item => ({ ...item, isPendingSync: false }));
+    set({ syncQueue: newQueue });
+    await AsyncStorage.setItem('@sync_queue', JSON.stringify(newQueue));
+  },
+
+  cleanupSyncQueue: async () => {
+    const { syncQueue, meta } = get();
+    if (!meta || !meta.updated_at || !syncQueue || syncQueue.length === 0) return;
+    
+    const serverTime = new Date(meta.updated_at).getTime();
+    const newQueue = syncQueue.filter(edit => {
+      if (!edit.timestamp) return false; // 예외 방지용 (이전 구조)
+      const editTime = new Date(edit.timestamp).getTime();
+      return editTime > serverTime; // 서버 갱신 시각보다 늦게 작성된 것만 유지
+    });
+    
+    if (newQueue.length !== syncQueue.length) {
+      set({ syncQueue: newQueue });
+      await AsyncStorage.setItem('@sync_queue', JSON.stringify(newQueue));
+      console.log(`[useDataStore] 🧹 서버에 이미 반영된 큐 ${syncQueue.length - newQueue.length}개 정리 완료`);
+    }
   }
 }));
 

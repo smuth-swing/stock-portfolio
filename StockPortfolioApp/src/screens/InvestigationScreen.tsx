@@ -8,7 +8,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 export default function InvestigationScreen() {
-  const { investigation, isLoading, refreshData, syncQueue, addToSyncQueue, clearSyncQueue, meta } = useDataStore();
+  const { investigation, isLoading, refreshData, syncQueue, addToSyncQueue, markQueueAsSynced, meta } = useDataStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'strategy'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,7 +77,13 @@ export default function InvestigationScreen() {
       };
       const values = columns.map((col: string) => newRowData[col] !== undefined && newRowData[col] !== null ? newRowData[col] : '');
 
-      const editTask = { file: filePath, sheet: sheetName, rowIndex: realIndex, values };
+      const editTask = { 
+        file: filePath, 
+        sheet: sheetName, 
+        rowIndex: realIndex, 
+        values,
+        timestamp: new Date().toISOString()
+      };
       await addToSyncQueue(editTask);
       
       investigation.data[realIndex] = newRowData; 
@@ -105,7 +111,7 @@ export default function InvestigationScreen() {
       form.appendChild(input);
       document.body.appendChild(form);
       
-      clearSyncQueue().then(() => {
+      markQueueAsSynced().then(() => {
         form.submit();
       });
     } else {
@@ -145,10 +151,16 @@ export default function InvestigationScreen() {
 
         {syncQueue && syncQueue.length > 0 && (
           <View style={styles.syncBanner}>
-            <Text style={styles.syncBannerText}>🔄 PC 동기화 대기 중인 수정내역 ({syncQueue.length}건)</Text>
-            <TouchableOpacity style={styles.syncBtn} onPress={handleSync}>
-              <Text style={styles.syncBtnText}>PC로 전송하기</Text>
-            </TouchableOpacity>
+            <Text style={styles.syncBannerText}>
+              {syncQueue.some(item => item.isPendingSync !== false) 
+                ? `🔄 PC 동기화 대기 중인 수정내역 (${syncQueue.length}건)`
+                : `⏳ GitHub 서버 반영 대기 중... (${syncQueue.length}건)`}
+            </Text>
+            {syncQueue.some(item => item.isPendingSync !== false) && (
+              <TouchableOpacity style={styles.syncBtn} onPress={handleSync}>
+                <Text style={styles.syncBtnText}>PC로 전송하기</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
         
