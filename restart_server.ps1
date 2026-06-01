@@ -1,4 +1,4 @@
-﻿# 서버 재시작 스크립트 (매일 21:10 자동 실행용)
+# 서버 재시작 스크립트 (매일 21:10 자동 실행용)
 # 포트 5000 Python 프로세스를 종료하고 스케줄러로 재시작
 
 $ProjectDir = "C:\Users\zerod\.antigravity\주식 포트폴리오 관리"
@@ -14,7 +14,12 @@ function Write-Log($msg) {
 
 Write-Log "===== 서버 자동 재시작 시작 ====="
 
-# 1. 포트 5000 점유 Python 프로세스 종료
+# 1. 스케줄러로 실행 중인 태스크 강제 종료 (관리자 권한 프로세스 종료용)
+schtasks /end /tn "StockPortfolioServer" *>&1 | Out-Null
+Write-Log "작업 스케줄러 'StockPortfolioServer' 강제 종료 신호 전송 완료"
+Start-Sleep -Seconds 2
+
+# 2. 포트 5000 점유 Python 프로세스 확인 및 종료 (Fall-back)
 $netLines = netstat -ano | Select-String ":5000 " | Where-Object { $_ -match "LISTENING" }
 if ($netLines) {
     foreach ($netLine in $netLines) {
