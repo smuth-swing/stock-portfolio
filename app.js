@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Excel Viewer - 주식 체크 리스트 고정 뷰어
  */
 
@@ -342,6 +342,8 @@ async function loadExcel(filePath, sheetName = null) {
     if (journalPanel) journalPanel.classList.add('hidden');
     if (investigationPanel) investigationPanel.classList.add('hidden');
     if (chartPanel) chartPanel.classList.remove('hidden');
+    const signalPanel = document.getElementById('signal-panel');
+    if (signalPanel) signalPanel.classList.add('hidden');
 
     try {
         // 캐시 방지를 위해 타임스탬프 추가
@@ -407,12 +409,148 @@ function renderSheetTabs(sheets, activeSheet) {
     // '탑쌓기', '카드놀이' 시트 제외
     const filteredSheets = sheets.filter(name => name !== '탑쌓기' && name !== '카드놀이');
 
-    container.innerHTML = filteredSheets.map(name => `
+    let html = filteredSheets.map(name => `
         <button class="sheet-tab ${name === activeSheet ? 'active' : ''}" 
                 onclick="loadExcel('${currentData._filePath}', '${name}')">
             ${name}
         </button>
     `).join('');
+    
+    // 신호 포착 커스텀 탭 추가
+    html += `
+        <button class="sheet-tab ${activeSheet === '신호 포착' ? 'active' : ''}" 
+                onclick="loadSignalTab()">
+            신호 포착
+        </button>
+    `;
+    container.innerHTML = html;
+}
+
+async function loadSignalTab() {
+    if (!currentData) return;
+    
+    // UI 업데이트 (탭 활성화)
+    renderSheetTabs(currentData.sheet_names, '신호 포착');
+    
+    // 패널 가시성 전환
+    const tablePanel = document.getElementById('table-panel');
+    const journalPanel = document.getElementById('journal-panel');
+    const investigationPanel = document.getElementById('investigation-panel');
+    const chartPanel = document.querySelector('.chart-panel');
+    const signalPanel = document.getElementById('signal-panel');
+    
+    if (tablePanel) tablePanel.classList.add('hidden');
+    if (journalPanel) journalPanel.classList.add('hidden');
+    if (investigationPanel) investigationPanel.classList.add('hidden');
+    if (chartPanel) chartPanel.classList.add('hidden');
+    if (signalPanel) signalPanel.classList.remove('hidden');
+    
+    await refreshSignalPrices();
+}
+
+async function refreshSignalPrices() {
+    const tbody = document.getElementById('signal-table-body');
+    if (!tbody) return;
+    
+    const stocks = Object.keys(portfolioMapCache).filter(name => name && name.trim());
+    
+    if (stocks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">포트폴리오 종목이 없습니다.</td></tr>';
+        return;
+    }
+    
+    // 1. 기본 테이블 생성
+    let html = '';
+    for (const stock of stocks) {
+        const amount = portfolioMapCache[stock];
+        // 종목명에서 공백 등을 제거하여 안전한 ID 생성
+        const safeId = stock.replace(/[^a-zA-Z0-9가-힣]/g, '');
+        html += `
+            <tr id="signal-row-${safeId}">
+                <td style="font-weight:bold; color:var(--gold-light);">${stock}</td>
+                <td>${amount.toLocaleString()}</td>
+                <td class="col-price">-</td>
+                <td class="col-status"><div class="spinner" style="display:inline-block;width:14px;height:14px;vertical-align:middle;border-width:2px;"></div></td>
+            </tr>
+        `;
+    }
+    tbody.innerHTML = html;
+    showToast('현재가 및 이동평균선 조회를 시작합니다.', 'info');
+    
+    // 2. 개별 종목별로 비동기 MA 조회 (순차적으로 실행하여 API 속도 제한 방지)
+    for (const stock of stocks) {
+        const safeId = stock.replace(/[^a-zA-Z0-9가-힣]/g, '');
+        const row = document.getElementById(`signal-row-${safeId}`);
+        if (!row) continue;
+        
+        try {
+            const res = await fetch(`${API}/ls/moving-averages?name=${encodeURIComponent(stock)}`);
+            if (!res.ok) throw new Error('API Error');
+            const result = await res.json();
+            
+            if (result.success && result.data && result.data.current) {
+                const data = result.data;
+                const current = data.current;
+                const ma5_month = data.ma5_month || 0;
+                
+                row.querySelector('.col-price').innerHTML = `<span style="color:var(--highlight); font-weight:bold;">${current.toLocaleString()}원</span>`;
+                
+                let statusHtml = '';
+                
+                if (ma5_month > 0) {
+                    const ma5_month_next = data.ma5_month_next || ma5_month;
+                    const diffPercent = ((current - ma5_month) / ma5_month) * 100;
+                    
+                    // 조건부 강조: -10% ~ -20% 사이인 종목만 붉은색 행 강조
+                    if (diffPercent <= -10 && diffPercent >= -20) {
+                        row.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+                        row.style.borderLeft = '3px solid var(--danger)';
+                    }
+                    
+                    if (current < ma5_month) {
+                        statusHtml += `<div style="color:var(--danger); font-size:12px; font-weight:bold; margin-bottom:2px;">⚠️ 5월봉 하회 (${diffPercent.toFixed(2)}%)</div>`;
+                    } else {
+                        statusHtml += `<div style="color:var(--highlight); font-size:12px; margin-bottom:2px;">✅ 5월봉 상회 (+${diffPercent.toFixed(2)}%)</div>`;
+                    }
+                    
+                    statusHtml += `<div style="font-size:11px; color:#aaa; margin-bottom:4px; line-height:1.2;">
+                                    이번달 5월봉: ${Math.round(ma5_month).toLocaleString()}원<br>
+                                    다음달 예상가: <span style="color:#ddd">${Math.round(ma5_month_next).toLocaleString()}원</span>
+                                   </div>`;
+                }
+                
+                // RSI 상태 추가
+                const rsiD = data.rsi_day || 0;
+                const rsiW = data.rsi_week || 0;
+                const rsiM = data.rsi_month || 0;
+                
+                const getRsiText = (label, val) => {
+                    if (val >= 70) return `<div style="color:#3b82f6; font-weight:bold;">${label}: 🔥과매수(${val})</div>`;
+                    if (val <= 30) return `<div style="color:var(--danger); font-weight:bold;">${label}: 🧊과매도(${val})</div>`;
+                    return ``;
+                };
+                
+                const rsiTexts = [
+                    getRsiText('일', rsiD),
+                    getRsiText('주', rsiW),
+                    getRsiText('월', rsiM)
+                ].filter(t => t !== '').join('');
+                
+                if (rsiTexts !== '') {
+                    statusHtml += `<div style="font-size:12px; line-height:1.4;">${rsiTexts}</div>`;
+                } else if (statusHtml === '') {
+                    statusHtml += `<div style="color:gray; font-size:12px;">-</div>`;
+                }
+                
+                row.querySelector('.col-status').innerHTML = statusHtml;
+            } else {
+                row.querySelector('.col-status').innerHTML = '<span style="color:gray; font-size:12px;">조회 불가 (데이터 없음)</span>';
+            }
+        } catch (e) {
+            console.error(`MA fetch error for ${stock}:`, e);
+            row.querySelector('.col-status').innerHTML = '<span style="color:gray; font-size:12px;">오류</span>';
+        }
+    }
 }
 
 let portfolioChart = null;
@@ -882,6 +1020,7 @@ function updateChart(data, columnName) {
 
         const totalInvestment = totalOpAmount + totalExAmount;
         document.getElementById('stat-total').textContent = totalInvestment.toLocaleString();
+        document.getElementById('stat-stock-count').textContent = values.length;
         document.getElementById('stat-operating').textContent = totalOpAmount.toLocaleString();
         document.getElementById('stat-excluding').textContent = totalExAmount.toLocaleString();
         
@@ -1306,7 +1445,7 @@ function renderInvestigationEditForm(rowIndex) {
             // 종목명 중복 체크
             const nameCol = findStockColumnName(currentData.columns);
             if (colKey === nameCol && newValue.trim() !== '') {
-                const isDuplicate = currentData.data.some((row, idx) => {
+                const duplicateIndex = currentData.data.findIndex((row, idx) => {
                     if (idx === rIdx) return false;
                     const existingName = String(row[nameCol] || '').trim();
                     // 취소선(~~) 제거 후 비교하여 동일 종목인지 판단
@@ -1315,11 +1454,14 @@ function renderInvestigationEditForm(rowIndex) {
                     return cleanExisting === cleanNew;
                 });
 
-                if (isDuplicate) {
-                    alert(`'${newValue.replace(/~~/g, '')}'은(는) 이미 존재하는 종목명입니다.\n중복된 종목명은 저장할 수 없습니다.`);
+                if (duplicateIndex !== -1) {
+                    alert(`'${newValue.replace(/~~/g, '')}'은(는) 이미 탐구생활에 존재하는 종목명입니다.\n해당 종목으로 자동 이동합니다.`);
                     // 원래 값으로 복구
                     const originalValue = String(currentData.data[rIdx][colKey] || '');
                     ed.innerHTML = originalValue.replace(/\n/g, '<br>').replace(/~~(.*?)~~/g, '<del>$1</del>');
+                    
+                    // 기존 종목으로 즉시 점프
+                    setSelectedInvestigationRow(duplicateIndex);
                     return;
                 }
             }
@@ -1578,7 +1720,7 @@ async function handleInvestigationCellBlur(event) {
     // 종목명 중복 체크
     const nameCol = findStockColumnName(currentData.columns);
     if (colKey === nameCol && newValue.trim() !== '') {
-        const isDuplicate = currentData.data.some((r, idx) => {
+        const duplicateIndex = currentData.data.findIndex((r, idx) => {
             if (idx === rowIndex) return false;
             const existingName = String(r[nameCol] || '').trim();
             const cleanExisting = existingName.replace(/~~/g, '');
@@ -1586,10 +1728,13 @@ async function handleInvestigationCellBlur(event) {
             return cleanExisting === cleanNew;
         });
 
-        if (isDuplicate) {
-            alert(`'${newValue.replace(/~~/g, '')}'은(는) 이미 존재하는 종목명입니다.\n중복된 종목명은 저장할 수 없습니다.`);
+        if (duplicateIndex !== -1) {
+            alert(`'${newValue.replace(/~~/g, '')}'은(는) 이미 탐구생활에 존재하는 종목명입니다.\n해당 종목으로 자동 이동합니다.`);
             // 원래 값으로 복구
             td.innerHTML = String(row[colKey] || '').replace(/\n/g, '<br>').replace(/~~(.*?)~~/g, '<del>$1</del>');
+            
+            // 기존 종목으로 즉시 점프
+            setSelectedInvestigationRow(duplicateIndex);
             return;
         }
     }

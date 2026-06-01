@@ -856,6 +856,94 @@ def ls_import_trades():
         print(traceback.format_exc())
         return jsonify({'error': f'저장 오류: {str(e)}'}), 500
 
+@app.route('/api/ls/current-prices', methods=['POST'])
+def ls_current_prices():
+    """
+    LS증권 API로 여러 종목의 현재가 조회
+    Body: { "shcodes": ["005930", ...], "names": ["삼성전자", "SK하이닉스", ...] }
+    반환: { "005930": 80000, "삼성전자": 80000 }
+    """
+    try:
+        from ls_api import fetch_current_prices, get_stock_codes_by_names, load_config, get_access_token
+    except ImportError:
+        return jsonify({'error': 'ls_api 모듈을 찾을 수 없습니다.'}), 500
+
+    data = request.get_json() or {}
+    shcodes = data.get('shcodes', [])
+    names = data.get('names', [])
+    
+    name_to_code = {}
+    code_to_name = {}
+
+    if names:
+        cfg = load_config()
+        token = get_access_token(cfg["app_key"], cfg["app_secret"])
+        if token:
+            name_to_code = get_stock_codes_by_names(token, names)
+            shcodes.extend(name_to_code.values())
+            code_to_name = {v: k for k, v in name_to_code.items()}
+
+    shcodes = list(set(shcodes)) # 중복 제거
+
+    if not shcodes:
+        return jsonify({'error': '종목 코드(shcodes)나 종목명(names)을 제공해주세요.'}), 400
+
+    try:
+        prices = fetch_current_prices(shcodes)
+        
+        # 이름으로 요청된 경우 이름으로도 가격 추가
+        result_prices = {**prices}
+        for code, price in prices.items():
+            if code in code_to_name:
+                result_prices[code_to_name[code]] = price
+                
+        return jsonify({
+            'success': True,
+            'prices': result_prices
+        })
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'error': f'현재가 조회 실패: {str(e)}'}), 500
+
+
+@app.route('/api/ls/moving-averages', methods=['GET'])
+def ls_moving_averages():
+    """
+    단일 종목의 이동평균선(5, 20, 60, 120일) 데이터 조회
+    Query: ?shcode=005930 또는 ?name=삼성전자
+    """
+    try:
+        from ls_api import fetch_moving_averages, get_stock_codes_by_names, load_config, get_access_token
+    except ImportError:
+        return jsonify({'error': 'ls_api 모듈을 찾을 수 없습니다.'}), 500
+
+    shcode = request.args.get('shcode', '')
+    name = request.args.get('name', '')
+
+    if name and not shcode:
+        cfg = load_config()
+        token = get_access_token(cfg["app_key"], cfg["app_secret"])
+        if token:
+            name_to_code = get_stock_codes_by_names(token, [name])
+            if name in name_to_code:
+                shcode = name_to_code[name]
+
+    if not shcode:
+        return jsonify({'error': '종목 코드나 이름을 제공해주세요.'}), 400
+
+    try:
+        ma_data = fetch_moving_averages(shcode)
+        return jsonify({
+            'success': True,
+            'data': ma_data
+        })
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'error': f'이동평균선 조회 실패: {str(e)}'}), 500
+
+
 if __name__ == '__main__':
     print("=" * 60)
     print("  Stock Portfolio Analysis Server")

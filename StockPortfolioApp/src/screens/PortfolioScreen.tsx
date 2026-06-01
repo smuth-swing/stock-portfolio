@@ -33,9 +33,9 @@ export default function PortfolioScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<any>>();
 
   // PC 버전과 동일한 데이터 파싱 로직
-  const { sectorData, stockItems, totalInvestment, avgValue } = useMemo(() => {
+  const { sectorData, stockItems, totalInvestment, avgValue, stockCount } = useMemo(() => {
     if (!portfolioMap || !portfolioMap.data) {
-      return { sectorData: [], stockItems: [], totalInvestment: 0, avgValue: 0 };
+      return { sectorData: [], stockItems: [], totalInvestment: 0, avgValue: 0, stockCount: 0 };
     }
     
     const sectors: { [key: string]: number } = {};
@@ -115,6 +115,7 @@ export default function PortfolioScreen() {
       stockItems: sortedStocks,
       totalInvestment: total,
       avgValue: avg,
+      stockCount: stocks.length,
     };
   }, [portfolioMap]);
 
@@ -248,7 +249,7 @@ export default function PortfolioScreen() {
   const renderStockBarChart = () => (
     <View style={[styles.chartPage, { paddingHorizontal: 0 }]}>
       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
-        <Text style={[styles.cardTitle, { marginBottom: 0 }]}>종목별 투자 현황 (M)</Text>
+        <Text style={[styles.cardTitle, { marginBottom: 0 }]}>종목별 투자 현황 ({stockCount}종목)</Text>
         <TouchableOpacity onPress={() => setShowFullChart(true)} style={styles.fullViewButton}>
           <Text style={styles.fullViewButtonText}>전체보기</Text>
         </TouchableOpacity>
@@ -284,7 +285,7 @@ export default function PortfolioScreen() {
           centerLabelComponent={() => (
             <View style={{ justifyContent: 'center', alignItems: 'center' }}>
               <Text style={{ fontSize: 24, color: 'white', fontWeight: 'bold' }}>{totalInvestment}M</Text>
-              <Text style={{ fontSize: 10, color: '#94A3B8' }}>Total</Text>
+              <Text style={{ fontSize: 10, color: '#94A3B8' }}>{stockCount}종목</Text>
             </View>
           )}
         />

@@ -96,6 +96,34 @@ def get_stock_name(token: str, shcode: str) -> str:
             
     return _stock_name_cache.get(shcode, shcode)
 
+def get_stock_codes_by_names(token: str, names: list) -> dict:
+    """주식 이름 리스트를 받아 종목 코드 딕셔너리로 반환 { "삼성전자": "005930" }"""
+    global _stock_name_cache
+    if not _stock_name_cache:
+        # 캐시가 없으면 get_stock_name 호출하여 초기화 유도
+        get_stock_name(token, "005930")
+        
+    # 이름 -> 코드 맵 생성
+    name_to_code = {v: k for k, v in _stock_name_cache.items()}
+    # 띄어쓰기/대소문자 무시 맵
+    clean_to_code = {str(v).replace(" ", "").upper(): k for k, v in _stock_name_cache.items()}
+    
+    result = {}
+    for name in names:
+        if not name: continue
+        name_str = str(name).strip()
+        
+        # 1. 완벽 일치
+        if name_str in name_to_code:
+            result[name_str] = name_to_code[name_str]
+        else:
+            # 2. 공백 제거 및 대문자 변환 후 비교
+            clean_name = name_str.replace(" ", "").upper()
+            if clean_name in clean_to_code:
+                result[name_str] = clean_to_code[clean_name]
+                
+    return result
+
 
 def fetch_trade_history(from_date, to_date, stock_code=""):
     """
@@ -227,3 +255,163 @@ def invalidate_token():
     global _token_cache
     _token_cache["access_token"] = None
     _token_cache["expires_at"] = 0
+
+def fetch_current_prices(stock_codes):
+    """
+    LS증권 주식다종목현재가(t8407) API 호출.
+    stock_codes: 종목코드 리스트 (예: ["005930", "000660"])
+    반환값: { "005930": 80000, "000660": 120000, ... } 형태의 딕셔너리
+    """
+    if not stock_codes:
+        return {}
+        
+    cfg = load_config()
+    token = get_access_token(cfg["app_key"], cfg["app_secret"])
+    if not token:
+        raise RuntimeError("LS API 토큰 발급 실패 (설정을 확인하세요).")
+        
+    # t8407은 종목코드를 연속된 문자열로 받음 (최대 50종목)
+    # 50개씩 끊어서 요청
+    result_prices = {}
+    chunk_size = 50
+    
+    for i in range(0, len(stock_codes), chunk_size):
+        chunk = stock_codes[i:i+chunk_size]
+        # 종목코드 6자리 패딩 (혹시 A가 붙어있으면 제거)
+        clean_chunk = []
+        for code in chunk:
+            c = str(code).strip()
+            if c.startswith("A"):
+                c = c[1:]
+            clean_chunk.append(c.zfill(6))
+            
+        shcode_str = "".join(clean_chunk)
+        
+        headers = {
+            "content-type": "application/json; charset=utf-8",
+            "authorization": f"Bearer {token}",
+            "tr_cd": "t8407",
+            "tr_cont": "N",
+            "mac_address": ""
+        }
+        
+        body = {
+            "t8407InBlock": {
+                "nrec": len(clean_chunk),
+                "shcode": shcode_str
+            }
+        }
+        
+        try:
+            resp = requests.post(f"{LS_BASE_URL}/stock/market-data", headers=headers, json=body, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                out_block = data.get("t8407OutBlock1", [])
+                for item in out_block:
+                    code = item.get("shcode", "")
+                    price = float(item.get("price", 0))
+                    if code:
+                        result_prices[code] = price
+            time.sleep(0.5) # API 호출 제한 방지
+        except Exception as e:
+            print(f"t8407 API 호출 중 오류 발생: {e}")
+            
+    return result_prices
+
+def calculate_rsi(closes, period=14):
+    if len(closes) < period + 1:
+        return 50.0
+    
+    diffs = [closes[i] - closes[i-1] for i in range(1, len(closes))]
+    gains = [d if d > 0 else 0 for d in diffs]
+    losses = [abs(d) if d < 0 else 0 for d in diffs]
+    
+    avg_gain = sum(gains[:period]) / period
+    avg_loss = sum(losses[:period]) / period
+    
+    for i in range(period, len(gains)):
+        avg_gain = (avg_gain * (period - 1) + gains[i]) / period
+        avg_loss = (avg_loss * (period - 1) + losses[i]) / period
+        
+    if avg_loss == 0:
+        return 100.0
+    
+    rs = avg_gain / avg_loss
+    rsi = 100.0 - (100.0 / (1.0 + rs))
+    return round(rsi, 2)
+
+def fetch_moving_averages(stock_code):
+    """
+    주식차트 t8413을 조회하여 현재가, 5개월 이동평균선, 일/주/월봉 RSI 계산.
+    stock_code: 단일 종목 코드
+    반환값: { "ma5_month": ..., "current": ..., "rsi_day": ..., "rsi_week": ..., "rsi_month": ... }
+    """
+    cfg = load_config()
+    token = get_access_token(cfg["app_key"], cfg["app_secret"])
+    if not token:
+        raise RuntimeError("LS API 토큰 발급 실패 (설정을 확인하세요).")
+        
+    code = str(stock_code).strip()
+    if code.startswith("A"):
+        code = code[1:]
+    code = code.zfill(6)
+        
+    headers = {
+        "content-type": "application/json; charset=utf-8",
+        "authorization": f"Bearer {token}",
+        "tr_cd": "t8413",
+        "tr_cont": "N",
+        "mac_address": ""
+    }
+    
+    result = {}
+    
+    gubun_map = {
+        "2": "rsi_day",
+        "3": "rsi_week",
+        "4": "rsi_month"
+    }
+    
+    for gubun, rsi_key in gubun_map.items():
+        body = {
+            "t8413InBlock": {
+                "shcode": code,
+                "gubun": gubun,
+                "qrycnt": 60, 
+                "sdate": "",
+                "edate": "99999999",
+                "cts_date": "",
+                "comp_yn": "N",
+                "sujungsign": "1" 
+            }
+        }
+        
+        try:
+            resp = requests.post(f"{LS_BASE_URL}/stock/chart", headers=headers, json=body, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                outblock = data.get("t8413OutBlock1", [])
+                if outblock:
+                    # oldest to newest
+                    closes = [float(item.get("close", 0)) for item in outblock]
+                    result[rsi_key] = calculate_rsi(closes)
+                    
+                    if gubun == "4":
+                        result["current"] = closes[-1]
+                        
+                        if len(closes) >= 5:
+                            recent5 = closes[-5:]
+                            result["ma5_month"] = sum(recent5) / 5
+                            # 다음 달 5월봉 예측 (현재가 유지 가정)
+                            next_recent5 = recent5[1:] + [recent5[-1]]
+                            result["ma5_month_next"] = sum(next_recent5) / 5
+                        else:
+                            result["ma5_month"] = sum(closes) / len(closes) if closes else 0
+                            result["ma5_month_next"] = result["ma5_month"]
+            
+            # LS OpenAPI 초당 1건 제한(TR) 우회
+            time.sleep(1.05)
+        except Exception as e:
+            print(f"t8413 (gubun {gubun}) API 호출 중 오류 발생: {e}")
+            
+    return result

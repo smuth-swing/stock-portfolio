@@ -4412,3 +4412,632 @@ OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터�
 127.0.0.1 - - [29/May/2026 20:56:02] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1780055762090 HTTP/1.1" 200 -
 127.0.0.1 - - [29/May/2026 20:56:05] "GET /api/ls/config HTTP/1.1" 200 -
 127.0.0.1 - - [29/May/2026 20:56:06] "POST /api/ls/fetch-trades HTTP/1.1" 200 -
+[COMPRESS] gzip 압축 활성화됨
+============================================================
+  Stock Portfolio Analysis Server
+============================================================
+  OneDrive Path: C:\Users\zerod\OneDrive
+  Server Address: http://localhost:5000
+============================================================
+ * Serving Flask app 'server'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+Press CTRL+C to quit
+[COMPRESS] gzip 압축 활성화됨
+============================================================
+  Stock Portfolio Analysis Server
+============================================================
+  OneDrive Path: C:\Users\zerod\OneDrive
+  Server Address: http://localhost:5000
+============================================================
+ * Serving Flask app 'server'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+Press CTRL+C to quit
+127.0.0.1 - - [30/May/2026 11:33:49] "POST /api/ls/current-prices HTTP/1.1" 200 -
+[COMPRESS] gzip 압축 활성화됨
+============================================================
+  Stock Portfolio Analysis Server
+============================================================
+  OneDrive Path: C:\Users\zerod\OneDrive
+  Server Address: http://localhost:5000
+============================================================
+ * Serving Flask app 'server'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+Press CTRL+C to quit
+127.0.0.1 - - [30/May/2026 11:45:59] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 11:45:59] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [30/May/2026 11:45:59] "GET /app.js?v=3 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 11:46:00] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 11:46:00] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [30/May/2026 11:46:00] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1780109160241 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 11:46:00] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1780109160890 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 11:46:05] "POST /api/ls/current-prices HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 11:55:56] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1780109755736&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 11:56:32] "POST /api/ls/current-prices HTTP/1.1" 200 -
+[COMPRESS] gzip 압축 활성화됨
+============================================================
+  Stock Portfolio Analysis Server
+============================================================
+  OneDrive Path: C:\Users\zerod\OneDrive
+  Server Address: http://localhost:5000
+============================================================
+ * Serving Flask app 'server'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+Press CTRL+C to quit
+[COMPRESS] gzip 압축 활성화됨
+============================================================
+  Stock Portfolio Analysis Server
+============================================================
+  OneDrive Path: C:\Users\zerod\OneDrive
+  Server Address: http://localhost:5000
+============================================================
+ * Serving Flask app 'server'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+Press CTRL+C to quit
+127.0.0.1 - - [30/May/2026 12:28:11] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1780111691501&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:15] "POST /api/ls/current-prices HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:17] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:17] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [30/May/2026 12:28:17] "GET /app.js?v=3 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:17] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:18] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1780111697774 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:18] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1780111698397 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:21] "GET /api/ls/moving-averages?name=에이피알 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:22] "GET /api/ls/moving-averages?name=토모큐브 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:22] "GET /api/ls/moving-averages?name=루닛 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:22] "GET /api/ls/moving-averages?name=리가켐바이오 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:22] "GET /api/ls/moving-averages?name=올릭스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:22] "GET /api/ls/moving-averages?name=리브스메드 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:22] "GET /api/ls/moving-averages?name=로봇%20ETF HTTP/1.1" 400 -
+127.0.0.1 - - [30/May/2026 12:28:23] "GET /api/ls/moving-averages?name=삼성바이오로직스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:23] "GET /api/ls/moving-averages?name=두산에너빌리티 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:23] "GET /api/ls/moving-averages?name=노바렉스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:23] "GET /api/ls/moving-averages?name=필에너지 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:24] "GET /api/ls/moving-averages?name=제노코 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:24] "GET /api/ls/moving-averages?name=삼성중공업 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:25] "GET /api/ls/moving-averages?name=SK하이닉스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:25] "GET /api/ls/moving-averages?name=하이브 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:25] "GET /api/ls/moving-averages?name=파크시스템스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:25] "GET /api/ls/moving-averages?name=코스텍시스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:25] "GET /api/ls/moving-averages?name=티엘비 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:26] "GET /api/ls/moving-averages?name=원익IPS HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:27] "GET /api/ls/moving-averages?name=삼성전자 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:28:27] "GET /api/ls/moving-averages?name=디아이 HTTP/1.1" 200 -
+[COMPRESS] gzip 압축 활성화됨
+============================================================
+  Stock Portfolio Analysis Server
+============================================================
+  OneDrive Path: C:\Users\zerod\OneDrive
+  Server Address: http://localhost:5000
+============================================================
+ * Serving Flask app 'server'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+Press CTRL+C to quit
+127.0.0.1 - - [30/May/2026 12:30:56] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:30:56] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [30/May/2026 12:30:56] "GET /app.js?v=3 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:30:57] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:30:57] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1780111857267 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:30:57] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1780111857881 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:02] "GET /api/ls/moving-averages?name=리가켐바이오 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:03] "GET /api/ls/moving-averages?name=리브스메드 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:05] "GET /api/ls/moving-averages?name=올릭스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:06] "GET /api/ls/moving-averages?name=토모큐브 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:08] "GET /api/ls/moving-averages?name=루닛 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:09] "GET /api/ls/moving-averages?name=에이피알 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:09] "GET /api/ls/moving-averages?name=로봇%20ETF HTTP/1.1" 400 -
+127.0.0.1 - - [30/May/2026 12:31:11] "GET /api/ls/moving-averages?name=삼성바이오로직스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:12] "GET /api/ls/moving-averages?name=필에너지 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:14] "GET /api/ls/moving-averages?name=두산에너빌리티 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:15] "GET /api/ls/moving-averages?name=노바렉스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:17] "GET /api/ls/moving-averages?name=제노코 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:18] "GET /api/ls/moving-averages?name=삼성중공업 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:20] "GET /api/ls/moving-averages?name=하이브 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:21] "GET /api/ls/moving-averages?name=코스텍시스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:23] "GET /api/ls/moving-averages?name=SK하이닉스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:24] "GET /api/ls/moving-averages?name=파크시스템스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:26] "GET /api/ls/moving-averages?name=티엘비 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:27] "GET /api/ls/moving-averages?name=원익IPS HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:29] "GET /api/ls/moving-averages?name=디아이 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:31:30] "GET /api/ls/moving-averages?name=삼성전자 HTTP/1.1" 200 -
+[COMPRESS] gzip 압축 활성화됨
+============================================================
+  Stock Portfolio Analysis Server
+============================================================
+  OneDrive Path: C:\Users\zerod\OneDrive
+  Server Address: http://localhost:5000
+============================================================
+ * Serving Flask app 'server'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+Press CTRL+C to quit
+127.0.0.1 - - [30/May/2026 12:34:22] "GET /api/ls/moving-averages?name=리가켐바이오 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:23] "GET /api/ls/moving-averages?name=리브스메드 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:25] "GET /api/ls/moving-averages?name=올릭스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:26] "GET /api/ls/moving-averages?name=토모큐브 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:28] "GET /api/ls/moving-averages?name=루닛 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:29] "GET /api/ls/moving-averages?name=에이피알 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:30] "GET /api/ls/moving-averages?name=로봇%20ETF HTTP/1.1" 400 -
+127.0.0.1 - - [30/May/2026 12:34:31] "GET /api/ls/moving-averages?name=삼성바이오로직스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:33] "GET /api/ls/moving-averages?name=필에너지 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:34] "GET /api/ls/moving-averages?name=두산에너빌리티 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:35] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:36] "GET /api/ls/moving-averages?name=노바렉스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:36] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [30/May/2026 12:34:36] "GET /app.js?v=3 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:36] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:36] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1780112076182 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:36] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1780112076871 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:39] "GET /api/ls/moving-averages?name=리가켐바이오 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:41] "GET /api/ls/moving-averages?name=리브스메드 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:42] "GET /api/ls/moving-averages?name=올릭스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:44] "GET /api/ls/moving-averages?name=토모큐브 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:45] "GET /api/ls/moving-averages?name=루닛 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:47] "GET /api/ls/moving-averages?name=에이피알 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:47] "GET /api/ls/moving-averages?name=로봇%20ETF HTTP/1.1" 400 -
+127.0.0.1 - - [30/May/2026 12:34:49] "GET /api/ls/moving-averages?name=삼성바이오로직스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:50] "GET /api/ls/moving-averages?name=필에너지 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:52] "GET /api/ls/moving-averages?name=두산에너빌리티 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:53] "GET /api/ls/moving-averages?name=노바렉스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:54] "GET /api/ls/moving-averages?name=제노코 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:56] "GET /api/ls/moving-averages?name=삼성중공업 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:57] "GET /api/ls/moving-averages?name=하이브 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:34:59] "GET /api/ls/moving-averages?name=코스텍시스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:35:00] "GET /api/ls/moving-averages?name=SK하이닉스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:35:02] "GET /api/ls/moving-averages?name=파크시스템스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:35:03] "GET /api/ls/moving-averages?name=티엘비 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:35:05] "GET /api/ls/moving-averages?name=원익IPS HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:35:06] "GET /api/ls/moving-averages?name=디아이 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:35:08] "GET /api/ls/moving-averages?name=삼성전자 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:35:30] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1780112129610&sheet=탐구생활 HTTP/1.1" 200 -
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [30/May/2026 12:35:31] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1229행, 1008.1 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 14.0 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (57행, 19.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 5.5 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 30일 12:35
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [30/May/2026 12:35:40] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1229행, 1008.1 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 14.0 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (57행, 19.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 5.5 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 30일 12:35
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [30/May/2026 12:35:48] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1229행, 1008.1 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 14.0 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (57행, 19.0 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 5.5 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 30일 12:35
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [30/May/2026 12:36:21] "GET /api/ls/moving-averages?name=삼성전자 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:36:22] "GET /api/ls/moving-averages?name=SK하이닉스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:36:24] "GET /api/ls/moving-averages?name=카카오 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:36:25] "GET /api/ls/moving-averages?name=NAVER HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:36:26] "GET /api/ls/moving-averages?name=현대차 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:36:28] "GET /api/ls/moving-averages?name=기아 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:36:29] "GET /api/ls/moving-averages?name=LG화학 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:36:30] "GET /api/ls/moving-averages?name=셀트리온 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:36:32] "GET /api/ls/moving-averages?name=POSCO홀딩스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:36:33] "GET /api/ls/moving-averages?name=KB금융 HTTP/1.1" 200 -
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [30/May/2026 12:37:03] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1229행, 1008.1 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 14.0 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (57행, 19.1 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 5.5 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 30일 12:37
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[COMPRESS] gzip 압축 활성화됨
+============================================================
+  Stock Portfolio Analysis Server
+============================================================
+  OneDrive Path: C:\Users\zerod\OneDrive
+  Server Address: http://localhost:5000
+============================================================
+ * Serving Flask app 'server'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+Press CTRL+C to quit
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [30/May/2026 12:37:37] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1229행, 1008.1 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 14.0 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (57행, 19.2 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 5.5 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 30일 12:37
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [30/May/2026 12:37:48] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:37:49] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [30/May/2026 12:37:49] "GET /app.js?v=3 HTTP/1.1" 304 -
+127.0.0.1 - - [30/May/2026 12:37:49] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:37:49] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1780112269265 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:37:50] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1780112269972 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:37:50] "GET /api/ls/moving-averages?name=리가켐바이오 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:37:53] "GET /api/ls/moving-averages?name=리가켐바이오 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:37:54] "GET /api/ls/moving-averages?name=리브스메드 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:37:56] "GET /api/ls/moving-averages?name=올릭스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:37:58] "GET /api/ls/moving-averages?name=토모큐브 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:37:59] "GET /api/ls/moving-averages?name=루닛 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:38:01] "GET /api/ls/moving-averages?name=에이피알 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:38:01] "GET /api/ls/moving-averages?name=로봇%20ETF HTTP/1.1" 400 -
+127.0.0.1 - - [30/May/2026 12:38:03] "GET /api/ls/moving-averages?name=삼성바이오로직스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:38:04] "GET /api/ls/moving-averages?name=필에너지 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:38:06] "GET /api/ls/moving-averages?name=두산에너빌리티 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:38:08] "GET /api/ls/moving-averages?name=노바렉스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:38:09] "GET /api/ls/moving-averages?name=제노코 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:38:11] "GET /api/ls/moving-averages?name=삼성중공업 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:38:13] "GET /api/ls/moving-averages?name=하이브 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:38:14] "GET /api/ls/moving-averages?name=코스텍시스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:38:16] "GET /api/ls/moving-averages?name=SK하이닉스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:38:17] "GET /api/ls/moving-averages?name=파크시스템스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:38:19] "GET /api/ls/moving-averages?name=티엘비 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:38:20] "GET /api/ls/moving-averages?name=원익IPS HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:38:22] "GET /api/ls/moving-averages?name=디아이 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:38:24] "GET /api/ls/moving-averages?name=삼성전자 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:45:24] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1780112723699&sheet=탐구생활 HTTP/1.1" 200 -
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [30/May/2026 12:45:43] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1229행, 1008.1 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 14.0 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (57행, 19.2 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 5.5 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 30일 12:45
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [30/May/2026 12:45:58] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1229행, 1008.1 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 14.0 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (57행, 19.3 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 5.5 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 30일 12:45
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [30/May/2026 12:46:03] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1229행, 1008.1 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 14.0 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (57행, 19.3 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 5.5 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 30일 12:46
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [30/May/2026 12:49:28] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1229행, 1008.1 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 14.0 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (57행, 19.4 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 5.5 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 30일 12:49
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [30/May/2026 12:54:07] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1780113246747&sheet=포트폴리오%20맵 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:27] "GET /api/ls/moving-averages?name=리가켐바이오 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:29] "GET /api/ls/moving-averages?name=리브스메드 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:31] "GET /api/ls/moving-averages?name=올릭스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:31] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:31] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [30/May/2026 12:54:31] "GET /app.js?v=3 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:31] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:31] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1780113271521 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:32] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1780113271883 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:39] "GET /api/ls/moving-averages?name=리가켐바이오 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:41] "GET /api/ls/moving-averages?name=리브스메드 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:42] "GET /api/ls/moving-averages?name=올릭스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:44] "GET /api/ls/moving-averages?name=토모큐브 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:45] "GET /api/ls/moving-averages?name=루닛 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:47] "GET /api/ls/moving-averages?name=에이피알 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:47] "GET /api/ls/moving-averages?name=로봇%20ETF HTTP/1.1" 400 -
+127.0.0.1 - - [30/May/2026 12:54:49] "GET /api/ls/moving-averages?name=삼성바이오로직스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:50] "GET /api/ls/moving-averages?name=필에너지 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:52] "GET /api/ls/moving-averages?name=두산에너빌리티 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:53] "GET /api/ls/moving-averages?name=노바렉스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:55] "GET /api/ls/moving-averages?name=제노코 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:57] "GET /api/ls/moving-averages?name=삼성중공업 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:54:58] "GET /api/ls/moving-averages?name=하이브 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:55:00] "GET /api/ls/moving-averages?name=코스텍시스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:55:02] "GET /api/ls/moving-averages?name=SK하이닉스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:55:03] "GET /api/ls/moving-averages?name=파크시스템스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:55:05] "GET /api/ls/moving-averages?name=티엘비 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:55:06] "GET /api/ls/moving-averages?name=원익IPS HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:55:08] "GET /api/ls/moving-averages?name=디아이 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 12:55:10] "GET /api/ls/moving-averages?name=삼성전자 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:05:30] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1780113930020&sheet=탐구생활 HTTP/1.1" 200 -
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [30/May/2026 13:05:32] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1229행, 1008.1 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 14.0 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (58행, 19.5 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 5.5 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 30일 13:05
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+[AUTO-SYNC] JSON 변환 시작...
+127.0.0.1 - - [30/May/2026 13:06:27] "POST /api/update-row HTTP/1.1" 200 -
+============================================================
+  주식 포트폴리오 데이터 JSON 내보내기
+============================================================
+[OK] 파일 확인: C:\Users\zerod\OneDrive\주식 체크 리스트_20220328.xlsx
+[OK] 시트 목록: ['매매일지', '포트폴리오 맵', '탑쌓기', '탐구생활', '실적', '카드놀이']
+[OK] 원드라이브 저장 폴더: C:\Users\zerod\OneDrive\주식앱데이터
+[OK] 앱 로컬 저장 폴더: C:\Users\zerod\.antigravity\주식 포트폴리오 관리\StockPortfolioApp\public\data
+
+  변환 중: 매매일지 ... 완료! (1229행, 1008.1 KB) -> trade_journal.json
+  변환 중: 포트폴리오 맵 ... 완료! (24행, 14.0 KB) -> portfolio_map.json
+  변환 중: 탐구생활 ... 완료! (58행, 19.6 KB) -> investigation.json
+  변환 중: 실적 ... 완료! (24행, 5.5 KB) -> performance.json
+
+[완료] 4/4개 시트 내보내기 성공
+  업데이트 시각: 2026년 05월 30일 13:06
+  저장 위치: C:\Users\zerod\OneDrive\주식앱데이터
+
+OneDrive 동기화 후 아이폰 앱에서 새로고침하면 최신 데이터를 확인할 수 있습니다.
+============================================================
+[AUTO-SYNC] ✅ JSON 변환 완료!
+127.0.0.1 - - [30/May/2026 13:07:46] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:07:47] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [30/May/2026 13:07:47] "GET /app.js?v=3 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:07:47] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:07:47] "GET /api/ls/moving-averages?name=리가켐바이오 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:07:47] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1780114067112 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:07:47] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1780114067832 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:07:51] "GET /api/ls/moving-averages?name=리가켐바이오 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:07:52] "GET /api/ls/moving-averages?name=리브스메드 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:07:54] "GET /api/ls/moving-averages?name=올릭스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:07:55] "GET /api/ls/moving-averages?name=토모큐브 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:07:57] "GET /api/ls/moving-averages?name=루닛 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:07:59] "GET /api/ls/moving-averages?name=에이피알 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:07:59] "GET /api/ls/moving-averages?name=로봇%20ETF HTTP/1.1" 400 -
+127.0.0.1 - - [30/May/2026 13:08:01] "GET /api/ls/moving-averages?name=삼성바이오로직스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:08:02] "GET /api/ls/moving-averages?name=필에너지 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:08:04] "GET /api/ls/moving-averages?name=두산에너빌리티 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:08:05] "GET /api/ls/moving-averages?name=노바렉스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:08:07] "GET /api/ls/moving-averages?name=제노코 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:08:09] "GET /api/ls/moving-averages?name=삼성중공업 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:08:10] "GET /api/ls/moving-averages?name=하이브 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:08:12] "GET /api/ls/moving-averages?name=코스텍시스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:08:14] "GET /api/ls/moving-averages?name=SK하이닉스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:08:15] "GET /api/ls/moving-averages?name=파크시스템스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:08:17] "GET /api/ls/moving-averages?name=티엘비 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:08:18] "GET /api/ls/moving-averages?name=원익IPS HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:08:20] "GET /api/ls/moving-averages?name=디아이 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 13:08:21] "GET /api/ls/moving-averages?name=삼성전자 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:10] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1780134789794&sheet=매매일지 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:13] "GET /api/ls/moving-averages?name=리가켐바이오 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:15] "GET /api/ls/moving-averages?name=리브스메드 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:17] "GET /api/ls/moving-averages?name=올릭스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:18] "GET /api/ls/moving-averages?name=토모큐브 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:20] "GET /api/ls/moving-averages?name=루닛 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:22] "GET /api/ls/moving-averages?name=에이피알 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:22] "GET /api/ls/moving-averages?name=로봇%20ETF HTTP/1.1" 400 -
+127.0.0.1 - - [30/May/2026 18:53:23] "GET /api/ls/moving-averages?name=삼성바이오로직스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:25] "GET /api/ls/moving-averages?name=필에너지 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:27] "GET /api/ls/moving-averages?name=두산에너빌리티 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:28] "GET /api/ls/moving-averages?name=노바렉스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:30] "GET /api/ls/moving-averages?name=제노코 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:31] "GET /api/ls/moving-averages?name=삼성중공업 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:33] "GET /api/ls/moving-averages?name=하이브 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:35] "GET /api/ls/moving-averages?name=코스텍시스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:36] "GET /api/ls/moving-averages?name=SK하이닉스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:38] "GET /api/ls/moving-averages?name=파크시스템스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:40] "GET /api/ls/moving-averages?name=티엘비 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:41] "GET /api/ls/moving-averages?name=원익IPS HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:43] "GET /api/ls/moving-averages?name=디아이 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 18:53:44] "GET /api/ls/moving-averages?name=삼성전자 HTTP/1.1" 200 -
+[COMPRESS] gzip 압축 활성화됨
+============================================================
+  Stock Portfolio Analysis Server
+============================================================
+  OneDrive Path: C:\Users\zerod\OneDrive
+  Server Address: http://localhost:5000
+============================================================
+ * Serving Flask app 'server'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.219.101:5000
+Press CTRL+C to quit
+127.0.0.1 - - [30/May/2026 19:01:03] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:01:03] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [30/May/2026 19:01:03] "GET /app.js?v=3 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:01:03] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:01:04] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1780135263741 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:01:04] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1780135264385 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:01:21] "GET /api/ls/moving-averages?name=리가켐바이오 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:01:26] "GET /api/ls/moving-averages?name=리브스메드 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:01:30] "GET /api/ls/moving-averages?name=올릭스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:01:34] "GET /api/ls/moving-averages?name=토모큐브 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:01:39] "GET /api/ls/moving-averages?name=루닛 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:01:43] "GET /api/ls/moving-averages?name=에이피알 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:01:44] "GET /api/ls/moving-averages?name=로봇%20ETF HTTP/1.1" 400 -
+127.0.0.1 - - [30/May/2026 19:01:48] "GET /api/ls/moving-averages?name=삼성바이오로직스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:01:52] "GET /api/ls/moving-averages?name=필에너지 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:01:57] "GET /api/ls/moving-averages?name=두산에너빌리티 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:02:01] "GET /api/ls/moving-averages?name=노바렉스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:02:06] "GET /api/ls/moving-averages?name=제노코 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:02:10] "GET /api/ls/moving-averages?name=삼성중공업 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:02:15] "GET /api/ls/moving-averages?name=하이브 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:02:19] "GET /api/ls/moving-averages?name=코스텍시스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:02:24] "GET /api/ls/moving-averages?name=SK하이닉스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:02:29] "GET /api/ls/moving-averages?name=파크시스템스 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:02:34] "GET /api/ls/moving-averages?name=티엘비 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:02:38] "GET /api/ls/moving-averages?name=원익IPS HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:02:43] "GET /api/ls/moving-averages?name=디아이 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:02:47] "GET /api/ls/moving-averages?name=삼성전자 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:15:54] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:15:54] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [30/May/2026 19:15:54] "GET /app.js?v=3 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:15:54] "GET /api/onedrive-status HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:15:55] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&t=1780136154656 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:15:55] "GET /api/read-excel?file=주식%20체크%20리스트_20220328.xlsx&sheet=포트폴리오%20맵&t=1780136155419 HTTP/1.1" 200 -
+127.0.0.1 - - [30/May/2026 19:15:57] "GET /api/ls/moving-averages?name=리가켐바이오 HTTP/1.1" 200 -

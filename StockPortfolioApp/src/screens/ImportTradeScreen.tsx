@@ -210,6 +210,11 @@ export default function ImportTradeScreen() {
     setTrades(prev => prev.map((t, i) => i === idx ? { ...t, selected: !t.selected } : t));
   };
 
+  // 종목명 수정
+  const updateTradeName = (idx: number, name: string) => {
+    setTrades(prev => prev.map((t, i) => i === idx ? { ...t, name } : t));
+  };
+
   // 메모 수정
   const updateMemo = (idx: number, memo: string) => {
     setTrades(prev => prev.map((t, i) => i === idx ? { ...t, memo } : t));
@@ -359,7 +364,13 @@ export default function ImportTradeScreen() {
                     </TouchableOpacity>
                     <View style={{ flex: 1 }}>
                       <View style={styles.tradeNameRow}>
-                        <Text style={styles.tradeName}>{trade.name}</Text>
+                        <TextInput
+                          style={styles.tradeNameInput}
+                          value={trade.name}
+                          onChangeText={text => updateTradeName(idx, text)}
+                          placeholder="종목명"
+                          placeholderTextColor="#475569"
+                        />
                         <Text style={[styles.tradeType, trade.type === '매도' ? styles.sell : styles.buy]}>
                           {trade.type}
                         </Text>
@@ -467,6 +478,12 @@ const styles = StyleSheet.create({
   checkboxText: { fontSize: 20, color: '#00F2FE' },
   tradeNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   tradeName: { color: '#E2E8F0', fontWeight: 'bold', fontSize: 15 },
+  tradeNameInput: { 
+    color: '#E2E8F0', fontWeight: 'bold', fontSize: 15, 
+    paddingVertical: 2, paddingHorizontal: 4, margin: 0, 
+    minWidth: 80, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 4
+  },
   tradeType: { fontSize: 12, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
   buy: { backgroundColor: 'rgba(0,242,254,0.15)', color: '#00F2FE' },
   sell: { backgroundColor: 'rgba(239,68,68,0.15)', color: '#EF4444' },

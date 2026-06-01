@@ -91,6 +91,12 @@
                         <span class="stat-unit">백만</span>
                     </div>
                     <div class="stat-divider"></div>
+                    <div class="stat-item" style="min-width:60px;">
+                        <span class="stat-label">종목 수</span>
+                        <span id="stat-stock-count" class="stat-value">0</span>
+                        <span class="stat-unit">종목</span>
+                    </div>
+                    <div class="stat-divider"></div>
                     <div class="stat-item operating">
                         <span class="stat-label">운용 투자 금액</span>
                         <div class="stat-value-group">
@@ -292,6 +298,35 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- 신호 포착 패널 -->
+            <div id="signal-panel" class="signal-panel glass-panel hidden">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" class="panel-icon"><circle cx="12" cy="12" r="10"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                        <span>포트폴리오 신호 포착</span>
+                    </div>
+                    <button class="btn-primary" onclick="refreshSignalPrices()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> 
+                        현재가 갱신
+                    </button>
+                </div>
+                <div class="table-wrapper">
+                    <table id="signal-table">
+                        <thead>
+                            <tr>
+                                <th>종목명</th>
+                                <th>기본 투자금 (만원)</th>
+                                <th>현재가</th>
+                                <th>상태</th>
+                            </tr>
+                        </thead>
+                        <tbody id="signal-table-body">
+                            <tr><td colspan="4" style="text-align:center;">데이터를 불러오는 중입니다...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 

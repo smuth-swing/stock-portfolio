@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, TextInput, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { useDataStore } from '../store/useDataStore';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -8,9 +8,13 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 export default function InvestigationScreen() {
-  const { investigation, isLoading } = useDataStore();
+  const { investigation, isLoading, refreshData } = useDataStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'strategy'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const toggleExpand = (id: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -27,12 +31,60 @@ export default function InvestigationScreen() {
     );
   }
 
-  // 첫 두 줄은 헤더/공백이므로 제외하고 실제 데이터만 필터링
-  const allItems = investigation?.data?.slice(2).filter((r: any) => r['Unnamed: 1']) || [];
+  // 데이터 추출 로직
+  const allData = investigation?.data || [];
+  const allItems = allData.slice(2).map((r: any, idx: number) => ({ ...r, _realIndex: idx + 2 })).filter((r: any) => r['Unnamed: 1']);
+  
   const items = allItems.filter((item: any) => {
-    if (filter === 'all') return true;
-    return item['Unnamed: 6']; // 전략 보유 (매매 전략 내용이 있는 경우)
+    if (filter === 'strategy' && !item['Unnamed: 6']) return false;
+    if (searchQuery.trim() !== '') {
+      const stockName = item['Unnamed: 1'] || '';
+      if (!stockName.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
+    }
+    return true;
   });
+
+  const handleSaveStockName = async (realIndex: number, originalName: string) => {
+    if (editName.trim() === '' || editName === originalName) {
+      setEditingIndex(null);
+      return;
+    }
+
+    // 서버 저장 로직
+    setIsSaving(true);
+    try {
+      const filePath = investigation._filePath;
+      const sheetName = investigation.current_sheet;
+      const rowData = allData[realIndex];
+      const columns = investigation.columns;
+      
+      const newRowData = { ...rowData, 'Unnamed: 1': editName.trim() };
+      const values = columns.map((col: string) => newRowData[col] !== undefined && newRowData[col] !== null ? newRowData[col] : '');
+
+      let base = '';
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const pathname = window.location.pathname.replace(/\/[^/]*$/, '');
+        base = window.location.origin + pathname;
+      }
+
+      if (base) {
+        await fetch(`${base}/api/update-row`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: filePath, sheet: sheetName, rowIndex: realIndex, values })
+        });
+        // 갱신 (PWA 캐시 우회를 위해 잠시 대기 후 리프레시)
+        setTimeout(() => {
+          refreshData();
+        }, 500);
+      }
+    } catch (e) {
+      console.error('Failed to update stock name', e);
+    } finally {
+      setIsSaving(false);
+      setEditingIndex(null);
+    }
+  };
 
   return (
     <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.container}>
@@ -54,22 +106,48 @@ export default function InvestigationScreen() {
             </TouchableOpacity>
           </View>
         </View>
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="🔍 종목명 검색..."
+            placeholderTextColor="#475569"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
         
         {items.length > 0 ? (
           items.map((item: any, index: number) => {
             const id = item['Unnamed: 0'] || String(index);
             const isExpanded = expandedId === id;
+            const realIdx = item._realIndex;
             
             return (
               <TouchableOpacity 
                 key={id} 
                 style={[styles.card, isExpanded && styles.cardExpanded]}
-                onPress={() => toggleExpand(id)}
+                onPress={() => {
+                  if (editingIndex !== realIdx) toggleExpand(id);
+                }}
                 activeOpacity={0.8}
               >
                 <View style={styles.cardHeader}>
                   <View style={styles.titleRow}>
-                    <Text style={styles.stockName}>{item['Unnamed: 1']}</Text>
+                    {editingIndex === realIdx ? (
+                      <TextInput
+                        style={styles.editInput}
+                        value={editName}
+                        onChangeText={setEditName}
+                        onBlur={() => handleSaveStockName(realIdx, item['Unnamed: 1'])}
+                        autoFocus
+                      />
+                    ) : (
+                      <TouchableOpacity onPress={() => { setEditingIndex(realIdx); setEditName(item['Unnamed: 1']); }}>
+                        <Text style={styles.stockName}>
+                          {item['Unnamed: 1']} ✏️
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                     {item['Unnamed: 6'] ? (
                       <View style={styles.badge}>
                         <Text style={styles.badgeText}>전략 보유</Text>
@@ -141,6 +219,13 @@ const styles = StyleSheet.create({
   filterBtnActive: { backgroundColor: 'rgba(0, 242, 254, 0.2)' },
   filterBtnText: { color: '#64748B', fontSize: 13, fontWeight: '700' },
   filterBtnTextActive: { color: '#00F2FE' },
+  searchContainer: { marginBottom: 16 },
+  searchInput: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+    color: '#E2E8F0', fontSize: 14,
+  },
   card: {
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderRadius: 20,
@@ -159,8 +244,13 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1 },
   stockName: { fontSize: 20, fontWeight: 'bold', color: '#FFFFFF' },
+  editInput: { 
+    fontSize: 20, fontWeight: 'bold', color: '#FFFFFF', 
+    borderBottomWidth: 1, borderBottomColor: '#00F2FE', 
+    padding: 0, margin: 0, minWidth: 100 
+  },
   badge: { backgroundColor: 'rgba(0, 242, 254, 0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   badgeText: { color: '#00F2FE', fontSize: 11, fontWeight: 'bold' },
   expandIcon: { color: '#00F2FE', fontSize: 28, fontWeight: '300', marginTop: -4 },

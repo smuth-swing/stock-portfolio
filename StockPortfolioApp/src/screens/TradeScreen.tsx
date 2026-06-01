@@ -11,6 +11,7 @@ export default function TradeScreen() {
   const { tradeJournal, isLoading } = useDataStore();
   const route = useRoute<RouteProp<any, '매매일지'>>();
   const [selectedStock, setSelectedStock] = useState<string>('전체');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [zoomLevel, setZoomLevel] = useState<number>(60); // 차트 간격(Zoom) 제어
   const [isPinching, setIsPinching] = useState<boolean>(false);
   const pinchStartDistance = useRef<number | null>(null);
@@ -53,6 +54,12 @@ export default function TradeScreen() {
     });
     return ['전체', ...Array.from(stockSet).sort()];
   }, [validTrades]);
+
+  // 검색어로 필터링된 종목 목록
+  const filteredStocks = useMemo(() => {
+    if (!searchQuery.trim()) return stocks;
+    return stocks.filter(s => s.toLowerCase().includes(searchQuery.trim().toLowerCase()));
+  }, [stocks, searchQuery]);
 
   // 차트 데이터 구성 (선택된 종목)
   const chartData = useMemo(() => {
@@ -182,10 +189,21 @@ export default function TradeScreen() {
     <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.container}>
       <Text style={styles.title}>매매일지 트렌드</Text>
       
+      {/* 종목 검색기 */}
+      <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="🔍 종목명 검색..."
+          placeholderTextColor="#475569"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
+
       {/* 종목 선택기 */}
       <View style={styles.selectorContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20 }}>
-          {stocks.map(stock => (
+          {filteredStocks.map(stock => (
             <TouchableOpacity 
               key={stock} 
               style={[styles.pill, selectedStock === stock && styles.pillActive]}
@@ -285,7 +303,13 @@ export default function TradeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 24 },
   loadingContainer: { flex: 1, backgroundColor: '#0F172A', justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 28, fontWeight: '800', color: '#FFFFFF', paddingHorizontal: 20, marginBottom: 20, letterSpacing: 0.5 },
+  title: { fontSize: 28, fontWeight: '800', color: '#FFFFFF', paddingHorizontal: 20, marginBottom: 16, letterSpacing: 0.5 },
+  searchInput: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+    color: '#E2E8F0', fontSize: 14,
+  },
   selectorContainer: { height: 44, marginBottom: 16 },
   pill: { 
     paddingHorizontal: 18, 
