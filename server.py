@@ -629,15 +629,7 @@ def sync_receive():
         # 아이폰 앱용 데이터 자동 갱신
         trigger_export()
 
-        # 폼 제출인 경우 리다이렉트 스크립트 반환
-        return """
-        <html><body>
-        <script>
-            alert('PC 동기화 완료! GitHub 서버 반영까지 약 1~2분 소요될 수 있습니다.');
-            window.location.href = 'https://smuth-swing.github.io/stock-portfolio/mobile/?synced=true';
-        </script>
-        </body></html>
-        """
+        return '', 204
     except Exception as e:
         import traceback
         print(traceback.format_exc())
