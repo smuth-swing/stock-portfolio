@@ -13,7 +13,7 @@ export default function InvestigationScreen() {
   const [filter, setFilter] = useState<'all' | 'strategy'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editName, setEditName] = useState('');
+  const [editForm, setEditForm] = useState<any>({});
   const [isSaving, setIsSaving] = useState(false);
 
   const toggleExpand = (id: string) => {
@@ -44,21 +44,37 @@ export default function InvestigationScreen() {
     return true;
   });
 
-  const handleSaveStockName = async (realIndex: number, originalName: string) => {
-    if (editName.trim() === '' || editName === originalName) {
-      setEditingIndex(null);
-      return;
-    }
+  const startEditing = (realIdx: number, item: any) => {
+    setEditingIndex(realIdx);
+    setEditForm({
+      reason: item['Unnamed: 3'] || '',
+      risk: item['Unnamed: 4'] || '',
+      momentum: item['Unnamed: 2'] || '',
+      strategy: item['Unnamed: 6'] || '',
+      ceo: item['Unnamed: 5'] || ''
+    });
+  };
 
-    // 서버 저장 로직
+  const cancelEditing = () => {
+    setEditingIndex(null);
+    setEditForm({});
+  };
+
+  const saveEditing = async (realIndex: number, rowData: any) => {
     setIsSaving(true);
     try {
       const filePath = investigation._filePath;
       const sheetName = investigation.current_sheet;
-      const rowData = allData[realIndex];
       const columns = investigation.columns;
       
-      const newRowData = { ...rowData, 'Unnamed: 1': editName.trim() };
+      const newRowData = { 
+        ...rowData, 
+        'Unnamed: 3': editForm.reason,
+        'Unnamed: 4': editForm.risk,
+        'Unnamed: 2': editForm.momentum,
+        'Unnamed: 6': editForm.strategy,
+        'Unnamed: 5': editForm.ceo
+      };
       const values = columns.map((col: string) => newRowData[col] !== undefined && newRowData[col] !== null ? newRowData[col] : '');
 
       let base = '';
@@ -73,13 +89,10 @@ export default function InvestigationScreen() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ file: filePath, sheet: sheetName, rowIndex: realIndex, values })
         });
-        // 갱신 (PWA 캐시 우회를 위해 잠시 대기 후 리프레시)
-        setTimeout(() => {
-          refreshData();
-        }, 500);
+        setTimeout(() => refreshData(), 500);
       }
     } catch (e) {
-      console.error('Failed to update stock name', e);
+      console.error('Failed to update content', e);
     } finally {
       setIsSaving(false);
       setEditingIndex(null);
@@ -133,21 +146,9 @@ export default function InvestigationScreen() {
               >
                 <View style={styles.cardHeader}>
                   <View style={styles.titleRow}>
-                    {editingIndex === realIdx ? (
-                      <TextInput
-                        style={styles.editInput}
-                        value={editName}
-                        onChangeText={setEditName}
-                        onBlur={() => handleSaveStockName(realIdx, item['Unnamed: 1'])}
-                        autoFocus
-                      />
-                    ) : (
-                      <TouchableOpacity onPress={() => { setEditingIndex(realIdx); setEditName(item['Unnamed: 1']); }}>
-                        <Text style={styles.stockName}>
-                          {item['Unnamed: 1']} ✏️
-                        </Text>
-                      </TouchableOpacity>
-                    )}
+                    <Text style={styles.stockName}>
+                      {item['Unnamed: 1']}
+                    </Text>
                     {item['Unnamed: 6'] ? (
                       <View style={styles.badge}>
                         <Text style={styles.badgeText}>전략 보유</Text>
@@ -159,40 +160,80 @@ export default function InvestigationScreen() {
 
                 {isExpanded && (
                   <View style={styles.expandedContent}>
-                    {item['Unnamed: 3'] ? (
-                      <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>🎯 매수 이유</Text>
-                        <Text style={styles.sectionText}>{item['Unnamed: 3']}</Text>
+                    {editingIndex === realIdx ? (
+                      <View>
+                        <View style={styles.section}>
+                          <Text style={styles.sectionTitle}>🎯 매수 이유</Text>
+                          <TextInput style={styles.multilineInput} multiline value={editForm.reason} onChangeText={t => setEditForm({...editForm, reason: t})} />
+                        </View>
+                        <View style={styles.section}>
+                          <Text style={styles.sectionTitle}>⚠️ 리스크</Text>
+                          <TextInput style={styles.multilineInput} multiline value={editForm.risk} onChangeText={t => setEditForm({...editForm, risk: t})} />
+                        </View>
+                        <View style={styles.section}>
+                          <Text style={styles.sectionTitle}>💡 핵심 모멘텀</Text>
+                          <TextInput style={styles.multilineInput} multiline value={editForm.momentum} onChangeText={t => setEditForm({...editForm, momentum: t})} />
+                        </View>
+                        <View style={styles.section}>
+                          <Text style={styles.sectionTitle}>📈 매매 전략</Text>
+                          <TextInput style={styles.multilineInput} multiline value={editForm.strategy} onChangeText={t => setEditForm({...editForm, strategy: t})} />
+                        </View>
+                        <View style={styles.section}>
+                          <Text style={styles.sectionTitle}>👤 대표 / 경영진</Text>
+                          <TextInput style={styles.multilineInput} multiline value={editForm.ceo} onChangeText={t => setEditForm({...editForm, ceo: t})} />
+                        </View>
+                        
+                        <View style={styles.actionButtons}>
+                          <TouchableOpacity style={[styles.actionBtn, styles.cancelBtn]} onPress={cancelEditing}>
+                            <Text style={styles.cancelBtnText}>취소</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={[styles.actionBtn, styles.saveBtn]} onPress={() => saveEditing(realIdx, item)} disabled={isSaving}>
+                            {isSaving ? <ActivityIndicator size="small" color="#0F172A" /> : <Text style={styles.saveBtnText}>저장</Text>}
+                          </TouchableOpacity>
+                        </View>
                       </View>
-                    ) : null}
+                    ) : (
+                      <View>
+                        {item['Unnamed: 3'] ? (
+                          <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>🎯 매수 이유</Text>
+                            <Text style={styles.sectionText}>{item['Unnamed: 3']}</Text>
+                          </View>
+                        ) : null}
 
-                    {item['Unnamed: 4'] ? (
-                      <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>⚠️ 리스크</Text>
-                        <Text style={styles.sectionText}>{item['Unnamed: 4']}</Text>
-                      </View>
-                    ) : null}
+                        {item['Unnamed: 4'] ? (
+                          <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>⚠️ 리스크</Text>
+                            <Text style={styles.sectionText}>{item['Unnamed: 4']}</Text>
+                          </View>
+                        ) : null}
 
-                    {item['Unnamed: 2'] ? (
-                      <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>💡 핵심 모멘텀</Text>
-                        <Text style={styles.sectionText}>{item['Unnamed: 2']}</Text>
-                      </View>
-                    ) : null}
+                        {item['Unnamed: 2'] ? (
+                          <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>💡 핵심 모멘텀</Text>
+                            <Text style={styles.sectionText}>{item['Unnamed: 2']}</Text>
+                          </View>
+                        ) : null}
 
-                    {item['Unnamed: 6'] ? (
-                      <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>📈 매매 전략</Text>
-                        <Text style={styles.sectionText}>{item['Unnamed: 6']}</Text>
-                      </View>
-                    ) : null}
+                        {item['Unnamed: 6'] ? (
+                          <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>📈 매매 전략</Text>
+                            <Text style={styles.sectionText}>{item['Unnamed: 6']}</Text>
+                          </View>
+                        ) : null}
 
-                    {item['Unnamed: 5'] ? (
-                      <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>👤 대표 / 경영진</Text>
-                        <Text style={styles.sectionText}>{item['Unnamed: 5']}</Text>
+                        {item['Unnamed: 5'] ? (
+                          <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>👤 대표 / 경영진</Text>
+                            <Text style={styles.sectionText}>{item['Unnamed: 5']}</Text>
+                          </View>
+                        ) : null}
+                        
+                        <TouchableOpacity style={styles.editContentBtn} onPress={() => startEditing(realIdx, item)}>
+                          <Text style={styles.editContentBtnText}>내용 수정 ✏️</Text>
+                        </TouchableOpacity>
                       </View>
-                    ) : null}
+                    )}
                   </View>
                 )}
               </TouchableOpacity>
@@ -258,6 +299,27 @@ const styles = StyleSheet.create({
   section: { marginBottom: 20 },
   sectionTitle: { fontSize: 13, fontWeight: 'bold', color: '#94A3B8', marginBottom: 8 },
   sectionText: { fontSize: 15, color: '#E2E8F0', lineHeight: 24 },
+  multilineInput: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 8, padding: 12,
+    color: '#FFFFFF', fontSize: 15, lineHeight: 22,
+    minHeight: 80, textAlignVertical: 'top',
+  },
+  actionButtons: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 10 },
+  actionBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
+  cancelBtn: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#475569' },
+  saveBtn: { backgroundColor: '#00F2FE' },
+  cancelBtnText: { color: '#94A3B8', fontWeight: 'bold' },
+  saveBtnText: { color: '#0F172A', fontWeight: 'bold' },
+  editContentBtn: {
+    alignSelf: 'flex-end',
+    backgroundColor: 'rgba(0, 242, 254, 0.1)',
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: 8, marginTop: 10,
+    borderWidth: 1, borderColor: 'rgba(0, 242, 254, 0.3)'
+  },
+  editContentBtnText: { color: '#00F2FE', fontSize: 13, fontWeight: 'bold' },
   glassCard: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 24, padding: 24, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
   infoText: { color: '#64748B', fontSize: 16, textAlign: 'center', marginVertical: 20 },
 });
