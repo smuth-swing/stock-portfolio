@@ -63,6 +63,28 @@ const isValidData = (data: any): boolean => {
   return false;
 };
 
+const applyQueueToData = (dataKey: string, dataObj: any, queue: any[]) => {
+  if (!queue || queue.length === 0 || !dataObj || !dataObj.data) return dataObj;
+  
+  const newData = { ...dataObj, data: [...dataObj.data] };
+  
+  queue.forEach(edit => {
+    if (edit.sheet === '탐구생활' && dataKey === 'investigation') {
+      const idx = edit.rowIndex;
+      if (newData.data[idx]) {
+        newData.data[idx] = { ...newData.data[idx] };
+        edit.values.forEach((val: any, i: number) => {
+           const colName = newData.columns[i];
+           if (colName) {
+               newData.data[idx][colName] = val;
+           }
+        });
+      }
+    }
+  });
+  return newData;
+};
+
 // ─────────────────────────────────────────────
 // Zustand 스토어
 // ─────────────────────────────────────────────
@@ -98,7 +120,7 @@ export const useDataStore = create<AppState>((set, get) => ({
       try {
         const cached = await getCachedData(k as any);
         if (cached && isValidData(cached)) {
-          set((state: any) => ({ ...state, [s]: cached }));
+          set((state: any) => ({ ...state, [s]: applyQueueToData(s, cached, state.syncQueue) }));
           anyCacheLoaded = true;
         }
       } catch (e) {
@@ -130,7 +152,7 @@ export const useDataStore = create<AppState>((set, get) => ({
       try {
         const result = await fetchJSON(k as any);
         if (result && result.data && isValidData(result.data)) {
-          set((state: any) => ({ ...state, [s]: result.data }));
+          set((state: any) => ({ ...state, [s]: applyQueueToData(s, result.data, state.syncQueue) }));
           anyServerLoaded = true;
         } else if (result === null) {
           // null은 "오프라인 또는 타임아웃" - 에러 아님

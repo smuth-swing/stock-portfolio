@@ -633,8 +633,8 @@ def sync_receive():
         return """
         <html><body>
         <script>
-            alert('오프라인 동기화가 성공적으로 완료되었습니다!');
-            window.location.href = 'https://smuth-swing.github.io/stock-portfolio/mobile/';
+            alert('PC 동기화 완료! GitHub 서버 반영까지 약 1~2분 소요될 수 있습니다.');
+            window.location.href = 'https://smuth-swing.github.io/stock-portfolio/mobile/?synced=true';
         </script>
         </body></html>
         """
