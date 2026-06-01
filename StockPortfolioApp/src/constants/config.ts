@@ -15,8 +15,22 @@ let hostUri =
 let BASE_URL = hostUri ? `http://${hostUri}` : '';
 
 if (Platform.OS === 'web' && typeof window !== 'undefined') {
-  // GitHub Pages 등 어떤 하위 경로에서 실행되든 동적으로 현재 경로를 BASE_URL로 사용
-  const pathname = window.location.pathname.replace(/\/[^/]*$/, ''); // 마지막 파일명 제거
+  // 현재 경로가 /mobile 이나 /mobile/ 로 끝나는지 확인하여 BASE_URL 설정
+  let pathname = window.location.pathname;
+  if (!pathname.endsWith('/')) {
+    pathname += '/'; // 항상 trailing slash를 추가
+  }
+  // index.html 같은 파일명이 있다면 제거 (보통 PWA에서는 없음)
+  pathname = pathname.replace(/\/[^/]+\.[^/]+$/, '/');
+  
+  // 모바일 웹앱 경로 보장 (만약 잘못 파싱된 경우 강제로 맞춤)
+  if (!pathname.endsWith('/mobile/')) {
+    pathname = '/stock-portfolio/mobile/';
+  } else {
+    // 맨 끝의 '/'를 제거하여 일관성 유지
+    pathname = pathname.slice(0, -1);
+  }
+  
   BASE_URL = window.location.origin + pathname;
 }
 
