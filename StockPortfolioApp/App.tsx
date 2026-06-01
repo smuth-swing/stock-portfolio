@@ -147,10 +147,27 @@ export default function App() {
     );
   }
 
+  const linking = {
+    prefixes: [
+      'https://smuth-swing.github.io/stock-portfolio/mobile/',
+      'http://localhost:8081/',
+      'stockportfolio://',
+    ],
+    config: {
+      initialRouteName: '매매일지' as const,
+      screens: {
+        '매매일지': '',
+        '포트폴리오': 'portfolio',
+        '탐구생활': 'investigation',
+        '실적': 'performance',
+      },
+    },
+  };
+
   // ── 정상 화면 (캐시 또는 서버 데이터 있음)
   return (
     <View style={{ flex: 1 }}>
-      <NavigationContainer>
+      <NavigationContainer linking={linking}>
         <Tab.Navigator
           screenOptions={{
             tabBarActiveTintColor: '#00F2FE',
