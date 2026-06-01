@@ -124,15 +124,15 @@ def sheet_to_json(file_data: bytes, sheet_name: str, sheet_names: list) -> dict:
         start_row = header_row_idx + 3 if '실적' in sheet_name else 2
         data = []
         for r_idx in range(start_row, ws.max_row + 1):
-            row_data = {}
+            row_data = {'_realIndex': r_idx - 2}
             for c_idx, col_name in enumerate(columns, start=1):
                 cell = ws.cell(row=r_idx, column=c_idx)
                 row_data[col_name] = extract_rich_text(cell)
             data.append(row_data)
     else:
         data = []
-        for _, row in df.iterrows():
-            row_data = {}
+        for idx, row in df.iterrows():
+            row_data = {'_realIndex': idx}
             for i, col in enumerate(df.columns):
                 val = row[col]
                 col_name = columns[i]
