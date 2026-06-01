@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, TextInput, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { useDataStore } from '../store/useDataStore';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,6 +20,21 @@ export default function InvestigationScreen() {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedId(expandedId === id ? null : id);
   };
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    const hasPendingServerUpdate = syncQueue && syncQueue.some(item => item.isPendingSync === false);
+    
+    if (hasPendingServerUpdate) {
+      interval = setInterval(() => {
+        refreshData();
+      }, 10000); // 10초마다 자동 갱신 확인
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [syncQueue, refreshData]);
 
   // 데이터가 없고 로딩 중일 때만 스피너 표시
   if (isLoading && !investigation) {

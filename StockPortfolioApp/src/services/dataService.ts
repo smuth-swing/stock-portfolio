@@ -64,10 +64,12 @@ export const fetchJSON = async (key: keyof typeof DATA_URLS) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
+  const urlWithCacheBuster = url.includes('?') ? `${url}&t=${Date.now()}` : `${url}?t=${Date.now()}`;
+
   try {
-    const response = await fetch(url, {
+    const response = await fetch(urlWithCacheBuster, {
       signal: controller.signal,
-      headers: { 'Cache-Control': 'no-cache' },
+      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
     });
     clearTimeout(timeoutId);
 
