@@ -8,7 +8,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 export default function InvestigationScreen() {
-  const { investigation, isLoading, refreshData } = useDataStore();
+  const { investigation, isLoading, refreshData, syncQueue, addToSyncQueue, clearSyncQueue, meta } = useDataStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'strategy'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,25 +77,39 @@ export default function InvestigationScreen() {
       };
       const values = columns.map((col: string) => newRowData[col] !== undefined && newRowData[col] !== null ? newRowData[col] : '');
 
-      let base = '';
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        const pathname = window.location.pathname.replace(/\/[^/]*$/, '');
-        base = window.location.origin + pathname;
-      }
-
-      if (base) {
-        await fetch(`${base}/api/update-row`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ file: filePath, sheet: sheetName, rowIndex: realIndex, values })
-        });
-        setTimeout(() => refreshData(), 500);
-      }
+      const editTask = { file: filePath, sheet: sheetName, rowIndex: realIndex, values };
+      await addToSyncQueue(editTask);
+      
+      investigation.data[realIndex] = newRowData; 
     } catch (e) {
-      console.error('Failed to update content', e);
+      console.error('Failed to queue content', e);
     } finally {
       setIsSaving(false);
       setEditingIndex(null);
+    }
+  };
+
+  const handleSync = () => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const pcIp = meta?.server_ip || '192.168.0.2';
+      
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `http://${pcIp}:5000/api/sync-receive`;
+      
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'payload';
+      input.value = JSON.stringify(syncQueue);
+      
+      form.appendChild(input);
+      document.body.appendChild(form);
+      
+      clearSyncQueue().then(() => {
+        form.submit();
+      });
+    } else {
+      alert('웹(PWA) 환경에서만 동기화가 지원됩니다.');
     }
   };
 
@@ -128,6 +142,15 @@ export default function InvestigationScreen() {
             onChangeText={setSearchQuery}
           />
         </View>
+
+        {syncQueue && syncQueue.length > 0 && (
+          <View style={styles.syncBanner}>
+            <Text style={styles.syncBannerText}>🔄 PC 동기화 대기 중인 수정내역 ({syncQueue.length}건)</Text>
+            <TouchableOpacity style={styles.syncBtn} onPress={handleSync}>
+              <Text style={styles.syncBtnText}>PC로 전송하기</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         
         {items.length > 0 ? (
           items.map((item: any, index: number) => {
@@ -322,4 +345,8 @@ const styles = StyleSheet.create({
   editContentBtnText: { color: '#00F2FE', fontSize: 13, fontWeight: 'bold' },
   glassCard: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 24, padding: 24, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
   infoText: { color: '#64748B', fontSize: 16, textAlign: 'center', marginVertical: 20 },
+  syncBanner: { backgroundColor: 'rgba(234, 179, 8, 0.1)', borderColor: '#EAB308', borderWidth: 1, borderRadius: 12, padding: 16, marginBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  syncBannerText: { color: '#FDE047', fontSize: 14, fontWeight: 'bold', flex: 1 },
+  syncBtn: { backgroundColor: '#EAB308', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
+  syncBtnText: { color: '#422006', fontSize: 13, fontWeight: 'bold' },
 });

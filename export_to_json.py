@@ -17,6 +17,17 @@ from pathlib import Path
 import openpyxl
 import pandas as pd
 from openpyxl.cell.rich_text import CellRichText
+import socket
+
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
 
 # Windows 터미널 UTF-8 출력 설정
 try:
@@ -210,6 +221,7 @@ def export_all():
         'success_count': success_count,
         'total_count': len(EXPORT_SHEETS),
         'source_file': TARGET_FILE,
+        'server_ip': get_local_ip(),
     }
     with open(OUTPUT_DIR / 'meta.json', 'w', encoding='utf-8') as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)

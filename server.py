@@ -578,6 +578,71 @@ def update_row():
         print(traceback.format_exc())
         return jsonify({'error': f'업데이트 오류: {str(e)}'}), 500
 
+@app.route('/api/sync-receive', methods=['GET', 'POST'])
+def sync_receive():
+    if not ONEDRIVE_PATH:
+        return "OneDrive 경로가 설정되지 않았습니다.", 400
+
+    try:
+        import json
+        if request.is_json:
+            edits = request.get_json()
+        else:
+            payload = request.values.get('payload')
+            if not payload:
+                return "No payload provided.", 400
+            edits = json.loads(payload)
+
+        if not isinstance(edits, list):
+            edits = [edits]
+
+        from openpyxl.styles import Alignment
+        import traceback
+
+        # 엑셀 작업 최소화를 위해 파일/시트별로 그룹화하지 않고 단순 반복 (통상 1~5건 내외이므로)
+        for edit in edits:
+            file_path = edit.get('file', '')
+            sheet_name = edit.get('sheet')
+            row_index = int(edit.get('rowIndex', 0))
+            values = edit.get('values', [])
+            
+            full_path = os.path.join(ONEDRIVE_PATH, file_path)
+            if not os.path.isfile(full_path):
+                continue
+
+            wb = openpyxl.load_workbook(full_path)
+            if sheet_name not in wb.sheetnames:
+                continue
+
+            ws = wb[sheet_name]
+            target_row = row_index + 2
+            for col_idx, value in enumerate(values, start=1):
+                cell = ws.cell(row=target_row, column=col_idx)
+                processed_value = parse_strikethrough_text(value)
+                cell.value = processed_value
+                if isinstance(value, str) and '\n' in value:
+                    cell.alignment = Alignment(wrap_text=True)
+
+            wb.save(full_path)
+            wb.close()
+
+        # 아이폰 앱용 데이터 자동 갱신
+        trigger_export()
+
+        # 폼 제출인 경우 리다이렉트 스크립트 반환
+        return """
+        <html><body>
+        <script>
+            alert('오프라인 동기화가 성공적으로 완료되었습니다!');
+            window.location.href = 'https://smuth-swing.github.io/stock-portfolio/mobile/';
+        </script>
+        </body></html>
+        """
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return f"동기화 오류: {str(e)}", 500
+
 
 def sync_portfolio_map(wb, stock_name, trade_amount):
     """포트폴리오 맵의 종목 마크(점)를 투자금액에 맞게 동기화"""

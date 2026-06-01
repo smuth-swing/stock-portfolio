@@ -6,6 +6,7 @@ import {
   saveLastSyncTime,
   clearAllCache,
 } from '../services/dataService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ─────────────────────────────────────────────
 // 상태 타입 정의
@@ -32,6 +33,12 @@ interface AppState {
   fetchData: () => Promise<void>;    // 앱 시작 시 데이터 로드
   refreshData: () => Promise<void>;  // 수동 서버 새로고침
   resetCache: () => Promise<void>;   // 캐시 초기화 (디버깅용)
+
+  // 오프라인 동기화 큐
+  syncQueue: any[];
+  addToSyncQueue: (editData: any) => Promise<void>;
+  clearSyncQueue: () => Promise<void>;
+  loadSyncQueue: () => Promise<void>;
 }
 
 // ─────────────────────────────────────────────
@@ -69,6 +76,7 @@ export const useDataStore = create<AppState>((set, get) => ({
   isSyncing: false,
   isOffline: false,
   error: null,
+  syncQueue: [],
   lastSyncTime: null,
   hasCachedData: false,
 
@@ -178,4 +186,31 @@ export const useDataStore = create<AppState>((set, get) => ({
     });
     console.log('[useDataStore] 🗑️ 캐시 초기화 완료');
   },
+
+  // ────────────────────────────────────────────
+  // 오프라인 동기화 큐 관리
+  // ────────────────────────────────────────────
+  loadSyncQueue: async () => {
+    try {
+      const qStr = await AsyncStorage.getItem('@sync_queue');
+      if (qStr) {
+        set({ syncQueue: JSON.parse(qStr) });
+      }
+    } catch (e) {}
+  },
+  
+  addToSyncQueue: async (editData: any) => {
+    const { syncQueue } = get();
+    const newQueue = [...syncQueue, editData];
+    set({ syncQueue: newQueue });
+    await AsyncStorage.setItem('@sync_queue', JSON.stringify(newQueue));
+  },
+  
+  clearSyncQueue: async () => {
+    set({ syncQueue: [] });
+    await AsyncStorage.removeItem('@sync_queue');
+  }
 }));
+
+// 초기화 시 큐 로드
+useDataStore.getState().loadSyncQueue();
