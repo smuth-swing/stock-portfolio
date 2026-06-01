@@ -11,7 +11,7 @@ import json
 import os
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import openpyxl
@@ -215,7 +215,7 @@ def export_all():
 
     # 5. 메타데이터 저장 (앱에서 마지막 업데이트 시간 표시용)
     meta = {
-        'updated_at': datetime.now().isoformat(),
+        'updated_at': datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'),
         'updated_at_display': datetime.now().strftime('%Y년 %m월 %d일 %H:%M'),
         'exported_sheets': list(EXPORT_SHEETS.keys()),
         'success_count': success_count,
