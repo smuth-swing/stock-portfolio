@@ -629,7 +629,24 @@ def sync_receive():
         # 아이폰 앱용 데이터 자동 갱신
         trigger_export()
 
-        return '', 204
+        return """
+        <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body { background: #0F172A; color: white; font-family: sans-serif; text-align: center; padding-top: 100px; }
+            h2 { color: #00F2FE; }
+            button { background: #00F2FE; color: #0F172A; border: none; padding: 15px 30px; border-radius: 10px; font-size: 18px; font-weight: bold; margin-top: 30px; cursor: pointer; }
+          </style>
+        </head>
+        <body>
+          <h2>✅ PC 전송 완료!</h2>
+          <p>엑셀 파일에 데이터가 정상적으로 저장되었습니다.</p>
+          <p>깃허브 서버 반영까지 약 1~2분 소요될 수 있습니다.</p>
+          <button onclick="window.location.href='https://smuth-swing.github.io/stock-portfolio/mobile/'">앱으로 돌아가기</button>
+        </body>
+        </html>
+        """
     except Exception as e:
         import traceback
         print(traceback.format_exc())

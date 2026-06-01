@@ -128,9 +128,6 @@ export default function InvestigationScreen() {
       
       markQueueAsSynced().then(() => {
         form.submit();
-        setTimeout(() => {
-          alert('PC로 전송을 요청했습니다! (서버 반영까지 1~2분 소요)');
-        }, 100);
       });
     } else {
       alert('웹(PWA) 환경에서만 동기화가 지원됩니다.');
