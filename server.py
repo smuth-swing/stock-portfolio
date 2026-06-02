@@ -606,8 +606,14 @@ def sync_receive():
             row_index = int(edit.get('rowIndex', 0))
             values = edit.get('values', [])
             
-            full_path = os.path.join(ONEDRIVE_PATH, file_path)
+            # 파일 경로: 절대경로이면 그대로, 아니면 ONEDRIVE_PATH와 합성
+            if os.path.isabs(file_path) and os.path.isfile(file_path):
+                full_path = file_path
+            else:
+                full_path = os.path.join(ONEDRIVE_PATH, file_path)
+            
             if not os.path.isfile(full_path):
+                print(f'[sync-receive] 파일 없음: {full_path}')
                 continue
 
             wb = openpyxl.load_workbook(full_path)
@@ -615,7 +621,9 @@ def sync_receive():
                 continue
 
             ws = wb[sheet_name]
-            target_row = row_index
+            # pandas iloc[N] → openpyxl row = N+2
+            # (엑셀 row1=빈행, row2=Test헤더이므로 데이터는 row3부터 시작)
+            target_row = row_index + 2
             for col_idx, value in enumerate(values, start=1):
                 cell = ws.cell(row=target_row, column=col_idx)
                 processed_value = parse_strikethrough_text(value)

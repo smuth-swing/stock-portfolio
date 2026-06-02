@@ -62,11 +62,11 @@ export default function InvestigationScreen() {
   const startEditing = (realIdx: number, item: any) => {
     setEditingIndex(realIdx);
     setEditForm({
-      reason: item['Unnamed: 3'] || '',
-      risk: item['Unnamed: 4'] || '',
-      momentum: item['Unnamed: 2'] || '',
-      strategy: item['Unnamed: 6'] || '',
-      ceo: item['Unnamed: 5'] || ''
+      reason: item['Unnamed: 3'] || '',    // 매수 이유 (col4)
+      risk: item['Unnamed: 4'] || '',      // 리스크 (col5)
+      momentum: item['Unnamed: 1'] || '',  // 핵심 모멘텀 (col2) ← Unnamed:1
+      strategy: item['Unnamed: 6'] || '',  // 매매 전략 (col7)
+      ceo: item['Unnamed: 5'] || ''        // 대표/경영진 (col6)
     });
   };
 
@@ -78,17 +78,21 @@ export default function InvestigationScreen() {
   const saveEditing = async (realIndex: number, rowData: any) => {
     setIsSaving(true);
     try {
-      const filePath = investigation._filePath;
+      // ★ _filePath가 null일 경우 file_name으로 fallback
+      const filePath = investigation._filePath || investigation.file_name || '';
       const sheetName = investigation.current_sheet;
       const columns = investigation.columns;
       
+      // 실제 엑셀 컬럼 구조에 맞는 올바른 매핑
+      // col1=번호(Unnamed:0), col2=종목명(Unnamed:1), col3=빈열(Unnamed:2)
+      // col4=매수이유(Unnamed:3), col5=리스크(Unnamed:4), col6=대표(Unnamed:5), col7=매매전략(Unnamed:6)
       const newRowData = { 
         ...rowData, 
-        'Unnamed: 3': editForm.reason,
-        'Unnamed: 4': editForm.risk,
-        'Unnamed: 2': editForm.momentum,
-        'Unnamed: 6': editForm.strategy,
-        'Unnamed: 5': editForm.ceo
+        'Unnamed: 3': editForm.reason,    // 매수 이유 → col4
+        'Unnamed: 4': editForm.risk,      // 리스크 → col5
+        'Unnamed: 1': editForm.momentum,  // 핵심 모멘텀 → col2 (종목명 다음 칸)
+        'Unnamed: 6': editForm.strategy,  // 매매 전략 → col7
+        'Unnamed: 5': editForm.ceo        // 대표/경영진 → col6
       };
       const values = columns.map((col: string) => newRowData[col] !== undefined && newRowData[col] !== null ? newRowData[col] : '');
 
