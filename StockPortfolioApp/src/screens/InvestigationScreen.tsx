@@ -113,21 +113,11 @@ export default function InvestigationScreen() {
   const handleSync = () => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       const pcIp = meta?.server_ip || '192.168.0.2';
-      
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = `http://${pcIp}:5000/api/sync-receive`;
-      
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = 'payload';
-      input.value = JSON.stringify(syncQueue);
-      
-      form.appendChild(input);
-      document.body.appendChild(form);
+      const payloadStr = encodeURIComponent(JSON.stringify(syncQueue));
+      const targetUrl = `http://${pcIp}:5000/api/sync-receive?payload=${payloadStr}`;
       
       markQueueAsSynced().then(() => {
-        form.submit();
+        window.location.href = targetUrl;
       });
     } else {
       alert('웹(PWA) 환경에서만 동기화가 지원됩니다.');

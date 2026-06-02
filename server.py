@@ -1,7 +1,7 @@
 """
-OneDrive 엑셀 데이터 분석 서버
-- OneDrive 로컬 동기화 폴더에서 엑셀 파일을 읽어 JSON API로 제공
-- Flask 기반 REST API 서버
+OneDrive ?��? ?�이??분석 ?�버
+- OneDrive 로컬 ?�기???�더?�서 ?��? ?�일???�어 JSON API�??�공
+- Flask 기반 REST API ?�버
 """
 
 import os
@@ -17,7 +17,7 @@ import subprocess
 import threading
 from openpyxl.styles import Font
 
-# Windows 콘솔 CP949 인코딩 충돌 방지 - stdout/stderr를 UTF-8로 강제 설정
+# Windows 콘솔 CP949 ?�코??충돌 방�? - stdout/stderr�?UTF-8�?강제 ?�정
 if sys.stdout.encoding != 'utf-8':
     sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1)
 if sys.stderr.encoding != 'utf-8':
@@ -25,10 +25,10 @@ if sys.stderr.encoding != 'utf-8':
 
 
 app = Flask(__name__, static_folder='.', static_url_path='')
-# 모든 경로와 오리진에 대해 CORS 허용 (모바일 앱 접속용)
+# 모든 경로?� ?�리진에 ?�??CORS ?�용 (모바?????�속??
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-# API 응답 gzip 압축 (대용량 JSON 전송 최적화 - 약 70~80% 크기 감소)
+# API ?�답 gzip ?�축 (?�?�량 JSON ?�송 최적??- ??70~80% ?�기 감소)
 try:
     from flask_compress import Compress
     compress = Compress()
@@ -38,21 +38,21 @@ try:
         'text/css',
         'application/javascript',
     ]
-    app.config['COMPRESS_LEVEL'] = 6      # 압축 레벨 (1~9, 6이 속도/크기 균형)
-    app.config['COMPRESS_MIN_SIZE'] = 500 # 500바이트 이상만 압축
+    app.config['COMPRESS_LEVEL'] = 6      # ?�축 ?�벨 (1~9, 6???�도/?�기 균형)
+    app.config['COMPRESS_MIN_SIZE'] = 500 # 500바이???�상�??�축
     compress.init_app(app)
-    print("[COMPRESS] gzip 압축 활성화됨")
+    print("[COMPRESS] gzip ?�축 ?�성?�됨")
 except ImportError:
-    print("[COMPRESS] flask-compress 미설치 — pip install flask-compress 로 설치 가능")
+    print("[COMPRESS] flask-compress 미설�???pip install flask-compress �??�치 가??)
 
 
-# 글로벌 OneDrive 경로 설정 (사용자 지정 경로 우선)
+# 글로벌 OneDrive 경로 ?�정 (?�용??지??경로 ?�선)
 def find_target_onedrive_path():
     fixed_path = r"C:\Users\zerod\OneDrive"
     if os.path.isdir(fixed_path):
         return fixed_path
     
-    # 자동 탐색 로직 (예비용)
+    # ?�동 ?�색 로직 (?�비??
     possible_paths = [
         os.path.expanduser("~/OneDrive"),
         os.path.expanduser("~/OneDrive - Personal"),
@@ -65,23 +65,23 @@ def find_target_onedrive_path():
 
 ONEDRIVE_PATH = find_target_onedrive_path()
 
-# ==================== 자동 동기화 트리거 ====================
+# ==================== ?�동 ?�기???�리�?====================
 def trigger_export():
-    """데이터 변경 시 export_to_json.py를 실행하여 앱용 JSON 갱신"""
+    """?�이??변�???export_to_json.py�??�행?�여 ?�용 JSON 갱신"""
     def run():
         try:
-            print("[AUTO-SYNC] JSON 변환 시작...")
+            print("[AUTO-SYNC] JSON 변???�작...")
             subprocess.run([sys.executable, "export_to_json.py"], check=True)
-            print("[AUTO-SYNC] ✅ JSON 변환 완료!")
+            print("[AUTO-SYNC] ??JSON 변???�료!")
         except Exception as e:
-            print(f"[AUTO-SYNC] ❌ 변환 실패: {e}")
+            print(f"[AUTO-SYNC] ??변???�패: {e}")
 
-    # 서버 응답을 방해하지 않도록 별도 스레드에서 실행
+    # ?�버 ?�답??방해?��? ?�도�?별도 ?�레?�에???�행
     threading.Thread(target=run).start()
 
-# ==================== 유틸리티 함수 (취소선 처리) ====================
+# ==================== ?�틸리티 ?�수 (취소??처리) ====================
 def parse_strikethrough_text(text):
-    """텍스트 내의 <del>태그 또는 ~~패턴을 파싱하여 CellRichText 객체로 변환"""
+    """?�스???�의 <del>?�그 ?�는 ~~?�턴???�싱?�여 CellRichText 객체�?변??""
     if not isinstance(text, str) or not text:
         return text
     from openpyxl.cell.rich_text import CellRichText, TextBlock
@@ -95,8 +95,8 @@ def parse_strikethrough_text(text):
     if len(parts) == 1: return text
     
     rich_text = CellRichText()
-    default_font = Font(name='맑은 고딕')
-    strike_font = Font(name='맑은 고딕', strike=True)
+    default_font = Font(name='맑�? 고딕')
+    strike_font = Font(name='맑�? 고딕', strike=True)
     
     for i, part in enumerate(parts):
         if not part: continue
@@ -107,7 +107,7 @@ def parse_strikethrough_text(text):
     return rich_text
 
 def extract_rich_text(cell):
-    """엑셀 셀의 실제 취소선 서식을 감지하여 마크다운(~~) 형식으로 변환"""
+    """?��? ?�???�제 취소???�식??감�??�여 마크?�운(~~) ?�식?�로 변??""
     from openpyxl.cell.rich_text import CellRichText
     if not hasattr(cell, 'value') or cell.value is None: return ""
     if isinstance(cell.value, CellRichText):
@@ -123,29 +123,29 @@ def extract_rich_text(cell):
 
 @app.route('/')
 def index():
-    """메인 페이지 서빙"""
+    """메인 ?�이지 ?�빙"""
     return send_from_directory('.', 'index.html')
 
 
 
 @app.route('/api/onedrive-status')
 def onedrive_status():
-    """OneDrive 연결 상태 확인"""
+    """OneDrive ?�결 ?�태 ?�인"""
     if ONEDRIVE_PATH and os.path.isdir(ONEDRIVE_PATH):
         return jsonify({
             'connected': True,
             'path': ONEDRIVE_PATH,
-            'message': f'OneDrive 연결됨: {ONEDRIVE_PATH}'
+            'message': f'OneDrive ?�결?? {ONEDRIVE_PATH}'
         })
     return jsonify({
         'connected': False,
         'path': None,
-        'message': 'OneDrive 동기화 폴더를 찾을 수 없습니다. 경로를 직접 지정해주세요.'
+        'message': 'OneDrive ?�기???�더�?찾을 ???�습?�다. 경로�?직접 지?�해주세??'
     })
 
 @app.route('/api/set-path', methods=['POST'])
 def set_path():
-    """OneDrive 경로 수동 설정"""
+    """OneDrive 경로 ?�동 ?�정"""
     global ONEDRIVE_PATH
     data = request.get_json()
     path = data.get('path', '')
@@ -153,22 +153,22 @@ def set_path():
     if os.path.isdir(path):
         ONEDRIVE_PATH = path
         return jsonify({'success': True, 'path': ONEDRIVE_PATH})
-    return jsonify({'success': False, 'message': '유효하지 않은 경로입니다.'}), 400
+    return jsonify({'success': False, 'message': '?�효?��? ?��? 경로?�니??'}), 400
 
 @app.route('/api/files')
 def list_excel_files():
-    """OneDrive 내 엑셀 파일 목록 조회"""
+    """OneDrive ???��? ?�일 목록 조회"""
     if not ONEDRIVE_PATH:
-        return jsonify({'error': 'OneDrive 경로가 설정되지 않았습니다.'}), 400
+        return jsonify({'error': 'OneDrive 경로가 ?�정?��? ?�았?�니??'}), 400
     
     search_path = request.args.get('subdir', '')
     base_path = os.path.join(ONEDRIVE_PATH, search_path)
     
     if not os.path.isdir(base_path):
-        return jsonify({'error': f'경로를 찾을 수 없습니다: {base_path}'}), 404
+        return jsonify({'error': f'경로�?찾을 ???�습?�다: {base_path}'}), 404
     
     files = []
-    # 현재 폴더의 하위 디렉토리 목록
+    # ?�재 ?�더???�위 ?�렉?�리 목록
     directories = []
     
     try:
@@ -177,7 +177,7 @@ def list_excel_files():
             rel_path = os.path.relpath(full_path, ONEDRIVE_PATH)
             
             if os.path.isdir(full_path):
-                # 숨김 폴더 제외
+                # ?��? ?�더 ?�외
                 if not item.startswith('.'):
                     directories.append({
                         'name': item,
@@ -193,7 +193,7 @@ def list_excel_files():
                     'full_path': full_path
                 })
     except PermissionError:
-        return jsonify({'error': '해당 폴더에 대한 접근 권한이 없습니다.'}), 403
+        return jsonify({'error': '?�당 ?�더???�???�근 권한???�습?�다.'}), 403
     
     return jsonify({
         'current_dir': search_path or '/',
@@ -201,14 +201,14 @@ def list_excel_files():
         'files': sorted(files, key=lambda x: x['name'])
     })
 
-# 파일 파싱 캐시
+# ?�일 ?�싱 캐시
 EXCEL_CACHE = {}
 
 @app.route('/api/read-excel')
 def read_excel():
-    """엑셀 파일 데이터 읽기"""
+    """?��? ?�일 ?�이???�기"""
     if not ONEDRIVE_PATH:
-        return jsonify({'error': 'OneDrive 경로가 설정되지 않았습니다.'}), 400
+        return jsonify({'error': 'OneDrive 경로가 ?�정?��? ?�았?�니??'}), 400
     
     file_path = request.args.get('file', '')
     sheet_name = request.args.get('sheet', None)
@@ -216,12 +216,12 @@ def read_excel():
     full_path = os.path.join(ONEDRIVE_PATH, file_path)
     
     if not os.path.isfile(full_path):
-        return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
+        return jsonify({'error': f'?�일??찾을 ???�습?�다: {file_path}'}), 404
     
     try:
         import io
         
-        # 캐시 확인 (수정 시간이 같으면 캐시 반환)
+        # 캐시 ?�인 (?�정 ?�간??같으�?캐시 반환)
         file_stat = os.stat(full_path)
         last_modified = file_stat.st_mtime
         
@@ -229,31 +229,31 @@ def read_excel():
         if cache_key in EXCEL_CACHE:
             return jsonify(EXCEL_CACHE[cache_key])
             
-        # 파일 잠금(Lock)을 방지하기 위해 메모리로 먼저 읽어오기
+        # ?�일 ?�금(Lock)??방�??�기 ?�해 메모리로 먼�? ?�어?�기
         with open(full_path, 'rb') as f:
             file_data = f.read()
             
-        # 시트 목록 가져오기
+        # ?�트 목록 가?�오�?
         xl = pd.ExcelFile(io.BytesIO(file_data), engine='openpyxl')
         sheet_names = xl.sheet_names
         
-        # 특정 시트 또는 첫 번째 시트 읽기
+        # ?�정 ?�트 ?�는 �?번째 ?�트 ?�기
         target_sheet = sheet_name if sheet_name else sheet_names[0]
         df = pd.read_excel(xl, sheet_name=target_sheet)
         
-        # NaN 값 처리
+        # NaN �?처리
         df = df.fillna('')
 
-        # --- 실적 시트 특수 처리 (헤더 자동 탐색) ---
+        # --- ?�적 ?�트 ?�수 처리 (?�더 ?�동 ?�색) ---
         header_row_idx = 0
-        if "실적" in target_sheet and not df.empty:
-            # 첫 10행 내에서 '연도' 또는 '수익율' 키워드 찾기
+        if "?�적" in target_sheet and not df.empty:
+            # �?10???�에??'?�도' ?�는 '?�익?? ?�워??찾기
             found_header = False
             for i in range(min(10, len(df))):
                 row_vals = [str(x).strip() for x in df.iloc[i].values]
-                if any("연도" in val or "수익율" in val for val in row_vals):
+                if any("?�도" in val or "?�익?? in val for val in row_vals):
                     header_row_idx = i
-                    # 현재 행을 컬럼명으로 승격
+                    # ?�재 ?�을 컬럼명으�??�격
                     new_cols = []
                     for j, val in enumerate(row_vals):
                         if val and val != 'nan':
@@ -265,25 +265,25 @@ def read_excel():
                     found_header = True
                     break
             
-            # 만약 못 찾았더라도 '연도' 컬럼이 B열(1번 인덱스)에 있는 경우가 많으므로 보정
+            # 만약 �?찾았?�라??'?�도' 컬럼??B??1�??�덱?????�는 경우가 많으므�?보정
             if not found_header and len(df.columns) > 1:
-                # B4가 15년이면 B3가 헤더일 가능성 높음 (pandas 0-indexed 기준 Row 2)
+                # B4가 15?�이�?B3가 ?�더??가?�성 ?�음 (pandas 0-indexed 기�? Row 2)
                 pass
 
-        # 숫자형 컬럼 감지 (강제 변환 시도 포함)
+        # ?�자??컬럼 감�? (강제 변???�도 ?�함)
         for col in df.columns:
-            if '연도' in str(col): continue 
+            if '?�도' in str(col): continue 
             try:
                 temp_numeric = pd.to_numeric(df[col].replace('', pd.NA), errors='coerce')
                 if temp_numeric.notna().any():
-                    if temp_numeric.notna().sum() / len(df) > 0.2: # 기준 완화
+                    if temp_numeric.notna().sum() / len(df) > 0.2: # 기�? ?�화
                         df[col] = temp_numeric.fillna(0)
             except:
                 pass
 
         numeric_columns = df.select_dtypes(include=['number']).columns.tolist()
         
-        # 기본 통계 계산
+        # 기본 ?�계 계산
         stats = {}
         for col in numeric_columns:
             col_data = df[col].replace('', pd.NA).dropna()
@@ -297,23 +297,23 @@ def read_excel():
                     'std': round(float(col_data.std()), 2) if len(col_data) > 1 else 0
                 }
         
-        # 데이터를 JSON 직렬화 가능한 형태로 변환
+        # ?�이?��? JSON 직렬??가?�한 ?�태�?변??
         columns = [str(c) for c in df.columns.tolist()]
         
-        # 탐구생활/실적 시트인 경우 서식 데이터(취소선 등)를 위해 openpyxl로 재확인
-        is_special = any(k in target_sheet for k in ["탐구", "실적"])
+        # ?�구?�활/?�적 ?�트??경우 ?�식 ?�이??취소????�??�해 openpyxl�??�확??
+        is_special = any(k in target_sheet for k in ["?�구", "?�적"])
         if is_special:
-            # openpyxl 워크북 로드
+            # openpyxl ?�크�?로드
             wb_format = openpyxl.load_workbook(io.BytesIO(file_data), data_only=True)
             ws_format = wb_format[target_sheet]
             
             data = []
-            # openpyxl은 1-based index이므로 pandas 인덱스 기반 보정
-            # pandas df.iloc[header_row_idx]는 원본 엑셀의 row=header_row_idx+2 (기본 헤더가 1행일 때)
-            # 하지만 df를 처음 읽을 때 이미 Row 1이 헤더로 쓰였으므로:
+            # openpyxl?� 1-based index?��?�?pandas ?�덱??기반 보정
+            # pandas df.iloc[header_row_idx]???�본 ?��???row=header_row_idx+2 (기본 ?�더가 1?�일 ??
+            # ?��?�?df�?처음 ?�을 ???��? Row 1???�더�??��??��?�?
             # Row 1 (Header), df.iloc[0] = Row 2, df.iloc[1] = Row 3 ...
-            # 따라서 header_row_idx일 때 엑셀 행은 header_row_idx + 2
-            start_row = header_row_idx + 3 if "실적" in target_sheet else 2
+            # ?�라??header_row_idx?????��? ?��? header_row_idx + 2
+            start_row = header_row_idx + 3 if "?�적" in target_sheet else 2
             
             for r_idx in range(start_row, ws_format.max_row + 1):
                 row_data = {}
@@ -333,7 +333,7 @@ def read_excel():
                     else: row_data[col_name] = str(val)
                 data.append(row_data)
         
-        # 파일 수정 시간 가져오기
+        # ?�일 ?�정 ?�간 가?�오�?
         file_stat = os.stat(full_path)
         last_modified = file_stat.st_mtime
 
@@ -349,20 +349,20 @@ def read_excel():
             'stats': stats
         }
         
-        # 캐시 저장 (메모리 누수 방지를 위해 초기화 후 저장)
+        # 캐시 ?�??(메모�??�수 방�?�??�해 초기?????�??
         EXCEL_CACHE.clear()
         EXCEL_CACHE[cache_key] = response_data
 
         return jsonify(response_data)
     
     except Exception as e:
-        return jsonify({'error': f'엑셀 파일 읽기 오류: {str(e)}'}), 500
+        return jsonify({'error': f'?��? ?�일 ?�기 ?�류: {str(e)}'}), 500
 
 @app.route('/api/analyze')
 def analyze_data():
-    """엑셀 데이터 심층 분석"""
+    """?��? ?�이???�층 분석"""
     if not ONEDRIVE_PATH:
-        return jsonify({'error': 'OneDrive 경로가 설정되지 않았습니다.'}), 400
+        return jsonify({'error': 'OneDrive 경로가 ?�정?��? ?�았?�니??'}), 400
     
     file_path = request.args.get('file', '')
     sheet_name = request.args.get('sheet', None)
@@ -370,18 +370,18 @@ def analyze_data():
     full_path = os.path.join(ONEDRIVE_PATH, file_path)
     
     if not os.path.isfile(full_path):
-        return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
+        return jsonify({'error': f'?�일??찾을 ???�습?�다: {file_path}'}), 404
     
     try:
         import io
-        # 파일 잠금(Lock)을 방지하기 위해 메모리로 먼저 읽어오기
+        # ?�일 ?�금(Lock)??방�??�기 ?�해 메모리로 먼�? ?�어?�기
         with open(full_path, 'rb') as f:
             file_data = f.read()
             
         df = pd.read_excel(io.BytesIO(file_data), sheet_name=sheet_name, engine='openpyxl')
         df = df.fillna('')
         
-        # 컬럼 타입 분석
+        # 컬럼 ?�??분석
         column_analysis = []
         for col in df.columns:
             col_data = df[col].replace('', pd.NA).dropna()
@@ -392,7 +392,7 @@ def analyze_data():
                 'unique': int(df[col].nunique()),
             }
             
-            # 숫자형인지 확인
+            # ?�자?�인지 ?�인
             numeric_data = pd.to_numeric(col_data, errors='coerce').dropna()
             if len(numeric_data) > 0 and len(numeric_data) / max(len(col_data), 1) > 0.5:
                 col_info['type'] = 'numeric'
@@ -406,7 +406,7 @@ def analyze_data():
                 }
             else:
                 col_info['type'] = 'text'
-                # 상위 빈도 값
+                # ?�위 빈도 �?
                 value_counts = df[col].value_counts().head(10)
                 col_info['top_values'] = [
                     {'value': str(v), 'count': int(c)} 
@@ -423,36 +423,36 @@ def analyze_data():
         })
     
     except Exception as e:
-        return jsonify({'error': f'분석 오류: {str(e)}'}), 500
+        return jsonify({'error': f'분석 ?�류: {str(e)}'}), 500
 
 
 @app.route('/api/save-journal', methods=['POST'])
 def save_journal():
-    """매매일지 데이터 추가 저장"""
+    """매매?��? ?�이??추�? ?�??""
     if not ONEDRIVE_PATH:
-        return jsonify({'error': 'OneDrive 경로가 설정되지 않았습니다.'}), 400
+        return jsonify({'error': 'OneDrive 경로가 ?�정?��? ?�았?�니??'}), 400
     
     data = request.get_json()
     file_path = data.get('file', '')
-    sheet_name = data.get('sheet', '매매일지')
-    row_values = data.get('row', [])  # [날짜, 종목, 수량, 단가, 매매종류, 투자금]
+    sheet_name = data.get('sheet', '매매?��?')
+    row_values = data.get('row', [])  # [?�짜, 종목, ?�량, ?��?, 매매종류, ?�자�?
     
     full_path = os.path.join(ONEDRIVE_PATH, file_path)
     
     if not os.path.isfile(full_path):
-        return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
+        return jsonify({'error': f'?�일??찾을 ???�습?�다: {file_path}'}), 404
     
     try:
         from openpyxl.styles import Font, PatternFill
 
-        # 포트폴리오 맵 업데이트에 사용할 스타일 정의
+        # ?�트?�리??�??�데?�트???�용???��????�의
         yellow_fill = PatternFill(
             fill_type="solid",
-            fgColor="FFFF00"   # 노란색
+            fgColor="FFFF00"   # ?��???
         )
-        no_fill = PatternFill(fill_type=None)  # 배경색 없음(초기화용)
+        no_fill = PatternFill(fill_type=None)  # 배경???�음(초기?�용)
 
-        # openpyxl을 사용하여 데이터 추가
+        # openpyxl???�용?�여 ?�이??추�?
         wb = openpyxl.load_workbook(full_path)
         try:
             if sheet_name not in wb.sheetnames:
@@ -460,33 +460,33 @@ def save_journal():
             else:
                 ws = wb[sheet_name]
             
-            # 데이터 추가
+            # ?�이??추�?
             ws.append(row_values)
             
-            # 마지막으로 추가된 행의 폰트 색상 설정
+            # 마�?막으�?추�????�의 ?�트 ?�상 ?�정
             last_row = ws.max_row
             trade_type_val = row_values[4] if len(row_values) > 4 else ""
             
-            # 색상 결정 (매도: 빨간색, 매수: 검정색)
+            # ?�상 결정 (매도: 빨간?? 매수: 검?�색)
             font_color = "FF0000" if trade_type_val == "매도" else "000000"
             cell_font = Font(color=font_color)
             
             for col_idx in range(1, len(row_values) + 1):
                 ws.cell(row=last_row, column=col_idx).font = cell_font
             
-            # --- 포트폴리오 맵 절대값 동기화 ---
-            # row_values: [날짜, 종목, 수량, 단가, 매매종류, 투자금]
+            # --- ?�트?�리??�??��?�??�기??---
+            # row_values: [?�짜, 종목, ?�량, ?��?, 매매종류, ?�자�?
             try:
                 trade_stock = str(row_values[1]).strip() if len(row_values) > 1 else ""
-                # 투자금액 절대값 계산
+                # ?�자금액 ?��?�?계산
                 raw_investment = float(row_values[5]) if len(row_values) > 5 else 0
                 investment_amount = abs(raw_investment)
                 
                 if trade_stock:
                     sync_portfolio_map(wb, trade_stock, investment_amount)
                     
-                    # 실제 반영된 마크 수 재검증 → 매매일지 투자금 보정
-                    ws_map = wb['포트폴리오 맵']
+                    # ?�제 반영??마크 ???��?�???매매?��? ?�자�?보정
+                    ws_map = wb['?�트?�리??�?]
                     trade_stock_clean = trade_stock.replace(" ", "")
                     final_ones = 0
                     for r in range(1, ws_map.max_row + 1):
@@ -501,30 +501,30 @@ def save_journal():
             except Exception as inner_e:
                 print(f"[ERROR] portfolio map update failed: {inner_e}")
             
-            # 최종 저장 (매매일지 + 포트폴리오 맵 모두 반영)
+            # 최종 ?�??(매매?��? + ?�트?�리??�?모두 반영)
             wb.save(full_path)
             wb.close()
             
-            # 아이폰 앱용 데이터 자동 갱신
+            # ?�이???�용 ?�이???�동 갱신
             trigger_export()
                 
         finally:
-            # 오류가 발생하더라도 확실하게 파일을 닫아 잠금 해제
+            # ?�류가 발생?�더?�도 ?�실?�게 ?�일???�아 ?�금 ?�제
             try: wb.close()
             except: pass
         
-        return jsonify({'success': True, 'message': '성공적으로 저장되었습니다.'})
+        return jsonify({'success': True, 'message': '?�공?�으�??�?�되?�습?�다.'})
     
     except Exception as e:
         import traceback
         print(traceback.format_exc())
-        return jsonify({'error': f'저장 오류: {str(e)}'}), 500
+        return jsonify({'error': f'?�???�류: {str(e)}'}), 500
 
 
 @app.route('/api/update-row', methods=['POST'])
 def update_row():
     if not ONEDRIVE_PATH:
-        return jsonify({'error': 'OneDrive 경로가 설정되지 않았습니다.'}), 400
+        return jsonify({'error': 'OneDrive 경로가 ?�정?��? ?�았?�니??'}), 400
 
     data = request.get_json()
     file_path = data.get('file', '')
@@ -533,32 +533,32 @@ def update_row():
     values = data.get('values', [])
 
     if not sheet_name:
-        return jsonify({'error': 'sheet 값이 필요합니다.'}), 400
+        return jsonify({'error': 'sheet 값이 ?�요?�니??'}), 400
 
     full_path = os.path.join(ONEDRIVE_PATH, file_path)
     if not os.path.isfile(full_path):
-        return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
+        return jsonify({'error': f'?�일??찾을 ???�습?�다: {file_path}'}), 404
 
     try:
         from openpyxl.styles import Alignment
         wb = openpyxl.load_workbook(full_path)
         if sheet_name not in wb.sheetnames:
-            return jsonify({'error': f'시트를 찾을 수 없습니다: {sheet_name}'}), 404
+            return jsonify({'error': f'?�트�?찾을 ???�습?�다: {sheet_name}'}), 404
 
         ws = wb[sheet_name]
         target_row = row_index + 2
         for col_idx, value in enumerate(values, start=1):
             cell = ws.cell(row=target_row, column=col_idx)
-            # 취소선 처리
+            # 취소??처리
             processed_value = parse_strikethrough_text(value)
             cell.value = processed_value
             
-            # 줄바꿈(\n)이 포함된 셀은 엑셀에서도 표시되도록 wrap_text 설정
+            # 줄바�?\n)???�함???�?� ?��??�서???�시?�도�?wrap_text ?�정
             if isinstance(value, str) and '\n' in value:
                 cell.alignment = Alignment(wrap_text=True)
 
-        # 매매일지인 경우 포트폴리오 맵 동기화
-        if sheet_name == '매매일지':
+        # 매매?��???경우 ?�트?�리??�??�기??
+        if sheet_name == '매매?��?':
             try:
                 stock_name = values[1] if len(values) > 1 else ""
                 amount = float(values[5]) if len(values) > 5 else 0
@@ -569,19 +569,19 @@ def update_row():
         wb.save(full_path)
         wb.close()
         
-        # 아이폰 앱용 데이터 자동 갱신
+        # ?�이???�용 ?�이???�동 갱신
         trigger_export()
         
-        return jsonify({'success': True, 'message': '행이 업데이트되었습니다.'})
+        return jsonify({'success': True, 'message': '?�이 ?�데?�트?�었?�니??'})
     except Exception as e:
         import traceback
         print(traceback.format_exc())
-        return jsonify({'error': f'업데이트 오류: {str(e)}'}), 500
+        return jsonify({'error': f'?�데?�트 ?�류: {str(e)}'}), 500
 
 @app.route('/api/sync-receive', methods=['GET', 'POST'])
 def sync_receive():
     if not ONEDRIVE_PATH:
-        return "OneDrive 경로가 설정되지 않았습니다.", 400
+        return "OneDrive 경로가 ?�정?��? ?�았?�니??", 400
 
     try:
         import json
@@ -599,7 +599,7 @@ def sync_receive():
         from openpyxl.styles import Alignment
         import traceback
 
-        # 엑셀 작업 최소화를 위해 파일/시트별로 그룹화하지 않고 단순 반복 (통상 1~5건 내외이므로)
+        # ?��? ?�업 최소?��? ?�해 ?�일/?�트별로 그룹?�하지 ?�고 ?�순 반복 (?�상 1~5�??�외?��?�?
         for edit in edits:
             file_path = edit.get('file', '')
             sheet_name = edit.get('sheet')
@@ -626,7 +626,7 @@ def sync_receive():
             wb.save(full_path)
             wb.close()
 
-        # 아이폰 앱용 데이터 자동 갱신
+        # ?�이???�용 ?�이???�동 갱신
         trigger_export()
 
         return """
@@ -640,37 +640,37 @@ def sync_receive():
           </style>
         </head>
         <body>
-          <h2>✅ PC 전송 완료!</h2>
-          <p>엑셀 파일에 데이터가 정상적으로 저장되었습니다.</p>
-          <p>깃허브 서버 반영까지 약 1~2분 소요될 수 있습니다.</p>
-          <button onclick="window.location.href='https://smuth-swing.github.io/stock-portfolio/mobile/'">앱으로 돌아가기</button>
+          <h2>??PC ?�송 ?�료!</h2>
+          <p>?��? ?�일???�이?��? ?�상?�으�??�?�되?�습?�다.</p>
+          <p>깃허�??�버 반영까�? ??1~2�??�요?????�습?�다.</p>
+          <button onclick="window.location.href='https://smuth-swing.github.io/stock-portfolio/mobile/'">?�으�??�아가�?/button>
         </body>
         </html>
         """
     except Exception as e:
         import traceback
         print(traceback.format_exc())
-        return f"동기화 오류: {str(e)}", 500
+        return f"?�기???�류: {str(e)}", 500
 
 
 def sync_portfolio_map(wb, stock_name, trade_amount):
-    """포트폴리오 맵의 종목 마크(점)를 투자금액에 맞게 동기화"""
-    if '포트폴리오 맵' not in wb.sheetnames:
+    """?�트?�리??맵의 종목 마크(??�??�자금액??맞게 ?�기??""
+    if '?�트?�리??�? not in wb.sheetnames:
         return
     
     from openpyxl.styles import PatternFill
     yellow_fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
     no_fill = PatternFill(fill_type=None)
     
-    ws_map = wb['포트폴리오 맵']
+    ws_map = wb['?�트?�리??�?]
     stock_clean = stock_name.replace(" ", "")
     target_marks = int(abs(trade_amount) // 100)
     
-    # 종목명이 일치하는 모든 행을 찾아서 처리
+    # 종목명이 ?�치?�는 모든 ?�을 찾아??처리
     for r in range(1, ws_map.max_row + 1):
         cell_val = str(ws_map.cell(row=r, column=4).value or "").strip().replace(" ", "")
         if cell_val and (stock_clean in cell_val or cell_val in stock_clean):
-            # 1. 초기화
+            # 1. 초기??
             for c in range(5, 101):
                 cell = ws_map.cell(row=r, column=c)
                 cell.value = None
@@ -683,14 +683,14 @@ def sync_portfolio_map(wb, stock_name, trade_amount):
                         cell = ws_map.cell(row=r, column=col_idx)
                         cell.value = 1
                         cell.fill = yellow_fill
-    print(f"📊 [{stock_name}] 포트폴리오 동기화: {target_marks}개")
+    print(f"?�� [{stock_name}] ?�트?�리???�기?? {target_marks}�?)
 
 
 @app.route('/api/delete-row', methods=['POST'])
 def delete_row():
-    """행 삭제 API - 매매일지의 경우 이전 데이터로 동기화 포함"""
+    """????�� API - 매매?��???경우 ?�전 ?�이?�로 ?�기???�함"""
     if not ONEDRIVE_PATH:
-        return jsonify({'error': 'OneDrive 경로가 설정되지 않았습니다.'}), 400
+        return jsonify({'error': 'OneDrive 경로가 ?�정?��? ?�았?�니??'}), 400
 
     data = request.get_json()
     file_path = data.get('file', '')
@@ -699,26 +699,26 @@ def delete_row():
 
     full_path = os.path.join(ONEDRIVE_PATH, file_path)
     if not os.path.isfile(full_path):
-        return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
+        return jsonify({'error': f'?�일??찾을 ???�습?�다: {file_path}'}), 404
 
     try:
         wb = openpyxl.load_workbook(full_path)
         if sheet_name not in wb.sheetnames:
-            return jsonify({'error': f'시트를 찾을 수 없습니다: {sheet_name}'}), 404
+            return jsonify({'error': f'?�트�?찾을 ???�습?�다: {sheet_name}'}), 404
 
         ws = wb[sheet_name]
         target_row_idx = row_index + 2
         
-        # 삭제 전 정보 기억
+        # ??�� ???�보 기억
         stock_name = None
-        if sheet_name == '매매일지':
+        if sheet_name == '매매?��?':
             stock_name = str(ws.cell(row=target_row_idx, column=2).value or "").strip()
         
-        # 행 삭제
+        # ????��
         ws.delete_rows(target_row_idx)
         
-        # 매매일지 삭제 후 동기화
-        if sheet_name == '매매일지' and stock_name:
+        # 매매?��? ??�� ???�기??
+        if sheet_name == '매매?��?' and stock_name:
             last_amount = 0
             stock_clean = stock_name.replace(" ", "")
             for r in range(2, ws.max_row + 1):
@@ -730,26 +730,26 @@ def delete_row():
                     except: pass
             
             sync_portfolio_map(wb, stock_name, last_amount)
-            print(f"🗑️ [{stock_name}] 삭제 및 이전 데이터({last_amount}) 동기화")
+            print(f"?���?[{stock_name}] ??�� �??�전 ?�이??{last_amount}) ?�기??)
 
         wb.save(full_path)
         wb.close()
         
-        # 아이폰 앱용 데이터 자동 갱신
+        # ?�이???�용 ?�이???�동 갱신
         trigger_export()
         
-        return jsonify({'success': True, 'message': '행이 삭제되었습니다.'})
+        return jsonify({'success': True, 'message': '?�이 ??��?�었?�니??'})
     except Exception as e:
         import traceback
         print(traceback.format_exc())
-        return jsonify({'error': f'삭제 오류: {str(e)}'}), 500
+        return jsonify({'error': f'??�� ?�류: {str(e)}'}), 500
 
 
 @app.route('/api/ping')
 def ping():
     """
-    절전 복귀 감지용 헬스체크 엔드포인트.
-    클라이언트(PWA)가 주기적으로 호출하여 서버 생존 및 절전 복귀를 감지한다.
+    ?�전 복�? 감�????�스체크 ?�드?�인??
+    ?�라?�언??PWA)가 주기?�으�??�출?�여 ?�버 ?�존 �??�전 복�?�?감�??�다.
     """
     import time
     return jsonify({
@@ -759,21 +759,21 @@ def ping():
     })
 
 
-# ══════════════════════════════════════════════════════════════
-# LS증권 OpenAPI 연동 엔드포인트
-# ══════════════════════════════════════════════════════════════
+# ?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═
+# LS증권 OpenAPI ?�동 ?�드?�인??
+# ?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═?�═
 
 @app.route('/api/ls/config', methods=['GET', 'POST'])
 def ls_config():
-    """LS증권 API 설정 저장 / 조회"""
+    """LS증권 API ?�정 ?�??/ 조회"""
     try:
         from ls_api import load_config, save_config
     except ImportError:
-        return jsonify({'error': 'ls_api 모듈을 찾을 수 없습니다.'}), 500
+        return jsonify({'error': 'ls_api 모듈??찾을 ???�습?�다.'}), 500
 
     if request.method == 'GET':
         cfg = load_config()
-        # 비밀번호/시크릿은 마스킹하여 반환
+        # 비�?번호/?�크릿�? 마스?�하??반환
         safe_cfg = {
             'app_key': cfg.get('app_key', ''),
             'app_secret': '****' if cfg.get('app_secret') else '',
@@ -784,30 +784,30 @@ def ls_config():
         }
         return jsonify(safe_cfg)
 
-    # POST: 설정 저장
+    # POST: ?�정 ?�??
     data = request.get_json()
-    cfg = load_config()  # 기존 설정 유지 (부분 업데이트 지원)
+    cfg = load_config()  # 기존 ?�정 ?��? (부�??�데?�트 지??
 
     for key in ('app_key', 'app_secret', 'account', 'account_pw'):
         val = data.get(key, '')
-        # '****'가 들어오면 기존 값 유지 (마스킹된 값 그대로 보낸 경우)
+        # '****'가 ?�어?�면 기존 �??��? (마스?�된 �?그�?�?보낸 경우)
         if val and val != '****':
             cfg[key] = val
 
     save_config(cfg)
-    return jsonify({'success': True, 'message': 'LS증권 API 설정이 저장되었습니다.'})
+    return jsonify({'success': True, 'message': 'LS증권 API ?�정???�?�되?�습?�다.'})
 
 
 @app.route('/api/ls/fetch-trades', methods=['POST'])
 def ls_fetch_trades():
     """
-    LS증권 API로 체결 내역 조회
+    LS증권 API�?체결 ?�역 조회
     Body: { from_date: "YYYYMMDD", to_date: "YYYYMMDD", stock_code: "" }
     """
     try:
         from ls_api import fetch_trade_history
     except ImportError:
-        return jsonify({'error': 'ls_api 모듈을 찾을 수 없습니다.'}), 500
+        return jsonify({'error': 'ls_api 모듈??찾을 ???�습?�다.'}), 500
 
     data = request.get_json() or {}
     from_date = data.get('from_date', '')
@@ -815,7 +815,7 @@ def ls_fetch_trades():
     stock_code = data.get('stock_code', '')
 
     if not from_date or not to_date:
-        return jsonify({'error': '조회 기간(from_date, to_date)을 입력하세요. 형식: YYYYMMDD'}), 400
+        return jsonify({'error': '조회 기간(from_date, to_date)???�력?�세?? ?�식: YYYYMMDD'}), 400
 
     try:
         trades = fetch_trade_history(
@@ -831,44 +831,44 @@ def ls_fetch_trades():
             'trades': trades
         })
     except ValueError as e:
-        # 설정 미완료 등 사용자 입력 오류
+        # ?�정 미완�????�용???�력 ?�류
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         import traceback
         print(traceback.format_exc())
-        return jsonify({'error': f'LS API 조회 실패: {str(e)}'}), 500
+        return jsonify({'error': f'LS API 조회 ?�패: {str(e)}'}), 500
 
 
 @app.route('/api/ls/import-trades', methods=['POST'])
 def ls_import_trades():
     """
-    선택한 거래내역을 Excel DB(매매일지 시트)에 저장
+    ?�택??거래?�역??Excel DB(매매?��? ?�트)???�??
     Body: {
-        file: "파일경로",
+        file: "?�일경로",
         trades: [{ date, name, qty, price, type, investment, memo }, ...]
     }
     """
     if not ONEDRIVE_PATH:
-        return jsonify({'error': 'OneDrive 경로가 설정되지 않았습니다.'}), 400
+        return jsonify({'error': 'OneDrive 경로가 ?�정?��? ?�았?�니??'}), 400
 
     data = request.get_json() or {}
     file_path = data.get('file', '')
     trades = data.get('trades', [])
 
     if not file_path:
-        return jsonify({'error': 'file 경로를 지정하세요.'}), 400
+        return jsonify({'error': 'file 경로�?지?�하?�요.'}), 400
     if not trades:
-        return jsonify({'error': '저장할 거래 내역이 없습니다.'}), 400
+        return jsonify({'error': '?�?�할 거래 ?�역???�습?�다.'}), 400
 
     full_path = os.path.join(ONEDRIVE_PATH, file_path)
     if not os.path.isfile(full_path):
-        return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
+        return jsonify({'error': f'?�일??찾을 ???�습?�다: {file_path}'}), 404
 
     try:
         wb = openpyxl.load_workbook(full_path)
-        sheet_name = '매매일지'
+        sheet_name = '매매?��?'
         if sheet_name not in wb.sheetnames:
-            return jsonify({'error': f'"{sheet_name}" 시트를 찾을 수 없습니다.'}), 404
+            return jsonify({'error': f'"{sheet_name}" ?�트�?찾을 ???�습?�다.'}), 404
 
         ws = wb[sheet_name]
         saved_count = 0
@@ -876,7 +876,7 @@ def ls_import_trades():
 
         for trade in trades:
             try:
-                # 기존 매매일지 컬럼 순서: [날짜, 종목, 수량, 단가, 매매종류, 투자금]
+                # 기존 매매?��? 컬럼 ?�서: [?�짜, 종목, ?�량, ?��?, 매매종류, ?�자�?
                 row_values = [
                     trade.get('date', ''),
                     trade.get('name', ''),
@@ -885,28 +885,28 @@ def ls_import_trades():
                     trade.get('type', '매수'),
                     float(trade.get('investment', 0)),
                 ]
-                # 메모가 있으면 7번째 컬럼에 추가
+                # 메모가 ?�으�?7번째 컬럼??추�?
                 memo = trade.get('memo', '')
                 if memo:
                     row_values.append(memo)
 
                 ws.append(row_values)
 
-                # 폰트 색상 (매도=빨강, 매수=검정)
+                # ?�트 ?�상 (매도=빨강, 매수=검??
                 last_row = ws.max_row
                 font_color = "FF0000" if trade.get('type') == '매도' else "000000"
                 cell_font = Font(color=font_color)
                 for col_idx in range(1, len(row_values) + 1):
                     ws.cell(row=last_row, column=col_idx).font = cell_font
 
-                # 포트폴리오 맵 동기화
+                # ?�트?�리??�??�기??
                 stock_name = trade.get('name', '')
                 investment = float(trade.get('investment', 0))
                 if stock_name:
                     try:
                         sync_portfolio_map(wb, stock_name, investment)
                     except Exception:
-                        pass  # 맵 동기화 실패는 저장 자체를 막지 않음
+                        pass  # �??�기???�패???�???�체�?막�? ?�음
 
                 saved_count += 1
 
@@ -916,31 +916,31 @@ def ls_import_trades():
         wb.save(full_path)
         wb.close()
 
-        # 아이폰 앱용 JSON 자동 갱신
+        # ?�이???�용 JSON ?�동 갱신
         trigger_export()
 
-        msg = f'{saved_count}건 저장 완료'
+        msg = f'{saved_count}�??�???�료'
         if errors:
-            msg += f' (오류 {len(errors)}건: {"; ".join(errors[:3])})'
+            msg += f' (?�류 {len(errors)}�? {"; ".join(errors[:3])})'
 
         return jsonify({'success': True, 'saved': saved_count, 'errors': errors, 'message': msg})
 
     except Exception as e:
         import traceback
         print(traceback.format_exc())
-        return jsonify({'error': f'저장 오류: {str(e)}'}), 500
+        return jsonify({'error': f'?�???�류: {str(e)}'}), 500
 
 @app.route('/api/ls/current-prices', methods=['POST'])
 def ls_current_prices():
     """
-    LS증권 API로 여러 종목의 현재가 조회
-    Body: { "shcodes": ["005930", ...], "names": ["삼성전자", "SK하이닉스", ...] }
-    반환: { "005930": 80000, "삼성전자": 80000 }
+    LS증권 API�??�러 종목???�재가 조회
+    Body: { "shcodes": ["005930", ...], "names": ["?�성?�자", "SK?�이?�스", ...] }
+    반환: { "005930": 80000, "?�성?�자": 80000 }
     """
     try:
         from ls_api import fetch_current_prices, get_stock_codes_by_names, load_config, get_access_token
     except ImportError:
-        return jsonify({'error': 'ls_api 모듈을 찾을 수 없습니다.'}), 500
+        return jsonify({'error': 'ls_api 모듈??찾을 ???�습?�다.'}), 500
 
     data = request.get_json() or {}
     shcodes = data.get('shcodes', [])
@@ -957,15 +957,15 @@ def ls_current_prices():
             shcodes.extend(name_to_code.values())
             code_to_name = {v: k for k, v in name_to_code.items()}
 
-    shcodes = list(set(shcodes)) # 중복 제거
+    shcodes = list(set(shcodes)) # 중복 ?�거
 
     if not shcodes:
-        return jsonify({'error': '종목 코드(shcodes)나 종목명(names)을 제공해주세요.'}), 400
+        return jsonify({'error': '종목 코드(shcodes)??종목�?names)???�공?�주?�요.'}), 400
 
     try:
         prices = fetch_current_prices(shcodes)
         
-        # 이름으로 요청된 경우 이름으로도 가격 추가
+        # ?�름?�로 ?�청??경우 ?�름?�로??가�?추�?
         result_prices = {**prices}
         for code, price in prices.items():
             if code in code_to_name:
@@ -978,19 +978,19 @@ def ls_current_prices():
     except Exception as e:
         import traceback
         print(traceback.format_exc())
-        return jsonify({'error': f'현재가 조회 실패: {str(e)}'}), 500
+        return jsonify({'error': f'?�재가 조회 ?�패: {str(e)}'}), 500
 
 
 @app.route('/api/ls/moving-averages', methods=['GET'])
 def ls_moving_averages():
     """
-    단일 종목의 이동평균선(5, 20, 60, 120일) 데이터 조회
-    Query: ?shcode=005930 또는 ?name=삼성전자
+    ?�일 종목???�동?�균??5, 20, 60, 120?? ?�이??조회
+    Query: ?shcode=005930 ?�는 ?name=?�성?�자
     """
     try:
         from ls_api import fetch_moving_averages, get_stock_codes_by_names, load_config, get_access_token
     except ImportError:
-        return jsonify({'error': 'ls_api 모듈을 찾을 수 없습니다.'}), 500
+        return jsonify({'error': 'ls_api 모듈??찾을 ???�습?�다.'}), 500
 
     shcode = request.args.get('shcode', '')
     name = request.args.get('name', '')
@@ -1004,7 +1004,7 @@ def ls_moving_averages():
                 shcode = name_to_code[name]
 
     if not shcode:
-        return jsonify({'error': '종목 코드나 이름을 제공해주세요.'}), 400
+        return jsonify({'error': '종목 코드???�름???�공?�주?�요.'}), 400
 
     try:
         ma_data = fetch_moving_averages(shcode)
@@ -1015,7 +1015,7 @@ def ls_moving_averages():
     except Exception as e:
         import traceback
         print(traceback.format_exc())
-        return jsonify({'error': f'이동평균선 조회 실패: {str(e)}'}), 500
+        return jsonify({'error': f'?�동?�균??조회 ?�패: {str(e)}'}), 500
 
 
 if __name__ == '__main__':
@@ -1031,7 +1031,7 @@ if __name__ == '__main__':
     print("=" * 60)
     
     try:
-        # 배포 시에는 debug=False 권장
+        # 배포 ?�에??debug=False 권장
         app.run(debug=False, port=5000, host='0.0.0.0')
     except Exception as e:
         print(f"Error starting server: {e}")
