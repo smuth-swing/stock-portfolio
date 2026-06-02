@@ -10,7 +10,15 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 export default function InvestigationScreen() {
   const { investigation, isLoading, refreshData, syncQueue, addToSyncQueue, markQueueAsSynced, meta } = useDataStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'strategy'>('all');
+  const [filter, setFilter] = useState<'all' | 'strategy' | 'priority'>('all');
+  
+  // 엑셀 컬럼명 변경 대응을 위한 헬퍼 함수
+  const getStockName = (item: any) => item['종목명'] || item['Unnamed: 1'] || '';
+  const getMomentum = (item: any) => item['모멘텀'] || item['Unnamed: 2'] || item['Unnamed: 1'] /* prev error fallback */ || '';
+  const getReason = (item: any) => item['매수이유'] || item['Unnamed: 3'] || '';
+  const getRisk = (item: any) => item['리스크'] || item['Unnamed: 4'] || '';
+  const getCeo = (item: any) => item['대표/경영진'] || item['Unnamed: 5'] || '';
+  const getStrategy = (item: any) => item['매매 전략'] || item['Unnamed: 6'] || '';
   const [searchQuery, setSearchQuery] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<any>({});
@@ -48,12 +56,13 @@ export default function InvestigationScreen() {
 
   // 데이터 추출 로직
   const allData = investigation?.data || [];
-  const allItems = allData.slice(2).map((r: any, idx: number) => ({ ...r, _realIndex: idx + 2 })).filter((r: any) => r['Unnamed: 1']);
+  const allItems = allData.filter((r: any) => getStockName(r));
   
   const items = allItems.filter((item: any) => {
-    if (filter === 'strategy' && !item['Unnamed: 6']) return false;
+    if (filter === 'strategy' && !getStrategy(item)) return false;
+    if (filter === 'priority' && !getMomentum(item)) return false;
     if (searchQuery.trim() !== '') {
-      const stockName = item['Unnamed: 1'] || '';
+      const stockName = getStockName(item);
       if (!stockName.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
     }
     return true;
@@ -62,11 +71,11 @@ export default function InvestigationScreen() {
   const startEditing = (realIdx: number, item: any) => {
     setEditingIndex(realIdx);
     setEditForm({
-      reason: item['Unnamed: 3'] || '',    // 매수 이유 (col4)
-      risk: item['Unnamed: 4'] || '',      // 리스크 (col5)
-      momentum: item['Unnamed: 1'] || '',  // 핵심 모멘텀 (col2) ← Unnamed:1
-      strategy: item['Unnamed: 6'] || '',  // 매매 전략 (col7)
-      ceo: item['Unnamed: 5'] || ''        // 대표/경영진 (col6)
+      reason: getReason(item),
+      risk: getRisk(item),
+      momentum: getMomentum(item),
+      strategy: getStrategy(item),
+      ceo: getCeo(item)
     });
   };
 
@@ -83,16 +92,14 @@ export default function InvestigationScreen() {
       const sheetName = investigation.current_sheet;
       const columns = investigation.columns;
       
-      // 실제 엑셀 컬럼 구조에 맞는 올바른 매핑
-      // col1=번호(Unnamed:0), col2=종목명(Unnamed:1), col3=빈열(Unnamed:2)
-      // col4=매수이유(Unnamed:3), col5=리스크(Unnamed:4), col6=대표(Unnamed:5), col7=매매전략(Unnamed:6)
+      // 하위호환성(Unnamed) 및 신규 컬럼명 모두 지원
       const newRowData = { 
         ...rowData, 
-        'Unnamed: 3': editForm.reason,    // 매수 이유 → col4
-        'Unnamed: 4': editForm.risk,      // 리스크 → col5
-        'Unnamed: 1': editForm.momentum,  // 핵심 모멘텀 → col2 (종목명 다음 칸)
-        'Unnamed: 6': editForm.strategy,  // 매매 전략 → col7
-        'Unnamed: 5': editForm.ceo        // 대표/경영진 → col6
+        '매수이유': editForm.reason, 'Unnamed: 3': editForm.reason,
+        '리스크': editForm.risk, 'Unnamed: 4': editForm.risk,
+        '모멘텀': editForm.momentum, 'Unnamed: 2': editForm.momentum, 'Unnamed: 1': editForm.momentum,
+        '매매 전략': editForm.strategy, 'Unnamed: 6': editForm.strategy,
+        '대표/경영진': editForm.ceo, 'Unnamed: 5': editForm.ceo
       };
       const values = columns.map((col: string) => newRowData[col] !== undefined && newRowData[col] !== null ? newRowData[col] : '');
 
@@ -146,6 +153,12 @@ export default function InvestigationScreen() {
             >
               <Text style={[styles.filterBtnText, filter === 'strategy' && styles.filterBtnTextActive]}>전략보유</Text>
             </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.filterBtn, filter === 'priority' && styles.filterBtnActive]}
+              onPress={() => setFilter('priority')}
+            >
+              <Text style={[styles.filterBtnText, filter === 'priority' && styles.filterBtnTextActive]}>매매우선</Text>
+            </TouchableOpacity>
           </View>
         </View>
         <View style={styles.searchContainer}>
@@ -190,10 +203,10 @@ export default function InvestigationScreen() {
               >
                 <View style={styles.cardHeader}>
                   <View style={styles.titleRow}>
-                    <Text style={styles.stockName}>
-                      {item['Unnamed: 1']}
+                    <Text style={[styles.stockName, getMomentum(item) ? { color: '#EF4444' } : null]}>
+                      {getStockName(item)}
                     </Text>
-                    {item['Unnamed: 6'] ? (
+                    {getStrategy(item) ? (
                       <View style={styles.badge}>
                         <Text style={styles.badgeText}>전략 보유</Text>
                       </View>
@@ -238,38 +251,38 @@ export default function InvestigationScreen() {
                       </View>
                     ) : (
                       <View>
-                        {item['Unnamed: 3'] ? (
+                        {getReason(item) ? (
                           <View style={styles.section}>
                             <Text style={styles.sectionTitle}>🎯 매수 이유</Text>
-                            <Text style={styles.sectionText}>{item['Unnamed: 3']}</Text>
+                            <Text style={styles.sectionText}>{getReason(item)}</Text>
                           </View>
                         ) : null}
 
-                        {item['Unnamed: 4'] ? (
+                        {getRisk(item) ? (
                           <View style={styles.section}>
                             <Text style={styles.sectionTitle}>⚠️ 리스크</Text>
-                            <Text style={styles.sectionText}>{item['Unnamed: 4']}</Text>
+                            <Text style={styles.sectionText}>{getRisk(item)}</Text>
                           </View>
                         ) : null}
 
-                        {item['Unnamed: 2'] ? (
+                        {getMomentum(item) ? (
                           <View style={styles.section}>
                             <Text style={styles.sectionTitle}>💡 핵심 모멘텀</Text>
-                            <Text style={styles.sectionText}>{item['Unnamed: 2']}</Text>
+                            <Text style={styles.sectionText}>{getMomentum(item)}</Text>
                           </View>
                         ) : null}
 
-                        {item['Unnamed: 6'] ? (
+                        {getStrategy(item) ? (
                           <View style={styles.section}>
                             <Text style={styles.sectionTitle}>📈 매매 전략</Text>
-                            <Text style={styles.sectionText}>{item['Unnamed: 6']}</Text>
+                            <Text style={styles.sectionText}>{getStrategy(item)}</Text>
                           </View>
                         ) : null}
 
-                        {item['Unnamed: 5'] ? (
+                        {getCeo(item) ? (
                           <View style={styles.section}>
                             <Text style={styles.sectionTitle}>👤 대표 / 경영진</Text>
-                            <Text style={styles.sectionText}>{item['Unnamed: 5']}</Text>
+                            <Text style={styles.sectionText}>{getCeo(item)}</Text>
                           </View>
                         ) : null}
                         
