@@ -10,7 +10,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 export default function InvestigationScreen() {
   const { investigation, isLoading, refreshData, syncQueue, addToSyncQueue, markQueueAsSynced, meta } = useDataStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'strategy'>('all');
+  const [filter, setFilter] = useState<'all' | 'priority'>('all');
   
   // 엑셀 컬럼명 변경 대응을 위한 헬퍼 함수
   const getStockName = (item: any) => item['종목명'] || item['Unnamed: 1'] || '';
@@ -59,7 +59,7 @@ export default function InvestigationScreen() {
   const allItems = allData.filter((r: any) => getStockName(r));
   
   const items = allItems.filter((item: any) => {
-    if (filter === 'strategy' && !getStrategy(item)) return false;
+    if (filter === 'priority' && !getMomentum(item)) return false;
     if (searchQuery.trim() !== '') {
       const stockName = getStockName(item);
       if (!stockName.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
@@ -147,10 +147,10 @@ export default function InvestigationScreen() {
               <Text style={[styles.filterBtnText, filter === 'all' && styles.filterBtnTextActive]}>전체</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.filterBtn, filter === 'strategy' && styles.filterBtnActive]}
-              onPress={() => setFilter('strategy')}
+              style={[styles.filterBtn, filter === 'priority' && styles.filterBtnActive]}
+              onPress={() => setFilter('priority')}
             >
-              <Text style={[styles.filterBtnText, filter === 'strategy' && styles.filterBtnTextActive]}>전략보유</Text>
+              <Text style={[styles.filterBtnText, filter === 'priority' && styles.filterBtnTextActive]}>매매우선</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -199,9 +199,9 @@ export default function InvestigationScreen() {
                     <Text style={styles.stockName}>
                       {getStockName(item)}
                     </Text>
-                    {getStrategy(item) ? (
+                    {getMomentum(item) ? (
                       <View style={styles.badge}>
-                        <Text style={styles.badgeText}>전략 보유</Text>
+                        <Text style={styles.badgeText}>매매우선</Text>
                       </View>
                     ) : null}
                   </View>
