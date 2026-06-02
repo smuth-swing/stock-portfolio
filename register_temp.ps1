@@ -1,0 +1,10 @@
+$taskName = 'StockPortfolioHealthCheck';
+$ps1File  = 'C:\Users\zerod\.antigravity\주식 포트폴리오 관리\check_and_restart_server.ps1';
+Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue;
+$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File `"$ps1File`"" -WorkingDirectory 'C:\Users\zerod\.antigravity\주식 포트폴리오 관리';
+$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(10) -RepetitionInterval (New-TimeSpan -Minutes 70) -RepetitionDuration ([TimeSpan]::MaxValue);
+$settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 5) -RestartCount 2 -RestartInterval (New-TimeSpan -Minutes 1) -StartWhenAvailable -MultipleInstances IgnoreNew;
+$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest;
+Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description '70분마다 Flask 서버 상태 확인 및 자동 재시작' -Force | Out-Null;
+$task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue;
+if ($task) { Write-Host 'SUCCESS' } else { Write-Host 'FAILED' };

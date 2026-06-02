@@ -1,0 +1,1 @@
+schtasks /create /tn "StockPortfolioHealthCheck" /tr "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File \"c:\Users\zerod\.antigravity\주식 포트폴리오 관리\check_and_restart_server.ps1\"" /sc minute /mo 70 /f
