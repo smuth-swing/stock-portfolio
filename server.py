@@ -615,7 +615,7 @@ def sync_receive():
                 continue
 
             ws = wb[sheet_name]
-            target_row = row_index + 2
+            target_row = row_index
             for col_idx, value in enumerate(values, start=1):
                 cell = ws.cell(row=target_row, column=col_idx)
                 processed_value = parse_strikethrough_text(value)
