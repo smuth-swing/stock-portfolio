@@ -1333,6 +1333,7 @@ function mapColumnLabel(columnName) {
     if (columnName === 'Unnamed: 0') return '번호';
     if (columnName === 'Unnamed: 1') return '종목명';
     if (columnName === 'Unnamed: 2') return '모멘텀(시점)';
+    if (columnName === '모멘텀') return '모멘텀(시점)';
     if (columnName === 'Unnamed: 3') return '매수 이유';
     if (columnName === 'Unnamed: 4') return '리스크';
     if (columnName === 'Unnamed: 5') return '대표';
@@ -1353,7 +1354,7 @@ function renderInvestigationCards(rows, cols, rowMap = null) {
     // 종목명 및 모멘텀 컬럼 찾기
     const numCol = cols[0];  // 번호
     const nameCol = findStockColumnName(cols); // 종목명
-    const momentumCol = 'Unnamed: 2'; // 모멘텀(시점)
+    const momentumCol = currentData.columns.includes('모멘텀') ? '모멘텀' : 'Unnamed: 2';
 
     container.innerHTML = rows.map((row, index) => {
         const originalIndex = map[index];
@@ -1614,7 +1615,7 @@ function resetInvestigationSearch() {
 function filterMomentumStocks() {
     if (!currentData || !isExplorationSheet(currentData.current_sheet)) return;
 
-    const momentumCol = 'Unnamed: 2'; // 모멘텀(시점)
+    const momentumCol = currentData.columns.includes('모멘텀') ? '모멘텀' : 'Unnamed: 2';
     const filtered = [];
     const rowMap = [];
 
@@ -1645,10 +1646,11 @@ function filterMomentumStocks() {
 function prepareNewInvestigationRow() {
     if (!currentData || !isExplorationSheet(currentData.current_sheet)) return;
 
-    // 1. 마지막 번호 찾기 (Unnamed: 0 컬럼 기준)
+    // 1. 마지막 번호 찾기 (컬럼 0 기준)
+    const numCol = currentData.columns[0];
     let maxNum = 0;
     currentData.data.forEach(row => {
-        const num = parseInt(row['Unnamed: 0']);
+        const num = parseInt(row[numCol] || row['Unnamed: 0']);
         if (!isNaN(num) && num > maxNum) maxNum = num;
     });
     const nextNum = maxNum + 1;
@@ -1658,7 +1660,8 @@ function prepareNewInvestigationRow() {
     currentData.columns.forEach(col => {
         newRow[col] = '';
     });
-    newRow['Unnamed: 0'] = nextNum; // 번호 설정
+    newRow[numCol] = nextNum;
+    if (numCol !== 'Unnamed: 0') newRow['Unnamed: 0'] = nextNum; // 번호 설정
 
     // 날짜 컬럼이 있으면 오늘 날짜로 초기화 (번호 컬럼과 겹치지 않을 때만)
     const dateCol = findDateColumnName(currentData.columns);

@@ -10,11 +10,11 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 export default function InvestigationScreen() {
   const { investigation, isLoading, refreshData, syncQueue, addToSyncQueue, markQueueAsSynced, meta } = useDataStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'strategy' | 'priority'>('all');
+  const [filter, setFilter] = useState<'all' | 'strategy'>('all');
   
   // 엑셀 컬럼명 변경 대응을 위한 헬퍼 함수
   const getStockName = (item: any) => item['종목명'] || item['Unnamed: 1'] || '';
-  const getMomentum = (item: any) => item['모멘텀'] || item['Unnamed: 2'] || item['Unnamed: 1'] /* prev error fallback */ || '';
+  const getMomentum = (item: any) => item['모멘텀'] || item['Unnamed: 2'] || item['Unnamed: 1'] || '';
   const getReason = (item: any) => item['매수이유'] || item['Unnamed: 3'] || '';
   const getRisk = (item: any) => item['리스크'] || item['Unnamed: 4'] || '';
   const getCeo = (item: any) => item['대표/경영진'] || item['Unnamed: 5'] || '';
@@ -60,7 +60,6 @@ export default function InvestigationScreen() {
   
   const items = allItems.filter((item: any) => {
     if (filter === 'strategy' && !getStrategy(item)) return false;
-    if (filter === 'priority' && !getMomentum(item)) return false;
     if (searchQuery.trim() !== '') {
       const stockName = getStockName(item);
       if (!stockName.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
@@ -153,12 +152,6 @@ export default function InvestigationScreen() {
             >
               <Text style={[styles.filterBtnText, filter === 'strategy' && styles.filterBtnTextActive]}>전략보유</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.filterBtn, filter === 'priority' && styles.filterBtnActive]}
-              onPress={() => setFilter('priority')}
-            >
-              <Text style={[styles.filterBtnText, filter === 'priority' && styles.filterBtnTextActive]}>매매우선</Text>
-            </TouchableOpacity>
           </View>
         </View>
         <View style={styles.searchContainer}>
@@ -203,7 +196,7 @@ export default function InvestigationScreen() {
               >
                 <View style={styles.cardHeader}>
                   <View style={styles.titleRow}>
-                    <Text style={[styles.stockName, getMomentum(item) ? { color: '#EF4444' } : null]}>
+                    <Text style={styles.stockName}>
                       {getStockName(item)}
                     </Text>
                     {getStrategy(item) ? (
@@ -265,10 +258,10 @@ export default function InvestigationScreen() {
                           </View>
                         ) : null}
 
-                        {getMomentum(item) ? (
+                        {item['Unnamed: 2'] ? (
                           <View style={styles.section}>
                             <Text style={styles.sectionTitle}>💡 핵심 모멘텀</Text>
-                            <Text style={styles.sectionText}>{getMomentum(item)}</Text>
+                            <Text style={styles.sectionText}>{item['Unnamed: 2']}</Text>
                           </View>
                         ) : null}
 
