@@ -326,15 +326,12 @@ def calculate_rsi(closes, period=14):
     gains = [d if d > 0 else 0 for d in diffs]
     losses = [abs(d) if d < 0 else 0 for d in diffs]
     
-    avg_gain = sum(gains[:period]) / period
-    avg_loss = sum(losses[:period]) / period
-    
-    for i in range(period, len(gains)):
-        avg_gain = (avg_gain * (period - 1) + gains[i]) / period
-        avg_loss = (avg_loss * (period - 1) + losses[i]) / period
+    # 네이버 증권 등 국내 플랫폼에서 주로 사용하는 단순이동평균(SMA) 방식 적용
+    avg_gain = sum(gains[-period:]) / period
+    avg_loss = sum(losses[-period:]) / period
         
     if avg_loss == 0:
-        return 100.0
+        return 100.0 if avg_gain > 0 else 50.0
     
     rs = avg_gain / avg_loss
     rsi = 100.0 - (100.0 / (1.0 + rs))

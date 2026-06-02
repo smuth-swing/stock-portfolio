@@ -525,8 +525,8 @@ async function refreshSignalPrices() {
                 const rsiM = data.rsi_month || 0;
                 
                 const getRsiText = (label, val) => {
-                    if (val >= 70) return `<div style="color:#3b82f6; font-weight:bold;">${label}: 🔥과매수(${val})</div>`;
-                    if (val <= 30) return `<div style="color:var(--danger); font-weight:bold;">${label}: 🧊과매도(${val})</div>`;
+                    // 과매수는 표시하지 않음
+                    if (val <= 30) return `<div style="color:#ef4444; font-weight:bold;">${label}: 🧊과매도(${val})</div>`;
                     return ``;
                 };
                 
