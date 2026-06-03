@@ -407,6 +407,10 @@ def fetch_moving_averages(stock_code):
                     closes = [float(item.get("close", 0)) for item in outblock]
                     result[rsi_key] = calculate_rsi(closes)
                     
+                    if gubun == "3":
+                        if len(closes) >= 120:
+                            result["ma120_week"] = sum(closes[-120:]) / 120
+                            
                     if gubun == "4":
                         result["current"] = closes[-1]
                         

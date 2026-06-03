@@ -471,6 +471,7 @@ async function refreshSignalPrices() {
                 <td class="col-price">-</td>
                 <td class="col-ma5-cur"><div class="spinner" style="display:inline-block;width:14px;height:14px;vertical-align:middle;border-width:2px;"></div></td>
                 <td class="col-ma5-next">-</td>
+                <td class="col-ma120-week">-</td>
                 <td class="col-rsi">-</td>
             </tr>
         `;
@@ -498,6 +499,7 @@ async function refreshSignalPrices() {
                 
                 let ma5CurHtml = '<span style="color:#555;">-</span>';
                 let ma5NextHtml = '<span style="color:#555;">-</span>';
+                let ma120Html = '<span style="color:#555;">-</span>';
                 let rsiHtml = '<span style="color:#555;">-</span>';
                 
                 if (ma5_month > 0) {
@@ -519,6 +521,21 @@ async function refreshSignalPrices() {
                     }
                 }
                 
+                const ma120_week = data.ma120_week || 0;
+                if (ma120_week > 0) {
+                    const diff120Raw = ((current - ma120_week) / ma120_week) * 100;
+                    const diff120Abs = Math.abs(diff120Raw);
+                    
+                    // 0% ~ 5% 이내로 근접한 경우만 표기
+                    if (diff120Abs <= 5.0) {
+                        if (diff120Raw < 0) {
+                            ma120Html = `<span style="color:var(--danger); font-weight:bold; font-size:12px;">${diff120Abs.toFixed(1)}% 하회</span>`;
+                        } else {
+                            ma120Html = `<span style="color:var(--highlight); font-weight:bold; font-size:12px;">${diff120Abs.toFixed(1)}% 상회</span>`;
+                        }
+                    }
+                }
+                
                 const rsiD = data.rsi_day || 0;
                 const rsiW = data.rsi_week || 0;
                 const rsiM = data.rsi_month || 0;
@@ -534,16 +551,19 @@ async function refreshSignalPrices() {
                 
                 row.querySelector('.col-ma5-cur').innerHTML = ma5CurHtml;
                 row.querySelector('.col-ma5-next').innerHTML = ma5NextHtml;
+                row.querySelector('.col-ma120-week').innerHTML = ma120Html;
                 row.querySelector('.col-rsi').innerHTML = rsiHtml;
             } else {
                 row.querySelector('.col-ma5-cur').innerHTML = '<span style="color:gray; font-size:12px;">조회 불가</span>';
                 row.querySelector('.col-ma5-next').innerHTML = '-';
+                row.querySelector('.col-ma120-week').innerHTML = '-';
                 row.querySelector('.col-rsi').innerHTML = '-';
             }
         } catch (e) {
             console.error(`MA fetch error for ${stock}:`, e);
             row.querySelector('.col-ma5-cur').innerHTML = '<span style="color:gray; font-size:12px;">오류</span>';
             row.querySelector('.col-ma5-next').innerHTML = '-';
+            row.querySelector('.col-ma120-week').innerHTML = '-';
             row.querySelector('.col-rsi').innerHTML = '-';
         }
     }
