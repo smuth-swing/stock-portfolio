@@ -438,6 +438,21 @@ async function loadSignalTab() {
     const investigationPanel = document.getElementById('investigation-panel');
     const chartPanel = document.querySelector('.chart-panel');
     const signalPanel = document.getElementById('signal-panel');
+
+    // ---- Persistent 매매우선 (priority) 관리 ----
+    // prioritySet 은 로컬스토리지에 저장된 종목명을 Set 형태로 보관합니다.
+    let prioritySet = new Set();
+    function loadPrioritySet() {
+        try {
+            const txt = localStorage.getItem('priority_stocks');
+            if (txt) prioritySet = new Set(JSON.parse(txt));
+        } catch (e) { console.error('prioritySet load error', e); }
+    }
+    function savePrioritySet() {
+        try { localStorage.setItem('priority_stocks', JSON.stringify([...prioritySet])); }
+        catch (e) { console.error('prioritySet save error', e); }
+    }
+    loadPrioritySet();
     
     if (tablePanel) tablePanel.classList.add('hidden');
     if (journalPanel) journalPanel.classList.add('hidden');
@@ -448,23 +463,55 @@ async function loadSignalTab() {
     await refreshSignalPrices();
 }
 
+let currentSignalCategory = 'portfolio';
+
+window.setSignalCategory = function(category) {
+    currentSignalCategory = category;
+    
+    document.getElementById('btn-sig-portfolio').classList.remove('active');
+    document.getElementById('btn-sig-priority').classList.remove('active');
+    
+    if (category === 'portfolio') {
+        document.getElementById('btn-sig-portfolio').classList.add('active');
+    } else {
+        document.getElementById('btn-sig-priority').classList.add('active');
+    }
+    
+    refreshSignalPrices();
+};
+
+let currentSignalCategory = 'portfolio';
+
+window.setSignalCategory = function(category) {
+    currentSignalCategory = category;
+    document.getElementById('btn-sig-portfolio').classList.toggle('active', category === 'portfolio');
+    document.getElementById('btn-sig-priority').classList.toggle('active', category === 'priority');
+    refreshSignalPrices();
+};
+
 async function refreshSignalPrices() {
     const tbody = document.getElementById('signal-table-body');
     if (!tbody) return;
-    
-    const stocks = Object.keys(portfolioMapCache).filter(name => name && name.trim());
-    
+
+    let stocks = [];
+    if (currentSignalCategory === 'portfolio') {
+        stocks = Object.keys(portfolioMapCache).filter(name => name && name.trim());
+    } else {
+        // 매매우선(우선 순위) 종목은 prioritySet 에 저장된 종목만 사용
+        stocks = [...prioritySet];
+    }
+
     if (stocks.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">포트폴리오 종목이 없습니다.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">${currentSignalCategory === 'portfolio' ? '포트폴리오' : '매매우선'} 종목이 없습니다.</td></tr>`;
         return;
     }
     
     // 1. 기본 테이블 생성
     let html = '';
     for (const stock of stocks) {
-        const amount = portfolioMapCache[stock];
         // 종목명에서 공백 등을 제거하여 안전한 ID 생성
         const safeId = stock.replace(/[^a-zA-Z0-9가-힣]/g, '');
+        // 기존 row를 재활용하거나 새로 생성
         html += `
             <tr id="signal-row-${safeId}">
                 <td style="font-weight:bold; color:var(--gold-light);">${stock}</td>
@@ -473,8 +520,7 @@ async function refreshSignalPrices() {
                 <td class="col-ma5-next">-</td>
                 <td class="col-ma120-week">-</td>
                 <td class="col-rsi">-</td>
-            </tr>
-        `;
+            </tr>`;
     }
     tbody.innerHTML = html;
     showToast('현재가 및 이동평균선 조회를 시작합니다.', 'info');
@@ -495,6 +541,7 @@ async function refreshSignalPrices() {
                 const current = data.current;
                 const ma5_month = data.ma5_month || 0;
                 
+                // 현재가 표시
                 row.querySelector('.col-price').innerHTML = `<span style="color:var(--highlight); font-weight:bold;">${current.toLocaleString()}원</span>`;
                 
                 let ma5CurHtml = '<span style="color:#555;">-</span>';
@@ -549,11 +596,13 @@ async function refreshSignalPrices() {
                     rsiHtml = `<span style="color:var(--danger); font-weight:bold; font-size:12px;">${rsiTexts.join(', ')}</span>`;
                 }
                 
+                // 기존 컬럼 업데이트
                 row.querySelector('.col-ma5-cur').innerHTML = ma5CurHtml;
                 row.querySelector('.col-ma5-next').innerHTML = ma5NextHtml;
                 row.querySelector('.col-ma120-week').innerHTML = ma120Html;
                 row.querySelector('.col-rsi').innerHTML = rsiHtml;
             } else {
+                // 오류/조회불가 상태에 대한 기본값 설정
                 row.querySelector('.col-ma5-cur').innerHTML = '<span style="color:gray; font-size:12px;">조회 불가</span>';
                 row.querySelector('.col-ma5-next').innerHTML = '-';
                 row.querySelector('.col-ma120-week').innerHTML = '-';
