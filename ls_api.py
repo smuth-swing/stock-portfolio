@@ -326,12 +326,15 @@ def calculate_rsi(closes, period=14):
     gains = [d if d > 0 else 0 for d in diffs]
     losses = [abs(d) if d < 0 else 0 for d in diffs]
     
-    # 네이버 증권 등 국내 플랫폼에서 주로 사용하는 단순이동평균(SMA) 방식 적용
-    avg_gain = sum(gains[-period:]) / period
-    avg_loss = sum(losses[-period:]) / period
+    avg_gain = sum(gains[:period]) / period
+    avg_loss = sum(losses[:period]) / period
+    
+    for i in range(period, len(gains)):
+        avg_gain = (avg_gain * (period - 1) + gains[i]) / period
+        avg_loss = (avg_loss * (period - 1) + losses[i]) / period
         
     if avg_loss == 0:
-        return 100.0 if avg_gain > 0 else 50.0
+        return 100.0
     
     rs = avg_gain / avg_loss
     rsi = 100.0 - (100.0 / (1.0 + rs))
@@ -374,7 +377,7 @@ def fetch_moving_averages(stock_code):
             "t8413InBlock": {
                 "shcode": code,
                 "gubun": gubun,
-                "qrycnt": 60, 
+                "qrycnt": 200,  # 넉넉한 데이터로 RSI 정확도 향상 (기존 60 -> 200)
                 "sdate": "",
                 "edate": "99999999",
                 "cts_date": "",
@@ -389,6 +392,17 @@ def fetch_moving_averages(stock_code):
                 data = resp.json()
                 outblock = data.get("t8413OutBlock1", [])
                 if outblock:
+                    # 권리락/액면분할에 대한 수정주가가 미적용된 오류 자동 보정
+                    for i in range(len(outblock) - 1):
+                        try:
+                            rate_val = float(outblock[i+1].get("rate", 0) or 0)
+                            if rate_val <= -20.0:  # 20% 이상 하락하는 권리락/액면분할
+                                ratio = 1 + (rate_val / 100.0)
+                                for j in range(i + 1):
+                                    outblock[j]["close"] = float(outblock[j]["close"]) * ratio
+                        except:
+                            pass
+                            
                     # oldest to newest
                     closes = [float(item.get("close", 0)) for item in outblock]
                     result[rsi_key] = calculate_rsi(closes)
