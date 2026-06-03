@@ -513,9 +513,16 @@ async function refreshSignalPrices() {
                         statusHtml += `<div style="color:var(--highlight); font-size:12px; margin-bottom:2px;">✅ 5월봉 상회 (+${diffPercent.toFixed(2)}%)</div>`;
                     }
                     
+                    let nextMonthStyle = 'color:#ddd';
+                    let nextMonthLabel = '';
+                    if (current < ma5_month_next) {
+                        nextMonthStyle = 'color:var(--danger); font-weight:bold;';
+                        nextMonthLabel = ' 🚨하회';
+                    }
+                    
                     statusHtml += `<div style="font-size:11px; color:#aaa; margin-bottom:4px; line-height:1.2;">
                                     이번달 5월봉: ${Math.round(ma5_month).toLocaleString()}원<br>
-                                    다음달 예상가: <span style="color:#ddd">${Math.round(ma5_month_next).toLocaleString()}원</span>
+                                    다음달 예상가: <span style="${nextMonthStyle}">${Math.round(ma5_month_next).toLocaleString()}원${nextMonthLabel}</span>
                                    </div>`;
                 }
                 
