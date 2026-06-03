@@ -468,7 +468,6 @@ async function refreshSignalPrices() {
         html += `
             <tr id="signal-row-${safeId}">
                 <td style="font-weight:bold; color:var(--gold-light);">${stock}</td>
-                <td>${amount.toLocaleString()}</td>
                 <td class="col-price">-</td>
                 <td class="col-status"><div class="spinner" style="display:inline-block;width:14px;height:14px;vertical-align:middle;border-width:2px;"></div></td>
             </tr>
@@ -501,28 +500,29 @@ async function refreshSignalPrices() {
                     const ma5_month_next = data.ma5_month_next || ma5_month;
                     const diffPercent = ((current - ma5_month) / ma5_month) * 100;
                     
-                    // 조건부 강조: -10% ~ -20% 사이인 종목만 붉은색 행 강조
-                    if (diffPercent <= -10 && diffPercent >= -20) {
+                    // 다음달 예상 5월봉 하회 시 붉은색 행 강조
+                    if (current < ma5_month_next) {
                         row.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
                         row.style.borderLeft = '3px solid var(--danger)';
                     }
                     
+                    // 현재 달 5월봉 상태
                     if (current < ma5_month) {
-                        statusHtml += `<div style="color:var(--danger); font-size:12px; font-weight:bold; margin-bottom:2px;">⚠️ 5월봉 하회 (${diffPercent.toFixed(2)}%)</div>`;
+                        statusHtml += `<div style="color:var(--danger); font-size:12px; font-weight:bold; margin-bottom:2px;">⚠️ 현재 5월봉 하회 (${diffPercent.toFixed(1)}%)</div>`;
                     } else {
-                        statusHtml += `<div style="color:var(--highlight); font-size:12px; margin-bottom:2px;">✅ 5월봉 상회 (+${diffPercent.toFixed(2)}%)</div>`;
+                        statusHtml += `<div style="color:var(--highlight); font-size:12px; margin-bottom:2px;">✅ 현재 5월봉 상회</div>`;
                     }
                     
-                    let nextMonthStyle = 'color:#ddd';
-                    let nextMonthLabel = '';
+                    // 다음 달 예상 5월봉 상태
                     if (current < ma5_month_next) {
-                        nextMonthStyle = 'color:var(--danger); font-weight:bold;';
-                        nextMonthLabel = ' 🚨하회';
+                        statusHtml += `<div style="color:var(--danger); font-size:12px; font-weight:bold; margin-bottom:2px;">🚨 다음달 예상 하회</div>`;
+                    } else {
+                        statusHtml += `<div style="color:var(--highlight); font-size:12px; margin-bottom:2px;">✅ 다음달 예상 상회</div>`;
                     }
                     
+                    // 기준가 표기 (붉은색 상태에 영향을 주는 값 위주로 깔끔하게)
                     statusHtml += `<div style="font-size:11px; color:#aaa; margin-bottom:4px; line-height:1.2;">
-                                    이번달 5월봉: ${Math.round(ma5_month).toLocaleString()}원<br>
-                                    다음달 예상가: <span style="${nextMonthStyle}">${Math.round(ma5_month_next).toLocaleString()}원${nextMonthLabel}</span>
+                                    기준: ${Math.round(ma5_month).toLocaleString()}원 / 예상: ${Math.round(ma5_month_next).toLocaleString()}원
                                    </div>`;
                 }
                 
