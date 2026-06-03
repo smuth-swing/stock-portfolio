@@ -469,7 +469,9 @@ async function refreshSignalPrices() {
             <tr id="signal-row-${safeId}">
                 <td style="font-weight:bold; color:var(--gold-light);">${stock}</td>
                 <td class="col-price">-</td>
-                <td class="col-status"><div class="spinner" style="display:inline-block;width:14px;height:14px;vertical-align:middle;border-width:2px;"></div></td>
+                <td class="col-ma5-cur"><div class="spinner" style="display:inline-block;width:14px;height:14px;vertical-align:middle;border-width:2px;"></div></td>
+                <td class="col-ma5-next">-</td>
+                <td class="col-rsi">-</td>
             </tr>
         `;
     }
@@ -494,68 +496,55 @@ async function refreshSignalPrices() {
                 
                 row.querySelector('.col-price').innerHTML = `<span style="color:var(--highlight); font-weight:bold;">${current.toLocaleString()}원</span>`;
                 
-                let statusHtml = '';
+                let ma5CurHtml = '<span style="color:#555;">-</span>';
+                let ma5NextHtml = '<span style="color:#555;">-</span>';
+                let rsiHtml = '<span style="color:#555;">-</span>';
                 
                 if (ma5_month > 0) {
                     const ma5_month_next = data.ma5_month_next || ma5_month;
-                    const diffPercent = ((current - ma5_month) / ma5_month) * 100;
                     
-                    // 다음달 예상 5월봉 하회 시 붉은색 행 강조
                     if (current < ma5_month_next) {
                         row.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
                         row.style.borderLeft = '3px solid var(--danger)';
                     }
                     
-                    // 현재 달 5월봉 상태
                     if (current < ma5_month) {
-                        statusHtml += `<div style="color:var(--danger); font-size:12px; font-weight:bold; margin-bottom:2px;">⚠️ 현재 5월봉 하회 (${diffPercent.toFixed(1)}%)</div>`;
-                    } else {
-                        statusHtml += `<div style="color:var(--highlight); font-size:12px; margin-bottom:2px;">✅ 현재 5월봉 상회</div>`;
+                        const diffCur = Math.abs(((current - ma5_month) / ma5_month) * 100);
+                        ma5CurHtml = `<span style="color:var(--danger); font-weight:bold; font-size:12px;">${diffCur.toFixed(1)}% 하회</span>`;
                     }
                     
-                    // 다음 달 예상 5월봉 상태
                     if (current < ma5_month_next) {
-                        statusHtml += `<div style="color:var(--danger); font-size:12px; font-weight:bold; margin-bottom:2px;">🚨 다음달 예상 하회</div>`;
-                    } else {
-                        statusHtml += `<div style="color:var(--highlight); font-size:12px; margin-bottom:2px;">✅ 다음달 예상 상회</div>`;
+                        const diffNext = Math.abs(((current - ma5_month_next) / ma5_month_next) * 100);
+                        ma5NextHtml = `<span style="color:var(--danger); font-weight:bold; font-size:12px;">${diffNext.toFixed(1)}% 하회</span>`;
                     }
-                    
-                    // 기준가 표기 (붉은색 상태에 영향을 주는 값 위주로 깔끔하게)
-                    statusHtml += `<div style="font-size:11px; color:#aaa; margin-bottom:4px; line-height:1.2;">
-                                    기준: ${Math.round(ma5_month).toLocaleString()}원 / 예상: ${Math.round(ma5_month_next).toLocaleString()}원
-                                   </div>`;
                 }
                 
-                // RSI 상태 추가
                 const rsiD = data.rsi_day || 0;
                 const rsiW = data.rsi_week || 0;
                 const rsiM = data.rsi_month || 0;
                 
-                const getRsiText = (label, val) => {
-                    // 과매수는 표시하지 않음
-                    if (val <= 30) return `<div style="color:#ef4444; font-weight:bold;">${label}: 🧊과매도(${val})</div>`;
-                    return ``;
-                };
+                let rsiTexts = [];
+                if (rsiD > 0 && rsiD <= 30) rsiTexts.push(`일:${rsiD}`);
+                if (rsiW > 0 && rsiW <= 30) rsiTexts.push(`주:${rsiW}`);
+                if (rsiM > 0 && rsiM <= 30) rsiTexts.push(`월:${rsiM}`);
                 
-                const rsiTexts = [
-                    getRsiText('일', rsiD),
-                    getRsiText('주', rsiW),
-                    getRsiText('월', rsiM)
-                ].filter(t => t !== '').join('');
-                
-                if (rsiTexts !== '') {
-                    statusHtml += `<div style="font-size:12px; line-height:1.4;">${rsiTexts}</div>`;
-                } else if (statusHtml === '') {
-                    statusHtml += `<div style="color:gray; font-size:12px;">-</div>`;
+                if (rsiTexts.length > 0) {
+                    rsiHtml = `<span style="color:var(--danger); font-weight:bold; font-size:12px;">${rsiTexts.join(', ')}</span>`;
                 }
                 
-                row.querySelector('.col-status').innerHTML = statusHtml;
+                row.querySelector('.col-ma5-cur').innerHTML = ma5CurHtml;
+                row.querySelector('.col-ma5-next').innerHTML = ma5NextHtml;
+                row.querySelector('.col-rsi').innerHTML = rsiHtml;
             } else {
-                row.querySelector('.col-status').innerHTML = '<span style="color:gray; font-size:12px;">조회 불가 (데이터 없음)</span>';
+                row.querySelector('.col-ma5-cur').innerHTML = '<span style="color:gray; font-size:12px;">조회 불가</span>';
+                row.querySelector('.col-ma5-next').innerHTML = '-';
+                row.querySelector('.col-rsi').innerHTML = '-';
             }
         } catch (e) {
             console.error(`MA fetch error for ${stock}:`, e);
-            row.querySelector('.col-status').innerHTML = '<span style="color:gray; font-size:12px;">오류</span>';
+            row.querySelector('.col-ma5-cur').innerHTML = '<span style="color:gray; font-size:12px;">오류</span>';
+            row.querySelector('.col-ma5-next').innerHTML = '-';
+            row.querySelector('.col-rsi').innerHTML = '-';
         }
     }
 }
