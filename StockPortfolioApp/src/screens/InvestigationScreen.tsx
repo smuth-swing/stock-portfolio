@@ -238,7 +238,7 @@ export default function InvestigationScreen() {
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>🎯 매수 이유</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: Math.max(120, (editForm.reason || '').split('\n').length * 24 + 60) }]} 
+                            style={[styles.multilineInput, { height: Math.max(80, (editForm.reason || '').split('\n').length * 24 + 40) }]} 
                             multiline scrollEnabled={true} value={editForm.reason} 
                             onChangeText={t => setEditForm(prev => ({...prev, reason: t}))} 
                           />
@@ -246,7 +246,7 @@ export default function InvestigationScreen() {
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>⚠️ 리스크</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: Math.max(120, (editForm.risk || '').split('\n').length * 24 + 60) }]} 
+                            style={[styles.multilineInput, { height: Math.max(80, (editForm.risk || '').split('\n').length * 24 + 40) }]} 
                             multiline scrollEnabled={true} value={editForm.risk} 
                             onChangeText={t => setEditForm(prev => ({...prev, risk: t}))} 
                           />
@@ -254,7 +254,7 @@ export default function InvestigationScreen() {
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>💡 핵심 모멘텀</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: Math.max(120, (editForm.momentum || '').split('\n').length * 24 + 60) }]} 
+                            style={[styles.multilineInput, { height: Math.max(80, (editForm.momentum || '').split('\n').length * 24 + 40) }]} 
                             multiline scrollEnabled={true} value={editForm.momentum} 
                             onChangeText={t => setEditForm(prev => ({...prev, momentum: t}))} 
                           />
@@ -262,7 +262,7 @@ export default function InvestigationScreen() {
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>📈 매매 전략</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: Math.max(120, (editForm.strategy || '').split('\n').length * 24 + 60) }]} 
+                            style={[styles.multilineInput, { height: Math.max(80, (editForm.strategy || '').split('\n').length * 24 + 40) }]} 
                             multiline scrollEnabled={true} value={editForm.strategy} 
                             onChangeText={t => setEditForm(prev => ({...prev, strategy: t}))} 
                           />
@@ -270,7 +270,7 @@ export default function InvestigationScreen() {
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>👤 대표 / 경영진</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: Math.max(120, (editForm.ceo || '').split('\n').length * 24 + 60) }]} 
+                            style={[styles.multilineInput, { height: Math.max(80, (editForm.ceo || '').split('\n').length * 24 + 40) }]} 
                             multiline scrollEnabled={true} value={editForm.ceo} 
                             onChangeText={t => setEditForm(prev => ({...prev, ceo: t}))} 
                           />
