@@ -240,8 +240,11 @@ export default function InvestigationScreen() {
                           <TextInput 
                             style={[styles.multilineInput, { height: Math.max(80, editForm.height_reason || 80) }]} 
                             multiline scrollEnabled={false} value={editForm.reason} 
-                            onChangeText={t => setEditForm({...editForm, reason: t})} 
-                            onContentSizeChange={(e) => setEditForm({...editForm, height_reason: e.nativeEvent.contentSize.height})}
+                            onChangeText={t => setEditForm(prev => ({...prev, reason: t}))} 
+                            onContentSizeChange={(e) => {
+                              const h = e.nativeEvent.contentSize.height;
+                              setEditForm(prev => ({...prev, height_reason: h}));
+                            }}
                           />
                         </View>
                         <View style={styles.section}>
@@ -249,8 +252,11 @@ export default function InvestigationScreen() {
                           <TextInput 
                             style={[styles.multilineInput, { height: Math.max(80, editForm.height_risk || 80) }]} 
                             multiline scrollEnabled={false} value={editForm.risk} 
-                            onChangeText={t => setEditForm({...editForm, risk: t})} 
-                            onContentSizeChange={(e) => setEditForm({...editForm, height_risk: e.nativeEvent.contentSize.height})}
+                            onChangeText={t => setEditForm(prev => ({...prev, risk: t}))} 
+                            onContentSizeChange={(e) => {
+                              const h = e.nativeEvent.contentSize.height;
+                              setEditForm(prev => ({...prev, height_risk: h}));
+                            }}
                           />
                         </View>
                         <View style={styles.section}>
@@ -258,8 +264,11 @@ export default function InvestigationScreen() {
                           <TextInput 
                             style={[styles.multilineInput, { height: Math.max(80, editForm.height_momentum || 80) }]} 
                             multiline scrollEnabled={false} value={editForm.momentum} 
-                            onChangeText={t => setEditForm({...editForm, momentum: t})} 
-                            onContentSizeChange={(e) => setEditForm({...editForm, height_momentum: e.nativeEvent.contentSize.height})}
+                            onChangeText={t => setEditForm(prev => ({...prev, momentum: t}))} 
+                            onContentSizeChange={(e) => {
+                              const h = e.nativeEvent.contentSize.height;
+                              setEditForm(prev => ({...prev, height_momentum: h}));
+                            }}
                           />
                         </View>
                         <View style={styles.section}>
@@ -267,8 +276,11 @@ export default function InvestigationScreen() {
                           <TextInput 
                             style={[styles.multilineInput, { height: Math.max(80, editForm.height_strategy || 80) }]} 
                             multiline scrollEnabled={false} value={editForm.strategy} 
-                            onChangeText={t => setEditForm({...editForm, strategy: t})} 
-                            onContentSizeChange={(e) => setEditForm({...editForm, height_strategy: e.nativeEvent.contentSize.height})}
+                            onChangeText={t => setEditForm(prev => ({...prev, strategy: t}))} 
+                            onContentSizeChange={(e) => {
+                              const h = e.nativeEvent.contentSize.height;
+                              setEditForm(prev => ({...prev, height_strategy: h}));
+                            }}
                           />
                         </View>
                         <View style={styles.section}>
@@ -276,8 +288,11 @@ export default function InvestigationScreen() {
                           <TextInput 
                             style={[styles.multilineInput, { height: Math.max(80, editForm.height_ceo || 80) }]} 
                             multiline scrollEnabled={false} value={editForm.ceo} 
-                            onChangeText={t => setEditForm({...editForm, ceo: t})} 
-                            onContentSizeChange={(e) => setEditForm({...editForm, height_ceo: e.nativeEvent.contentSize.height})}
+                            onChangeText={t => setEditForm(prev => ({...prev, ceo: t}))} 
+                            onContentSizeChange={(e) => {
+                              const h = e.nativeEvent.contentSize.height;
+                              setEditForm(prev => ({...prev, height_ceo: h}));
+                            }}
                           />
                         </View>
                         
