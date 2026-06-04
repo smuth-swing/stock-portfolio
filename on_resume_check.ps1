@@ -48,4 +48,30 @@ try {
     }
 }
 
+# GitHub 자동 업로더 상태 확인
+$uploaderRunning = Get-CimInstance Win32_Process | Where-Object {
+    $_.CommandLine -match "auto_github_uploader\.py"
+}
+if (-not $uploaderRunning) {
+    Write-Log "[복구] GitHub 자동 업로더 다운 감지 -> 재시작 중"
+    $uploaderVbs = Join-Path $ScriptDir "run_auto_uploader_hidden.vbs"
+    if (Test-Path $uploaderVbs) {
+        Start-Process -FilePath "wscript.exe" -ArgumentList "`"$uploaderVbs`"" -WorkingDirectory $ScriptDir
+        Start-Sleep -Seconds 5
+        # 재시작 확인
+        $uploaderCheck = Get-CimInstance Win32_Process | Where-Object {
+            $_.CommandLine -match "auto_github_uploader\.py"
+        }
+        if ($uploaderCheck) {
+            Write-Log "[복구] GitHub 자동 업로더 재시작 성공 (PID: $($uploaderCheck.ProcessId))"
+        } else {
+            Write-Log "[경고] GitHub 자동 업로더 재시작 실패 - 수동 확인 필요"
+        }
+    } else {
+        Write-Log "[경고] run_auto_uploader_hidden.vbs 파일을 찾을 수 없음"
+    }
+} else {
+    Write-Log "[정상] GitHub 자동 업로더 실행 중 (PID: $($uploaderRunning.ProcessId))"
+}
+
 Write-Log "=== 복구 점검 완료 ==="
