@@ -237,23 +237,23 @@ export default function InvestigationScreen() {
                       <View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>🎯 매수 이유</Text>
-                          <TextInput style={styles.multilineInput} multiline value={editForm.reason} onChangeText={t => setEditForm({...editForm, reason: t})} />
+                          <TextInput style={styles.multilineInput} multiline scrollEnabled={false} value={editForm.reason} onChangeText={t => setEditForm({...editForm, reason: t})} />
                         </View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>⚠️ 리스크</Text>
-                          <TextInput style={styles.multilineInput} multiline value={editForm.risk} onChangeText={t => setEditForm({...editForm, risk: t})} />
+                          <TextInput style={styles.multilineInput} multiline scrollEnabled={false} value={editForm.risk} onChangeText={t => setEditForm({...editForm, risk: t})} />
                         </View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>💡 핵심 모멘텀</Text>
-                          <TextInput style={styles.multilineInput} multiline value={editForm.momentum} onChangeText={t => setEditForm({...editForm, momentum: t})} />
+                          <TextInput style={styles.multilineInput} multiline scrollEnabled={false} value={editForm.momentum} onChangeText={t => setEditForm({...editForm, momentum: t})} />
                         </View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>📈 매매 전략</Text>
-                          <TextInput style={styles.multilineInput} multiline value={editForm.strategy} onChangeText={t => setEditForm({...editForm, strategy: t})} />
+                          <TextInput style={styles.multilineInput} multiline scrollEnabled={false} value={editForm.strategy} onChangeText={t => setEditForm({...editForm, strategy: t})} />
                         </View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>👤 대표 / 경영진</Text>
-                          <TextInput style={styles.multilineInput} multiline value={editForm.ceo} onChangeText={t => setEditForm({...editForm, ceo: t})} />
+                          <TextInput style={styles.multilineInput} multiline scrollEnabled={false} value={editForm.ceo} onChangeText={t => setEditForm({...editForm, ceo: t})} />
                         </View>
                         
                         <View style={styles.actionButtons}>
