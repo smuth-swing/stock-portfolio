@@ -14,7 +14,7 @@ export default function InvestigationScreen() {
   
   // 엑셀 컬럼명 변경 대응을 위한 헬퍼 함수
   const getStockName = (item: any) => item['종목명'] || item['Unnamed: 1'] || '';
-  const getMomentum = (item: any) => item['모멘텀'] || item['Unnamed: 2'] || item['Unnamed: 1'] || '';
+  const getMomentum = (item: any) => item['모멘텀'] || item['모델명'] || item['Unnamed: 2'] || item['Unnamed: 1'] || '';
   const getReason = (item: any) => item['매수이유'] || item['Unnamed: 3'] || '';
   const getRisk = (item: any) => item['리스크'] || item['Unnamed: 4'] || '';
   const getCeo = (item: any) => item['대표/경영진'] || item['Unnamed: 5'] || '';
@@ -281,10 +281,10 @@ export default function InvestigationScreen() {
                           </View>
                         ) : null}
 
-                        {item['Unnamed: 2'] ? (
+                        {getMomentum(item) ? (
                           <View style={styles.section}>
                             <Text style={styles.sectionTitle}>💡 핵심 모멘텀</Text>
-                            <Text style={styles.sectionText}>{item['Unnamed: 2']}</Text>
+                            <Text style={styles.sectionText}>{getMomentum(item)}</Text>
                           </View>
                         ) : null}
 
