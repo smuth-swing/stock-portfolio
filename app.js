@@ -480,14 +480,7 @@ window.setSignalCategory = function(category) {
     refreshSignalPrices();
 };
 
-let currentSignalCategory = 'portfolio';
 
-window.setSignalCategory = function(category) {
-    currentSignalCategory = category;
-    document.getElementById('btn-sig-portfolio').classList.toggle('active', category === 'portfolio');
-    document.getElementById('btn-sig-priority').classList.toggle('active', category === 'priority');
-    refreshSignalPrices();
-};
 
 async function refreshSignalPrices() {
     const tbody = document.getElementById('signal-table-body');
