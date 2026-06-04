@@ -237,23 +237,48 @@ export default function InvestigationScreen() {
                       <View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>🎯 매수 이유</Text>
-                          <TextInput style={styles.multilineInput} multiline scrollEnabled={false} value={editForm.reason} onChangeText={t => setEditForm({...editForm, reason: t})} />
+                          <TextInput 
+                            style={[styles.multilineInput, { height: Math.max(80, editForm.height_reason || 80) }]} 
+                            multiline scrollEnabled={false} value={editForm.reason} 
+                            onChangeText={t => setEditForm({...editForm, reason: t})} 
+                            onContentSizeChange={(e) => setEditForm({...editForm, height_reason: e.nativeEvent.contentSize.height})}
+                          />
                         </View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>⚠️ 리스크</Text>
-                          <TextInput style={styles.multilineInput} multiline scrollEnabled={false} value={editForm.risk} onChangeText={t => setEditForm({...editForm, risk: t})} />
+                          <TextInput 
+                            style={[styles.multilineInput, { height: Math.max(80, editForm.height_risk || 80) }]} 
+                            multiline scrollEnabled={false} value={editForm.risk} 
+                            onChangeText={t => setEditForm({...editForm, risk: t})} 
+                            onContentSizeChange={(e) => setEditForm({...editForm, height_risk: e.nativeEvent.contentSize.height})}
+                          />
                         </View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>💡 핵심 모멘텀</Text>
-                          <TextInput style={styles.multilineInput} multiline scrollEnabled={false} value={editForm.momentum} onChangeText={t => setEditForm({...editForm, momentum: t})} />
+                          <TextInput 
+                            style={[styles.multilineInput, { height: Math.max(80, editForm.height_momentum || 80) }]} 
+                            multiline scrollEnabled={false} value={editForm.momentum} 
+                            onChangeText={t => setEditForm({...editForm, momentum: t})} 
+                            onContentSizeChange={(e) => setEditForm({...editForm, height_momentum: e.nativeEvent.contentSize.height})}
+                          />
                         </View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>📈 매매 전략</Text>
-                          <TextInput style={styles.multilineInput} multiline scrollEnabled={false} value={editForm.strategy} onChangeText={t => setEditForm({...editForm, strategy: t})} />
+                          <TextInput 
+                            style={[styles.multilineInput, { height: Math.max(80, editForm.height_strategy || 80) }]} 
+                            multiline scrollEnabled={false} value={editForm.strategy} 
+                            onChangeText={t => setEditForm({...editForm, strategy: t})} 
+                            onContentSizeChange={(e) => setEditForm({...editForm, height_strategy: e.nativeEvent.contentSize.height})}
+                          />
                         </View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>👤 대표 / 경영진</Text>
-                          <TextInput style={styles.multilineInput} multiline scrollEnabled={false} value={editForm.ceo} onChangeText={t => setEditForm({...editForm, ceo: t})} />
+                          <TextInput 
+                            style={[styles.multilineInput, { height: Math.max(80, editForm.height_ceo || 80) }]} 
+                            multiline scrollEnabled={false} value={editForm.ceo} 
+                            onChangeText={t => setEditForm({...editForm, ceo: t})} 
+                            onContentSizeChange={(e) => setEditForm({...editForm, height_ceo: e.nativeEvent.contentSize.height})}
+                          />
                         </View>
                         
                         <View style={styles.actionButtons}>
@@ -377,7 +402,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
     borderRadius: 8, padding: 12,
     color: '#FFFFFF', fontSize: 15, lineHeight: 22,
-    minHeight: 80, textAlignVertical: 'top',
+    textAlignVertical: 'top',
   },
   actionButtons: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 10 },
   actionBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
