@@ -678,6 +678,10 @@ def sync_receive():
         <html>
         <head>
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <script>
+            // 전송 완료 시 즉시 돌아가기
+            window.location.href = 'https://smuth-swing.github.io/stock-portfolio/mobile/?sync=success';
+          </script>
           <style>
             body { background: #0F172A; color: white; font-family: sans-serif; text-align: center; padding-top: 100px; }
             h2 { color: #00F2FE; }
@@ -685,10 +689,9 @@ def sync_receive():
           </style>
         </head>
         <body>
-          <h2>✅ PC 전송 완료!</h2>
-          <p>엑셀 파일에 데이터가 정상적으로 저장되었습니다.</p>
-          <p>깃허브 서버 반영까지 약 1~2분 소요될 수 있습니다.</p>
-          <button onclick="window.location.href='https://smuth-swing.github.io/stock-portfolio/mobile/'">앱으로 돌아가기</button>
+          <h2>✅ 데이터 전송 중...</h2>
+          <p>앱으로 돌아갑니다...</p>
+          <button onclick="window.location.href='https://smuth-swing.github.io/stock-portfolio/mobile/?sync=success'">돌아가기</button>
         </body>
         </html>
         """

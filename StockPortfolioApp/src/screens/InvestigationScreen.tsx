@@ -24,6 +24,18 @@ export default function InvestigationScreen() {
   const [editForm, setEditForm] = useState<any>({});
   const [isSaving, setIsSaving] = useState(false);
 
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('sync') === 'success') {
+        markQueueAsSynced().then(() => {
+          alert('✅ 성공적으로 PC 서버에 전송되었습니다.\n데이터는 잠시 후 화면에 반영됩니다.');
+          window.history.replaceState({}, document.title, window.location.pathname);
+        });
+      }
+    }
+  }, []);
+
   const toggleExpand = (id: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedId(expandedId === id ? null : id);
@@ -126,25 +138,20 @@ export default function InvestigationScreen() {
       const pcIp = meta?.server_ip || '192.168.0.2';
       const targetUrl = `http://${pcIp}:5000/api/sync-receive`;
       
-      fetch(targetUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(syncQueue)
-      })
-      .then(res => {
-        if (res.ok) {
-          markQueueAsSynced().then(() => {
-            alert('✅ 성공적으로 PC 서버에 전송되었습니다.\n데이터는 1~2분 뒤에 화면에 반영됩니다.');
-          });
-        } else {
-          alert('❌ 서버 전송 실패 (상태 코드: ' + res.status + ')');
-        }
-      })
-      .catch(err => {
-        alert('❌ 서버에 연결할 수 없습니다. PC 서버가 켜져 있는지 확인하세요.\n에러: ' + err.message);
-      });
+      if (confirm('PC 서버로 데이터를 전송합니다.\n보안 정책(Mixed Content) 우회를 위해 화면이 깜빡일 수 있습니다.')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = targetUrl;
+        
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'payload';
+        input.value = JSON.stringify(syncQueue);
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+      }
     } else {
       alert('웹(PWA) 환경에서만 동기화가 지원됩니다.');
     }
