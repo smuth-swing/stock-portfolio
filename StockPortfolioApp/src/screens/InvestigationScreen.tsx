@@ -123,11 +123,26 @@ export default function InvestigationScreen() {
   const handleSync = () => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       const pcIp = meta?.server_ip || '192.168.0.2';
-      const payloadStr = encodeURIComponent(JSON.stringify(syncQueue));
-      const targetUrl = `http://${pcIp}:5000/api/sync-receive?payload=${payloadStr}`;
+      const targetUrl = `http://${pcIp}:5000/api/sync-receive`;
       
-      markQueueAsSynced().then(() => {
-        window.location.href = targetUrl;
+      fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(syncQueue)
+      })
+      .then(res => {
+        if (res.ok) {
+          markQueueAsSynced().then(() => {
+            alert('✅ 성공적으로 PC 서버에 전송되었습니다.\n데이터는 1~2분 뒤에 화면에 반영됩니다.');
+          });
+        } else {
+          alert('❌ 서버 전송 실패 (상태 코드: ' + res.status + ')');
+        }
+      })
+      .catch(err => {
+        alert('❌ 서버에 연결할 수 없습니다. PC 서버가 켜져 있는지 확인하세요.\n에러: ' + err.message);
       });
     } else {
       alert('웹(PWA) 환경에서만 동기화가 지원됩니다.');
