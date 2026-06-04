@@ -238,61 +238,41 @@ export default function InvestigationScreen() {
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>🎯 매수 이유</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: Math.max(80, editForm.height_reason || 80) }]} 
-                            multiline scrollEnabled={false} value={editForm.reason} 
+                            style={[styles.multilineInput, { height: Math.max(120, (editForm.reason || '').split('\n').length * 24 + 60) }]} 
+                            multiline scrollEnabled={true} value={editForm.reason} 
                             onChangeText={t => setEditForm(prev => ({...prev, reason: t}))} 
-                            onContentSizeChange={(e) => {
-                              const h = e.nativeEvent.contentSize.height;
-                              setEditForm(prev => ({...prev, height_reason: h}));
-                            }}
                           />
                         </View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>⚠️ 리스크</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: Math.max(80, editForm.height_risk || 80) }]} 
-                            multiline scrollEnabled={false} value={editForm.risk} 
+                            style={[styles.multilineInput, { height: Math.max(120, (editForm.risk || '').split('\n').length * 24 + 60) }]} 
+                            multiline scrollEnabled={true} value={editForm.risk} 
                             onChangeText={t => setEditForm(prev => ({...prev, risk: t}))} 
-                            onContentSizeChange={(e) => {
-                              const h = e.nativeEvent.contentSize.height;
-                              setEditForm(prev => ({...prev, height_risk: h}));
-                            }}
                           />
                         </View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>💡 핵심 모멘텀</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: Math.max(80, editForm.height_momentum || 80) }]} 
-                            multiline scrollEnabled={false} value={editForm.momentum} 
+                            style={[styles.multilineInput, { height: Math.max(120, (editForm.momentum || '').split('\n').length * 24 + 60) }]} 
+                            multiline scrollEnabled={true} value={editForm.momentum} 
                             onChangeText={t => setEditForm(prev => ({...prev, momentum: t}))} 
-                            onContentSizeChange={(e) => {
-                              const h = e.nativeEvent.contentSize.height;
-                              setEditForm(prev => ({...prev, height_momentum: h}));
-                            }}
                           />
                         </View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>📈 매매 전략</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: Math.max(80, editForm.height_strategy || 80) }]} 
-                            multiline scrollEnabled={false} value={editForm.strategy} 
+                            style={[styles.multilineInput, { height: Math.max(120, (editForm.strategy || '').split('\n').length * 24 + 60) }]} 
+                            multiline scrollEnabled={true} value={editForm.strategy} 
                             onChangeText={t => setEditForm(prev => ({...prev, strategy: t}))} 
-                            onContentSizeChange={(e) => {
-                              const h = e.nativeEvent.contentSize.height;
-                              setEditForm(prev => ({...prev, height_strategy: h}));
-                            }}
                           />
                         </View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>👤 대표 / 경영진</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: Math.max(80, editForm.height_ceo || 80) }]} 
-                            multiline scrollEnabled={false} value={editForm.ceo} 
+                            style={[styles.multilineInput, { height: Math.max(120, (editForm.ceo || '').split('\n').length * 24 + 60) }]} 
+                            multiline scrollEnabled={true} value={editForm.ceo} 
                             onChangeText={t => setEditForm(prev => ({...prev, ceo: t}))} 
-                            onContentSizeChange={(e) => {
-                              const h = e.nativeEvent.contentSize.height;
-                              setEditForm(prev => ({...prev, height_ceo: h}));
-                            }}
                           />
                         </View>
                         
