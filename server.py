@@ -126,6 +126,12 @@ def index():
     """메인 페이지 서빙"""
     return send_from_directory('.', 'index.html')
 
+@app.route('/mobile')
+@app.route('/mobile/')
+def mobile_index():
+    """모바일 PWA 메인 서빙"""
+    return send_from_directory('mobile', 'index.html')
+
 
 
 @app.route('/api/onedrive-status')
