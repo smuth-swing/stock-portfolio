@@ -105,7 +105,8 @@ export default function InvestigationScreen() {
       const editTask = { 
         file: filePath, 
         sheet: sheetName, 
-        rowIndex: realIndex, 
+        rowIndex: realIndex,
+        stockName: newRowData['종목명'] || newRowData['Unnamed: 1'] || '',
         values,
         timestamp: new Date().toISOString()
       };

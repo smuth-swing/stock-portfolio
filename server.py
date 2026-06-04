@@ -621,9 +621,40 @@ def sync_receive():
                 continue
 
             ws = wb[sheet_name]
-            # pandas iloc[N] → openpyxl row = N+2
-            # (엑셀 row1=빈행, row2=Test헤더이므로 데이터는 row3부터 시작)
+            # 기본값: pandas iloc[N] → openpyxl row = N+2
             target_row = row_index + 2
+            
+            stock_name = edit.get('stockName', '').strip().replace(' ', '')
+            if stock_name:
+                # 1. 헤더에서 '종목명' 컬럼 인덱스 찾기 (보통 1~3행 사이)
+                name_col_idx = None
+                for r in range(1, 4):
+                    for c in range(1, ws.max_column + 1):
+                        val = str(ws.cell(row=r, column=c).value or '').strip()
+                        if val == '종목명' or val == 'Unnamed: 1':
+                            name_col_idx = c
+                            break
+                    if name_col_idx:
+                        break
+                
+                # 2. 헤더를 못 찾았으면 기본 B열(2)로 가정
+                if not name_col_idx:
+                    name_col_idx = 2
+                    
+                # 3. 해당 컬럼에서 종목명이 일치하는 행 찾기
+                found_row = None
+                for r in range(1, ws.max_row + 1):
+                    cell_val = str(ws.cell(row=r, column=name_col_idx).value or '').strip().replace(' ', '')
+                    if cell_val and cell_val == stock_name:
+                        found_row = r
+                        break
+                
+                if found_row:
+                    target_row = found_row
+                    print(f'[sync-receive] 종목명 "{stock_name}" 매칭 성공! -> 엑셀 {target_row}행 덮어쓰기 진행')
+                else:
+                    print(f'[sync-receive] 종목명 "{stock_name}" 매칭 실패! -> 기존 로직대로 {target_row}행에 덮어씁니다.')
+
             for col_idx, value in enumerate(values, start=1):
                 cell = ws.cell(row=target_row, column=col_idx)
                 processed_value = parse_strikethrough_text(value)
