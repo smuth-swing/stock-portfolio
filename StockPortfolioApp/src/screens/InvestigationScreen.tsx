@@ -161,7 +161,7 @@ export default function InvestigationScreen() {
     <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-          <Text style={styles.title}>탐구생활</Text>
+  
           <View style={styles.filterContainer}>
             <TouchableOpacity 
               style={[styles.filterBtn, filter === 'all' && styles.filterBtnActive]}

@@ -187,7 +187,6 @@ export default function TradeScreen() {
 
   return (
     <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.container}>
-      <Text style={styles.title}>매매일지 트렌드</Text>
       
       {/* 종목 검색기 */}
       <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>

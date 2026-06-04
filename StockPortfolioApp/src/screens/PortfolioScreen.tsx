@@ -310,7 +310,7 @@ export default function PortfolioScreen() {
   return (
     <LinearGradient colors={['#0F172A', '#111827']} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>포트폴리오 분석</Text>
+
         
         {portfolioMap ? (
           <View style={styles.glassCard}>

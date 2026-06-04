@@ -163,7 +163,7 @@ export default function PerformanceScreen() {
   return (
     <LinearGradient colors={['#0F172A', '#111827']} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>실적 분석</Text>
+
         
         {performance ? (
           <>
