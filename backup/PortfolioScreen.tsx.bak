@@ -329,12 +329,6 @@ export default function PortfolioScreen() {
               {renderPieChart()}
               {renderStockBarChart()}
             </ScrollView>
-            
-            {/* 페이지 인디케이터 점(Dots) */}
-            <View style={styles.indicatorContainer}>
-              <View style={[styles.indicatorDot, currentPage === 0 && styles.indicatorDotActive]} />
-              <View style={[styles.indicatorDot, currentPage === 1 && styles.indicatorDotActive]} />
-            </View>
           </View>
         ) : (
           <View style={styles.glassCard}>
@@ -374,23 +368,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   pager: { width: CHART_PAGE_WIDTH },
-  indicatorContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 15,
-    gap: 8,
-  },
-  indicatorDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  indicatorDotActive: {
-    width: 20,
-    backgroundColor: '#00F2FE',
-  },
   chartPage: { width: CHART_PAGE_WIDTH, paddingHorizontal: 24 },
   cardTitle: { fontSize: 20, fontWeight: '800', color: '#FFFFFF', marginBottom: 25, textAlign: 'center' },
   chartWrapper: { alignItems: 'center', marginVertical: 10, height: 260 },

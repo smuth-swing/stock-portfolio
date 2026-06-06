@@ -25,25 +25,6 @@ export default function InvestigationScreen() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [isSaving, setIsSaving] = useState(false);
-  const [inputHeights, setInputHeights] = useState<Record<string, number>>({
-    reason: 80,
-    risk: 80,
-    momentum: 80,
-    strategy: 80,
-    ceo: 80,
-  });
-
-  const handleContentSizeChange = useCallback((field: string, event: any) => {
-    const { height } = event.nativeEvent.contentSize;
-    setInputHeights(prev => {
-      // 불필요한 리렌더 방지를 위해 높이가 다를 때만 업데이트
-      if (prev[field] === height + 20) return prev;
-      return {
-        ...prev,
-        [field]: Math.max(80, height + 20),
-      };
-    });
-  }, []);
 
   // refreshData를 ref로 보관: useEffect 의존성 배열에서 제외하여 무한 리렌더 방지
   const refreshDataRef = useRef(refreshData);
@@ -276,46 +257,41 @@ export default function InvestigationScreen() {
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>🎯 매수 이유</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: inputHeights.reason || 80 }]} 
+                            style={[styles.multilineInput, { height: Math.max(80, (editForm.reason || '').split('\n').length * 24 + 40) }]} 
                             multiline scrollEnabled={true} value={editForm.reason} 
                             onChangeText={t => setEditForm(prev => ({...prev, reason: t}))} 
-                            onContentSizeChange={e => handleContentSizeChange('reason', e)}
                           />
                         </View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>⚠️ 리스크</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: inputHeights.risk || 80 }]} 
+                            style={[styles.multilineInput, { height: Math.max(80, (editForm.risk || '').split('\n').length * 24 + 40) }]} 
                             multiline scrollEnabled={true} value={editForm.risk} 
                             onChangeText={t => setEditForm(prev => ({...prev, risk: t}))} 
-                            onContentSizeChange={e => handleContentSizeChange('risk', e)}
                           />
                         </View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>💡 핵심 모멘텀</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: inputHeights.momentum || 80 }]} 
+                            style={[styles.multilineInput, { height: Math.max(80, (editForm.momentum || '').split('\n').length * 24 + 40) }]} 
                             multiline scrollEnabled={true} value={editForm.momentum} 
                             onChangeText={t => setEditForm(prev => ({...prev, momentum: t}))} 
-                            onContentSizeChange={e => handleContentSizeChange('momentum', e)}
                           />
                         </View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>📈 매매 전략</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: inputHeights.strategy || 80 }]} 
+                            style={[styles.multilineInput, { height: Math.max(80, (editForm.strategy || '').split('\n').length * 24 + 40) }]} 
                             multiline scrollEnabled={true} value={editForm.strategy} 
                             onChangeText={t => setEditForm(prev => ({...prev, strategy: t}))} 
-                            onContentSizeChange={e => handleContentSizeChange('strategy', e)}
                           />
                         </View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>👤 대표 / 경영진</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: inputHeights.ceo || 80 }]} 
+                            style={[styles.multilineInput, { height: Math.max(80, (editForm.ceo || '').split('\n').length * 24 + 40) }]} 
                             multiline scrollEnabled={true} value={editForm.ceo} 
                             onChangeText={t => setEditForm(prev => ({...prev, ceo: t}))} 
-                            onContentSizeChange={e => handleContentSizeChange('ceo', e)}
                           />
                         </View>
                         
