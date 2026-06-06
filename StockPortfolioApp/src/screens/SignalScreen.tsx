@@ -192,7 +192,14 @@ export default function SignalScreen() {
     const rsiText = rsiTexts.length > 0 ? rsiTexts.join(', ') : '-';
 
     const targetPrice = targetPrices?.[stock];
-    const isTargetReached = targetPrice && current >= targetPrice;
+    let isTargetReached = false;
+    if (targetPrice) {
+      const high_1w = data.high_1w || current;
+      const low_1w = data.low_1w || current;
+      if (high_1w >= targetPrice && low_1w <= targetPrice) {
+        isTargetReached = true;
+      }
+    }
 
     return (
       <View key={stock} style={[styles.card, (danger || isTargetReached) && styles.cardDanger]}>

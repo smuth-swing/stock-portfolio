@@ -403,9 +403,15 @@ def fetch_moving_averages(stock_code):
                         except:
                             pass
                             
-                    # oldest to newest
                     closes = [float(item.get("close", 0)) for item in outblock]
                     result[rsi_key] = calculate_rsi(closes)
+                    
+                    if gubun == "2":
+                        recent_days = outblock[-5:] if len(outblock) >= 5 else outblock
+                        highs = [float(item.get("high", item.get("close", 0))) for item in recent_days]
+                        lows = [float(item.get("low", item.get("close", 0))) for item in recent_days]
+                        result["high_1w"] = max(highs) if highs else 0
+                        result["low_1w"] = min(lows) if lows else 0
                     
                     if gubun == "3":
                         if len(closes) >= 120:
