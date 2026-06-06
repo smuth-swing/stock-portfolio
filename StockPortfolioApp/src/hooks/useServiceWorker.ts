@@ -13,8 +13,14 @@ export function useServiceWorker() {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
     window.addEventListener('load', () => {
+      // GitHub Pages에서는 base path가 다르므로 동적으로 경로 결정
+      const isGitHub = window.location.hostname.includes('github.io');
+      const swPath = isGitHub
+        ? '/stock-portfolio/mobile/sw.js'
+        : '/mobile/sw.js';
+
       navigator.serviceWorker
-        .register('/mobile/sw.js')
+        .register(swPath)
         .then(registration => {
           console.log('[PWA] 서비스 워커 등록 성공:', registration.scope);
         })

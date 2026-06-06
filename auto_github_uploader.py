@@ -33,6 +33,7 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 last_mtime = 0
+_is_uploading = False  # 동시 실행 방지 락
 
 
 def run_no_window(cmd, **kwargs):
@@ -49,6 +50,11 @@ def run_no_window(cmd, **kwargs):
 
 def run_git_upload():
     """JSON 변환 -> 모바일 파일 복사 -> GitHub push"""
+    global _is_uploading
+    if _is_uploading:
+        log.info("이미 업로드 진행 중 — 건너뜀")
+        return False
+    _is_uploading = True
     log.info("=== GitHub 자동 업로드 시작 ===")
 
     try:
@@ -125,6 +131,8 @@ def run_git_upload():
     except Exception as e:
         log.error(f"   예외 발생: {e}")
         return False
+    finally:
+        _is_uploading = False
 
 
 def check_file():
@@ -147,6 +155,21 @@ def check_file():
     except Exception as e:
         log.error(f"파일 감시 오류: {e}")
 
+last_scheduled_date = None
+
+def check_schedule():
+    """오후 9시 정각 스케줄 확인"""
+    global last_scheduled_date
+    now = datetime.now()
+    
+    # 21시 0분에 실행 (오차 감안해서 분만 체크)
+    if now.hour == 21 and now.minute == 0:
+        today_str = now.strftime('%Y-%m-%d')
+        if last_scheduled_date != today_str:
+            log.info("⏰ 오후 9시 정각! 스케줄 자동 업데이트 시작...")
+            last_scheduled_date = today_str
+            run_git_upload()
+
 
 if __name__ == "__main__":
     log.info("=" * 50)
@@ -156,4 +179,5 @@ if __name__ == "__main__":
 
     while True:
         check_file()
+        check_schedule()
         time.sleep(10)

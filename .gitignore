@@ -1,2 +1,34 @@
-# LS���� API ���� Ű (�ΰ����� - Git ����)
+# LS증권 API 설정 키 (보안 - Git 제외)
 ls_api_config.json
+
+# 임시/스크래치 파일 (대용량 파일 사고 방지)
+scratch/
+temp_*.json
+hanse*.json
+diff.txt
+
+# 파이썬 캐시
+__pycache__/
+*.pyc
+
+# 로그 파일 (서버/업로드/리스타트 등)
+*.log
+server_log.txt
+upload_log.txt
+restart_log.txt
+resume_log.txt
+export_to_json.log
+server_graph.log
+server_health.log
+
+# Expo/React Native 빌드 산출물
+StockPortfolioApp/dist/
+StockPortfolioApp/.expo/
+StockPortfolioApp/node_modules/
+
+# 엑셀 원본 파일 (OneDrive 관리)
+*.xlsx
+
+# 기타
+out_names.txt
+updateChart.txt

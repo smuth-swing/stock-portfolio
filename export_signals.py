@@ -22,7 +22,15 @@ def get_stocks_from_json():
             
             if port_data.get('data') and len(port_data['data']) > 0:
                 first_row = port_data['data'][0]
-                amountKeys = [k for k in first_row.keys() if k.startswith('Unnamed: ') and int(k.split(' ')[1]) >= 4]
+                amountKeys = []
+                for k in first_row.keys():
+                    if k.startswith('Unnamed: '):
+                        try:
+                            num = int(k.split(' ')[1])
+                            if num >= 4:
+                                amountKeys.append(k)
+                        except (IndexError, ValueError):
+                            pass
                 
                 for row in port_data['data']:
                     name = str(row.get(stockCol, '')).strip()
