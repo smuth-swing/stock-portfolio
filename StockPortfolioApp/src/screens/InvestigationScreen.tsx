@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, TextInput, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { useDataStore } from '../store/useDataStore';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,22 +7,38 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+// ─────────────────────────────────────────────
+// 헬퍼 함수: 컴포넌트 외부에 정의하여 매 렌더링 시 재생성 방지
+// ─────────────────────────────────────────────
+const getStockName = (item: any) => item['종목명'] || item['Unnamed: 1'] || '';
+const getMomentum  = (item: any) => item['모멘텀'] || item['모델명'] || item['Unnamed: 2'] || item['Unnamed: 1'] || '';
+const getReason    = (item: any) => item['매수이유'] || item['Unnamed: 3'] || '';
+const getRisk      = (item: any) => item['리스크'] || item['Unnamed: 4'] || '';
+const getCeo       = (item: any) => item['대표/경영진'] || item['Unnamed: 5'] || '';
+const getStrategy  = (item: any) => item['매매 전략'] || item['Unnamed: 6'] || '';
+
 export default function InvestigationScreen() {
   const { investigation, isLoading, refreshData, syncQueue, addToSyncQueue, markQueueAsSynced, meta } = useDataStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'priority'>('all');
-  
-  // 엑셀 컬럼명 변경 대응을 위한 헬퍼 함수
-  const getStockName = (item: any) => item['종목명'] || item['Unnamed: 1'] || '';
-  const getMomentum = (item: any) => item['모멘텀'] || item['모델명'] || item['Unnamed: 2'] || item['Unnamed: 1'] || '';
-  const getReason = (item: any) => item['매수이유'] || item['Unnamed: 3'] || '';
-  const getRisk = (item: any) => item['리스크'] || item['Unnamed: 4'] || '';
-  const getCeo = (item: any) => item['대표/경영진'] || item['Unnamed: 5'] || '';
-  const getStrategy = (item: any) => item['매매 전략'] || item['Unnamed: 6'] || '';
   const [searchQuery, setSearchQuery] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [isSaving, setIsSaving] = useState(false);
+
+  // refreshData를 ref로 보관: useEffect 의존성 배열에서 제외하여 무한 리렌더 방지
+  const refreshDataRef = useRef(refreshData);
+  useEffect(() => { refreshDataRef.current = refreshData; }, [refreshData]);
+
+  // syncQueue 파생 상태를 메모화: 렌더링마다 some() 반복 연산 방지
+  const hasPendingSync = useMemo(
+    () => !!syncQueue && syncQueue.some(item => item.isPendingSync !== false),
+    [syncQueue]
+  );
+  const hasPendingServerUpdate = useMemo(
+    () => !!syncQueue && syncQueue.some(item => item.isPendingSync === false),
+    [syncQueue]
+  );
 
   useEffect(() => {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -36,25 +52,25 @@ export default function InvestigationScreen() {
     }
   }, []);
 
-  const toggleExpand = (id: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpandedId(expandedId === id ? null : id);
-  };
-
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    const hasPendingServerUpdate = syncQueue && syncQueue.some(item => item.isPendingSync === false);
-    
-    if (hasPendingServerUpdate) {
-      interval = setInterval(() => {
-        refreshData();
-      }, 10000); // 10초마다 자동 갱신 확인
+  const toggleExpand = useCallback((id: string) => {
+    // 웹 환경에서는 LayoutAnimation 미지원 → 네이티브만 사용
+    if (Platform.OS !== 'web') {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     }
-    
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [syncQueue, refreshData]);
+    setExpandedId(prev => prev === id ? null : id);
+  }, []);
+
+  // 10초 자동 갱신: hasPendingServerUpdate가 true일 때만 활성화
+  // refreshData를 ref로 참조하여 의존성 배열에서 제외 → interval 재생성 방지
+  useEffect(() => {
+    if (!hasPendingServerUpdate) return;
+
+    const interval = setInterval(() => {
+      refreshDataRef.current();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [hasPendingServerUpdate]);
 
   // 데이터가 없고 로딩 중일 때만 스피너 표시
   if (isLoading && !investigation) {
@@ -124,7 +140,10 @@ export default function InvestigationScreen() {
       };
       await addToSyncQueue(editTask);
       
-      investigation.data[realIndex] = newRowData; 
+      // ★ Zustand 상태를 불변 방식으로 업데이트 (직접 뮤테이션 금지)
+      const updatedData = [...investigation.data];
+      updatedData[realIndex] = newRowData;
+      useDataStore.setState({ investigation: { ...investigation, data: updatedData } });
     } catch (e) {
       console.error('Failed to queue content', e);
     } finally {
@@ -190,11 +209,11 @@ export default function InvestigationScreen() {
         {syncQueue && syncQueue.length > 0 && (
           <View style={styles.syncBanner}>
             <Text style={styles.syncBannerText}>
-              {syncQueue.some(item => item.isPendingSync !== false) 
+              {hasPendingSync
                 ? `🔄 PC 동기화 대기 중인 수정내역 (${syncQueue.length}건)`
                 : `⏳ GitHub 서버 반영 대기 중... (${syncQueue.length}건)`}
             </Text>
-            {syncQueue.some(item => item.isPendingSync !== false) && (
+            {hasPendingSync && (
               <TouchableOpacity style={styles.syncBtn} onPress={handleSync}>
                 <Text style={styles.syncBtnText}>PC로 전송하기</Text>
               </TouchableOpacity>

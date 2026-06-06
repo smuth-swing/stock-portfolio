@@ -18,6 +18,7 @@ let currentData = null;
 let autoRefreshTimer = null;
 const REFRESH_INTERVAL = 30000; // 30초
 let portfolioMapCache = {}; // { 종목명: 기본투자금(만원) }
+let investigationPriorityCache = new Set(); // 탐구생활 시트 기반 매매우선 종목 캐시
 let investigationRowMap = [];
 let selectedInvestigationRowIndex = null;
 let investigationCurrentRows = [];
@@ -397,6 +398,13 @@ async function loadExcel(filePath, sheetName = null) {
             // 캐시가 비어있을 때만 포트폴리오 맵 데이터 요청 (불필요한 중복 API 호출 방지)
             await fetchPortfolioMapData();
         }
+
+        // 탐구생활(매매우선) 데이터 캐싱 업데이트
+        if (isExplorationSheet(data.current_sheet)) {
+            updateInvestigationPriorityCache(data);
+        } else if (investigationPriorityCache.size === 0) {
+            await fetchInvestigationPriorityData();
+        }
     } catch (e) {
         showToast('데이터 로드 중 오류가 발생했습니다.', 'error');
     } finally {
@@ -439,26 +447,16 @@ async function loadSignalTab() {
     const chartPanel = document.querySelector('.chart-panel');
     const signalPanel = document.getElementById('signal-panel');
 
-    // ---- Persistent 매매우선 (priority) 관리 ----
-    // prioritySet 은 로컬스토리지에 저장된 종목명을 Set 형태로 보관합니다.
-    let prioritySet = new Set();
-    function loadPrioritySet() {
-        try {
-            const txt = localStorage.getItem('priority_stocks');
-            if (txt) prioritySet = new Set(JSON.parse(txt));
-        } catch (e) { console.error('prioritySet load error', e); }
-    }
-    function savePrioritySet() {
-        try { localStorage.setItem('priority_stocks', JSON.stringify([...prioritySet])); }
-        catch (e) { console.error('prioritySet save error', e); }
-    }
-    loadPrioritySet();
-    
     if (tablePanel) tablePanel.classList.add('hidden');
     if (journalPanel) journalPanel.classList.add('hidden');
     if (investigationPanel) investigationPanel.classList.add('hidden');
     if (chartPanel) chartPanel.classList.add('hidden');
     if (signalPanel) signalPanel.classList.remove('hidden');
+    
+    // 캐시가 비어있을 경우 한번 로드 시도
+    if (investigationPriorityCache.size === 0) {
+        await fetchInvestigationPriorityData();
+    }
     
     await refreshSignalPrices();
 }
@@ -490,8 +488,8 @@ async function refreshSignalPrices() {
     if (currentSignalCategory === 'portfolio') {
         stocks = Object.keys(portfolioMapCache).filter(name => name && name.trim());
     } else {
-        // 매매우선(우선 순위) 종목은 prioritySet 에 저장된 종목만 사용
-        stocks = [...prioritySet];
+        // 매매우선 종목은 탐구생활 시트에서 추출된 캐시 사용
+        stocks = [...investigationPriorityCache];
     }
 
     if (stocks.length === 0) {
@@ -2001,6 +1999,52 @@ async function fetchPortfolioMapData() {
         }
     } catch (e) {
         console.error('Failed to fetch portfolio map for cache:', e);
+    }
+}
+
+// ===== 탐구생활 매매우선 연동 유틸리티 =====
+
+function updateInvestigationPriorityCache(data) {
+    if (!isExplorationSheet(data.current_sheet)) return;
+
+    investigationPriorityCache.clear();
+    if (!data.data || data.data.length === 0) return;
+
+    const cols = data.columns || [];
+    // 종목명이 있는 컬럼을 찾음 (findStockColumnName 함수 사용)
+    const nameCol = findStockColumnName(cols);
+    const momentumCol = cols.includes('모멘텀') ? '모멘텀' : 'Unnamed: 2';
+
+    data.data.forEach(row => {
+        const stockName = String(row[nameCol] || '').trim();
+        const hasMomentum = row[momentumCol] && String(row[momentumCol]).trim() !== '';
+
+        if (stockName && stockName !== '종목' && stockName !== 'stock' && !stockName.includes('~~') && hasMomentum) {
+            investigationPriorityCache.add(stockName);
+        }
+    });
+}
+
+async function fetchInvestigationPriorityData() {
+    try {
+        const timestamp = new Date().getTime();
+        const sheetName = '탐구생활';
+        let url;
+        if (IS_GITHUB_PAGES) {
+            const jsonFileName = GITHUB_JSON_MAP[sheetName];
+            if (!jsonFileName) return;
+            url = `${API}/${jsonFileName}?t=${timestamp}`;
+        } else {
+            url = `${API}/read-excel?file=${encodeURIComponent(TARGET_FILE)}&sheet=${encodeURIComponent(sheetName)}&t=${timestamp}`;
+        }
+        
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!data.error) {
+            updateInvestigationPriorityCache(data);
+        }
+    } catch (e) {
+        console.error('Failed to fetch investigation priority data:', e);
     }
 }
 // Version 1.0.1 - Cache Refresh

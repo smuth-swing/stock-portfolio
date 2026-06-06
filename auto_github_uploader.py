@@ -64,6 +64,18 @@ def run_git_upload():
             return False
         log.info("   JSON 내보내기 완료")
 
+        # 1-5단계: 신호 데이터 내보내기
+        log.info("1-5. 신호 데이터(이평선/RSI) 내보내기 중...")
+        result_sig = run_no_window(
+            [PYTHON_EXE, os.path.join(PROJECT_DIR, "export_signals.py")],
+            cwd=PROJECT_DIR,
+            timeout=180,
+        )
+        if result_sig.returncode != 0:
+            log.error(f"   신호 데이터 내보내기 실패: {result_sig.stderr[:300]}")
+        else:
+            log.info("   신호 데이터 내보내기 완료")
+
         # 2단계: 모바일 데이터 복사
         log.info("2. 모바일 데이터 복사 중...")
         src = os.path.join(PROJECT_DIR, "StockPortfolioApp", "public", "data")

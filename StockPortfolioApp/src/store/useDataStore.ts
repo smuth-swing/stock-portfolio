@@ -116,17 +116,24 @@ export const useDataStore = create<AppState>((set, get) => ({
 
     let anyCacheLoaded = false;
 
-    // [1단계] 로컬 캐시에서 즉시 로드
+    // [1단계] 로컬 캐시에서 즉시 로드 (병렬 처리로 속도 최적화)
     console.log('[useDataStore] 💾 1단계: 로컬 캐시 로드 시작');
-    for (const { k, s } of DATA_KEYS) {
-      try {
-        const cached = await getCachedData(k as any);
-        if (cached && isValidData(cached)) {
-          set((state: any) => ({ ...state, [s]: applyQueueToData(s, cached, state.syncQueue) }));
-          anyCacheLoaded = true;
+    const cacheResults = await Promise.all(
+      DATA_KEYS.map(async ({ k, s }) => {
+        try {
+          const cached = await getCachedData(k as any);
+          return { s, cached };
+        } catch (e) {
+          console.warn(`[useDataStore] 캐시 로드 실패 (${s}):`, e);
+          return { s, cached: null };
         }
-      } catch (e) {
-        console.warn(`[useDataStore] 캐시 로드 실패 (${s}):`, e);
+      })
+    );
+
+    for (const { s, cached } of cacheResults) {
+      if (cached && isValidData(cached)) {
+        set((state: any) => ({ ...state, [s]: applyQueueToData(s, cached, state.syncQueue) }));
+        anyCacheLoaded = true;
       }
     }
 

@@ -89,8 +89,7 @@ def parse_strikethrough_text(text):
     
     text = re.sub(r'<del>(.*?)</del>', r'~~\1~~', text)
     pattern = r'~~(.*?)~~'
-    import re as regex
-    parts = regex.split(pattern, text)
+    parts = re.split(pattern, text)
     
     if len(parts) == 1: return text
     
@@ -604,70 +603,76 @@ def sync_receive():
 
         from openpyxl.styles import Alignment
         import traceback
+        from collections import defaultdict
 
-        # 엑셀 작업 최소화를 위해 파일/시트별로 그룹화하지 않고 단순 반복 (통상 1~5건 내외이므로)
+        # ★ 파일별로 edit을 그룹화하여 동일 파일은 1번만 열기 (성능 최적화)
+        edits_by_file = defaultdict(list)
         for edit in edits:
             file_path = edit.get('file', '')
-            sheet_name = edit.get('sheet')
-            row_index = int(edit.get('rowIndex', 0))
-            values = edit.get('values', [])
-            
-            # 파일 경로: 절대경로이면 그대로, 아니면 ONEDRIVE_PATH와 합성
             if os.path.isabs(file_path) and os.path.isfile(file_path):
                 full_path = file_path
             else:
                 full_path = os.path.join(ONEDRIVE_PATH, file_path)
-            
+            edits_by_file[full_path].append(edit)
+
+        for full_path, file_edits in edits_by_file.items():
             if not os.path.isfile(full_path):
                 print(f'[sync-receive] 파일 없음: {full_path}')
                 continue
 
             wb = openpyxl.load_workbook(full_path)
-            if sheet_name not in wb.sheetnames:
-                continue
 
-            ws = wb[sheet_name]
-            # 기본값: pandas iloc[N] → openpyxl row = N+2
-            target_row = row_index + 2
-            
-            stock_name = edit.get('stockName', '').strip().replace(' ', '')
-            if stock_name:
-                # 1. 헤더에서 '종목명' 컬럼 인덱스 찾기 (보통 1~3행 사이)
-                name_col_idx = None
-                for r in range(1, 4):
-                    for c in range(1, ws.max_column + 1):
-                        val = str(ws.cell(row=r, column=c).value or '').strip()
-                        if val == '종목명' or val == 'Unnamed: 1':
-                            name_col_idx = c
+            for edit in file_edits:
+                sheet_name = edit.get('sheet')
+                row_index = int(edit.get('rowIndex', 0))
+                values = edit.get('values', [])
+
+                if sheet_name not in wb.sheetnames:
+                    continue
+
+                ws = wb[sheet_name]
+                # 기본값: pandas iloc[N] → openpyxl row = N+2
+                target_row = row_index + 2
+                
+                stock_name = edit.get('stockName', '').strip().replace(' ', '')
+                if stock_name:
+                    # 1. 헤더에서 '종목명' 컬럼 인덱스 찾기 (보통 1~3행 사이)
+                    name_col_idx = None
+                    for r in range(1, 4):
+                        for c in range(1, ws.max_column + 1):
+                            val = str(ws.cell(row=r, column=c).value or '').strip()
+                            if val == '종목명' or val == 'Unnamed: 1':
+                                name_col_idx = c
+                                break
+                        if name_col_idx:
                             break
-                    if name_col_idx:
-                        break
-                
-                # 2. 헤더를 못 찾았으면 기본 B열(2)로 가정
-                if not name_col_idx:
-                    name_col_idx = 2
                     
-                # 3. 해당 컬럼에서 종목명이 일치하는 행 찾기
-                found_row = None
-                for r in range(1, ws.max_row + 1):
-                    cell_val = str(ws.cell(row=r, column=name_col_idx).value or '').strip().replace(' ', '')
-                    if cell_val and cell_val == stock_name:
-                        found_row = r
-                        break
-                
-                if found_row:
-                    target_row = found_row
-                    print(f'[sync-receive] 종목명 "{stock_name}" 매칭 성공! -> 엑셀 {target_row}행 덮어쓰기 진행')
-                else:
-                    print(f'[sync-receive] 종목명 "{stock_name}" 매칭 실패! -> 기존 로직대로 {target_row}행에 덮어씁니다.')
+                    # 2. 헤더를 못 찾았으면 기본 B열(2)로 가정
+                    if not name_col_idx:
+                        name_col_idx = 2
+                        
+                    # 3. 해당 컬럼에서 종목명이 일치하는 행 찾기
+                    found_row = None
+                    for r in range(1, ws.max_row + 1):
+                        cell_val = str(ws.cell(row=r, column=name_col_idx).value or '').strip().replace(' ', '')
+                        if cell_val and cell_val == stock_name:
+                            found_row = r
+                            break
+                    
+                    if found_row:
+                        target_row = found_row
+                        print(f'[sync-receive] 종목명 "{stock_name}" 매칭 성공! -> 엑셀 {target_row}행 덮어쓰기 진행')
+                    else:
+                        print(f'[sync-receive] 종목명 "{stock_name}" 매칭 실패! -> 기존 로직대로 {target_row}행에 덮어씁니다.')
 
-            for col_idx, value in enumerate(values, start=1):
-                cell = ws.cell(row=target_row, column=col_idx)
-                processed_value = parse_strikethrough_text(value)
-                cell.value = processed_value
-                if isinstance(value, str) and '\n' in value:
-                    cell.alignment = Alignment(wrap_text=True)
+                for col_idx, value in enumerate(values, start=1):
+                    cell = ws.cell(row=target_row, column=col_idx)
+                    processed_value = parse_strikethrough_text(value)
+                    cell.value = processed_value
+                    if isinstance(value, str) and '\n' in value:
+                        cell.alignment = Alignment(wrap_text=True)
 
+            # 파일당 1회만 저장/닫기
             wb.save(full_path)
             wb.close()
 

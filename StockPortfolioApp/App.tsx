@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   StyleSheet,
   TouchableOpacity,
-  Animated,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -13,6 +12,8 @@ import TradeScreen from './src/screens/TradeScreen';
 import PortfolioScreen from './src/screens/PortfolioScreen';
 import InvestigationScreen from './src/screens/InvestigationScreen';
 import PerformanceScreen from './src/screens/PerformanceScreen';
+import SignalScreen from './src/screens/SignalScreen';
+import ImportTradeScreen from './src/screens/ImportTradeScreen';
 import { useDataStore } from './src/store/useDataStore';
 import { useServiceWorker } from './src/hooks/useServiceWorker';
 
@@ -175,6 +176,7 @@ export default function App() {
           <Tab.Screen name="매매일지" component={TradeScreen} />
           <Tab.Screen name="포트폴리오" component={PortfolioScreen} />
           <Tab.Screen name="탐구생활" component={InvestigationScreen} />
+          <Tab.Screen name="신호포착" component={SignalScreen} />
           <Tab.Screen name="실적" component={PerformanceScreen} />
         </Tab.Navigator>
       </NavigationContainer>

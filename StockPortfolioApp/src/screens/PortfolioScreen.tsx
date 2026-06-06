@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -119,11 +119,20 @@ export default function PortfolioScreen() {
     };
   }, [portfolioMap]);
 
-  const onScroll = (event: any) => {
+  // useCallback으로 안정화하여 ScrollView 불필요한 리렌더 방지
+  const onScroll = useCallback((event: any) => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const page = Math.round(offsetX / CHART_PAGE_WIDTH);
-    if (page !== currentPage) setCurrentPage(page);
-  };
+    setCurrentPage(prev => prev === page ? prev : page);
+  }, []);
+
+  // PieChart centerLabelComponent를 메모화하여 매 렌더링 재생성 방지
+  const pieCenterLabel = useCallback(() => (
+    <View style={{ justifyContent: 'center', alignItems: 'center' }}>
+      <Text style={{ fontSize: 24, color: 'white', fontWeight: 'bold' }}>{totalInvestment}M</Text>
+      <Text style={{ fontSize: 10, color: '#94A3B8' }}>{stockCount}종목</Text>
+    </View>
+  ), [totalInvestment, stockCount]);
 
   if (isLoading && !portfolioMap) {
     return (
@@ -282,12 +291,7 @@ export default function PortfolioScreen() {
           paddingHorizontal={40}
           paddingVertical={30}
           innerCircleColor="#1E293B"
-          centerLabelComponent={() => (
-            <View style={{ justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={{ fontSize: 24, color: 'white', fontWeight: 'bold' }}>{totalInvestment}M</Text>
-              <Text style={{ fontSize: 10, color: '#94A3B8' }}>{stockCount}종목</Text>
-            </View>
-          )}
+          centerLabelComponent={pieCenterLabel}
         />
       </View>
       <View style={[styles.legendContainer, { paddingHorizontal: 24, marginTop: 0 }]}>
