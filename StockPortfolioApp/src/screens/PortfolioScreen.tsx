@@ -255,23 +255,29 @@ export default function PortfolioScreen() {
   };
 
   // ─── 종목별 투자 현황 페이지 ───
-  const renderStockBarChart = () => (
-    <View style={[styles.chartPage, { paddingHorizontal: 0 }]}>
-      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
-        <Text style={[styles.cardTitle, { marginBottom: 0 }]}>종목별 투자 현황 ({stockCount}종목)</Text>
-        <TouchableOpacity onPress={() => setShowFullChart(true)} style={styles.fullViewButton}>
-          <Text style={styles.fullViewButtonText}>전체보기</Text>
-        </TouchableOpacity>
+  const renderStockBarChart = () => {
+    // 기기 화면 높이를 감안하여 하단 빈 공간까지 차트 영역을 넓힘 (최소 460px 보장)
+    const { height: screenHeight } = Dimensions.get('window');
+    const dynamicHeight = Math.max(460, screenHeight - 280);
+
+    return (
+      <View style={[styles.chartPage, { paddingHorizontal: 0 }]}>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
+          <Text style={[styles.cardTitle, { marginBottom: 0 }]}>종목별 투자 현황 ({stockCount}종목)</Text>
+          <TouchableOpacity onPress={() => setShowFullChart(true)} style={styles.fullViewButton}>
+            <Text style={styles.fullViewButtonText}>전체보기</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={{ height: dynamicHeight }}>
+          <ScrollView nestedScrollEnabled showsVerticalScrollIndicator indicatorStyle="white">
+            <View style={{ paddingBottom: 40 }}>
+              {renderCustomBarChart(stockItems, CHART_PAGE_WIDTH)}
+            </View>
+          </ScrollView>
+        </View>
       </View>
-      <View style={{ height: 460 }}>
-        <ScrollView nestedScrollEnabled showsVerticalScrollIndicator indicatorStyle="white">
-          <View style={{ paddingBottom: 40 }}>
-            {renderCustomBarChart(stockItems, CHART_PAGE_WIDTH)}
-          </View>
-        </ScrollView>
-      </View>
-    </View>
-  );
+    );
+  };
 
   // ─── 섹터별 파이 차트 페이지 ───
   const renderPieChart = () => (
