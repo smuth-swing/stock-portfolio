@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useDataStore } from '../store/useDataStore';
 
 export default function SignalScreen() {
-  const { portfolioMap, investigation, meta } = useDataStore();
+  const { portfolioMap, investigation, meta, targetPrices, setTargetPrice } = useDataStore();
   const [category, setCategory] = useState<'portfolio' | 'priority'>('portfolio');
   const [signals, setSignals] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
@@ -191,13 +191,33 @@ export default function SignalScreen() {
     if (rsiM > 0 && rsiM <= 30) rsiTexts.push(`월:${rsiM}`);
     const rsiText = rsiTexts.length > 0 ? rsiTexts.join(', ') : '-';
 
+    const targetPrice = targetPrices?.[stock];
+    const isTargetReached = targetPrice && current >= targetPrice;
+
     return (
-      <View key={stock} style={[styles.card, danger && styles.cardDanger]}>
+      <View key={stock} style={[styles.card, (danger || isTargetReached) && styles.cardDanger]}>
         <View style={styles.cardHeader}>
-          <Text style={styles.stockName}>{stock}</Text>
+          <View>
+            <Text style={styles.stockName}>{stock}</Text>
+            {isTargetReached && <Text style={styles.targetReachedBadge}>🚨 목표가 도달</Text>}
+          </View>
           <Text style={styles.price}>{current.toLocaleString()}원</Text>
         </View>
         <View style={styles.cardBody}>
+          <View style={[styles.infoRow, { width: '100%', marginBottom: 12, alignItems: 'center' }]}>
+            <Text style={styles.infoLabel}>🎯 목표가 설정</Text>
+            <TextInput
+              style={styles.targetInput}
+              keyboardType="numeric"
+              placeholder="목표가 (원)"
+              placeholderTextColor="#475569"
+              value={targetPrice ? targetPrice.toString() : ''}
+              onChangeText={(text) => {
+                const num = parseInt(text.replace(/[^0-9]/g, ''), 10);
+                setTargetPrice(stock, isNaN(num) ? null : num);
+              }}
+            />
+          </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>현재5월선</Text>
             <Text style={[styles.infoValue, ma5CurText !== '-' && styles.textDanger]}>{ma5CurText}</Text>
@@ -324,4 +344,23 @@ const styles = StyleSheet.create({
   textHighlight: { color: '#10B981' },
   errorText: { color: '#EF4444', fontSize: 13, marginTop: 10 },
   emptyText: { color: '#94A3B8', textAlign: 'center', marginTop: 40 },
+  targetInput: {
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    color: '#00F2FE',
+    fontSize: 14,
+    fontWeight: 'bold',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    width: 120,
+    textAlign: 'right',
+  },
+  targetReachedBadge: {
+    color: '#EF4444',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginTop: 4,
+  },
 });

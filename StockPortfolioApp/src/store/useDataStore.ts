@@ -41,6 +41,11 @@ interface AppState {
   loadSyncQueue: () => Promise<void>;
   markQueueAsSynced: () => Promise<void>;
   cleanupSyncQueue: () => Promise<void>;
+
+  // 목표가 저장소 (로컬)
+  targetPrices: Record<string, number>;
+  setTargetPrice: (stock: string, price: number | null) => Promise<void>;
+  loadTargetPrices: () => Promise<void>;
 }
 
 // ─────────────────────────────────────────────
@@ -103,6 +108,24 @@ export const useDataStore = create<AppState>((set, get) => ({
   syncQueue: [],
   lastSyncTime: null,
   hasCachedData: false,
+  targetPrices: {},
+  setTargetPrice: async (stock: string, price: number | null) => {
+    const { targetPrices } = get();
+    const newPrices = { ...targetPrices };
+    if (price === null) {
+      delete newPrices[stock];
+    } else {
+      newPrices[stock] = price;
+    }
+    set({ targetPrices: newPrices });
+    await AsyncStorage.setItem('@target_prices', JSON.stringify(newPrices));
+  },
+  loadTargetPrices: async () => {
+    try {
+      const pStr = await AsyncStorage.getItem('@target_prices');
+      if (pStr) set({ targetPrices: JSON.parse(pStr) });
+    } catch (e) {}
+  },
 
   // ────────────────────────────────────────────
   // [1단계] 앱 시작: 로컬 캐시 우선 로드 → 백그라운드 서버 동기화
@@ -273,3 +296,4 @@ export const useDataStore = create<AppState>((set, get) => ({
 
 // 초기화 시 큐 로드
 useDataStore.getState().loadSyncQueue();
+useDataStore.getState().loadTargetPrices();
