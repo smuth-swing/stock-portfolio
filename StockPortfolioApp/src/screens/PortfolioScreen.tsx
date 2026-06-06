@@ -256,23 +256,17 @@ export default function PortfolioScreen() {
 
   // ─── 종목별 투자 현황 페이지 ───
   const renderStockBarChart = () => {
-    // 기기 화면 높이를 감안하여 하단 빈 공간까지 차트 영역을 넓힘 (최소 460px 보장)
-    const { height: screenHeight } = Dimensions.get('window');
-    const dynamicHeight = Math.max(460, screenHeight - 280);
-
     return (
-      <View style={[styles.chartPage, { paddingHorizontal: 0 }]}>
+      <View style={[styles.chartPage, { paddingHorizontal: 0, flex: 1 }]}>
         <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
           <Text style={[styles.cardTitle, { marginBottom: 0 }]}>종목별 투자 현황 ({stockCount}종목)</Text>
           <TouchableOpacity onPress={() => setShowFullChart(true)} style={styles.fullViewButton}>
             <Text style={styles.fullViewButtonText}>전체보기</Text>
           </TouchableOpacity>
         </View>
-        <View style={{ height: dynamicHeight }}>
-          <ScrollView nestedScrollEnabled showsVerticalScrollIndicator indicatorStyle="white">
-            <View style={{ paddingBottom: 40 }}>
-              {renderCustomBarChart(stockItems, CHART_PAGE_WIDTH)}
-            </View>
+        <View style={{ flex: 1 }}>
+          <ScrollView nestedScrollEnabled showsVerticalScrollIndicator indicatorStyle="white" contentContainerStyle={{ paddingBottom: 40 }}>
+            {renderCustomBarChart(stockItems, CHART_PAGE_WIDTH)}
           </ScrollView>
         </View>
       </View>
@@ -281,7 +275,7 @@ export default function PortfolioScreen() {
 
   // ─── 섹터별 파이 차트 페이지 ───
   const renderPieChart = () => (
-    <View style={[styles.chartPage, { paddingHorizontal: 0 }]}>
+    <View style={[styles.chartPage, { paddingHorizontal: 0, flex: 1 }]}>
       <Text style={[styles.cardTitle, { paddingHorizontal: 24 }]}>섹터별 투자 비중</Text>
       <View style={[styles.chartWrapper, { width: '100%', height: 280, paddingHorizontal: 0 }]}>
         <PieChart
@@ -331,6 +325,7 @@ export default function PortfolioScreen() {
               onScroll={onScroll}
               scrollEventThrottle={16}
               style={styles.pager}
+              contentContainerStyle={{ flexGrow: 1 }}
             >
               {renderPieChart()}
               {renderStockBarChart()}
@@ -370,7 +365,7 @@ export default function PortfolioScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   loadingContainer: { flex: 1, backgroundColor: '#0F172A', justifyContent: 'center', alignItems: 'center' },
-  scrollContent: { padding: 20 },
+  scrollContent: { padding: 20, flexGrow: 1 },
   title: { fontSize: 32, fontWeight: '900', color: '#FFFFFF', marginBottom: 25, letterSpacing: -0.5 },
   glassCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
@@ -378,8 +373,9 @@ const styles = StyleSheet.create({
     paddingVertical: 30,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
+    flex: 1,
   },
-  pager: { width: CHART_PAGE_WIDTH },
+  pager: { width: CHART_PAGE_WIDTH, flex: 1 },
   indicatorContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
