@@ -493,8 +493,19 @@ async function refreshSignalPrices() {
     }
 
     if (stocks.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">${currentSignalCategory === 'portfolio' ? '포트폴리오' : '매매우선'} 종목이 없습니다.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">${currentSignalCategory === 'portfolio' ? '포트폴리오' : '매매우선'} 종목이 없습니다.</td></tr>`;
         return;
+    }
+    
+    // 목표가 정보 로드
+    window.targetPricesCache = window.targetPricesCache || {};
+    try {
+        const resTarget = await fetch(`${API}/target-prices`);
+        if (resTarget.ok) {
+            window.targetPricesCache = await resTarget.json();
+        }
+    } catch(e) {
+        console.warn('목표가 로드 실패', e);
     }
     
     // 1. 기본 테이블 생성
@@ -507,6 +518,9 @@ async function refreshSignalPrices() {
             <tr id="signal-row-${safeId}">
                 <td style="font-weight:bold; color:var(--gold-light);">${stock}</td>
                 <td class="col-price">-</td>
+                <td class="col-target">
+                    <input type="number" class="target-price-input" data-stock="${stock}" value="${window.targetPricesCache[stock] || ''}" onchange="saveTargetPrice('${stock}', this.value)" style="width:80px; text-align:right; background:rgba(0,0,0,0.2); border:1px solid #444; color:#00F2FE; border-radius:4px; padding:4px;">
+                </td>
                 <td class="col-ma5-cur"><div class="spinner" style="display:inline-block;width:14px;height:14px;vertical-align:middle;border-width:2px;"></div></td>
                 <td class="col-ma5-next">-</td>
                 <td class="col-ma120-week">-</td>
@@ -540,10 +554,20 @@ async function refreshSignalPrices() {
                 let ma120Html = '<span style="color:#555;">-</span>';
                 let rsiHtml = '<span style="color:#555;">-</span>';
                 
+                // 목표가 도달 체크
+                const tp = window.targetPricesCache && window.targetPricesCache[stock];
+                const isTargetReached = tp && current >= tp;
+                
+                if (isTargetReached) {
+                    row.querySelector('td:first-child').innerHTML = `${stock}<br><span style="color:var(--danger); font-size:11px; font-weight:bold;">🚨 목표가 도달</span>`;
+                    row.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+                    row.style.borderLeft = '3px solid var(--danger)';
+                }
+                
                 if (ma5_month > 0) {
                     const ma5_month_next = data.ma5_month_next || ma5_month;
                     
-                    if (current < ma5_month_next) {
+                    if (current < ma5_month_next && !isTargetReached) {
                         row.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
                         row.style.borderLeft = '3px solid var(--danger)';
                     }
@@ -2832,3 +2856,29 @@ async function importLsTrades() {
         btn.textContent = originalText;
     }
 }
+
+window.saveTargetPrice = async function(stock, value) {
+    try {
+        const num = parseInt(value.replace(/[^0-9]/g, ''), 10);
+        if (isNaN(num)) {
+            delete window.targetPricesCache[stock];
+        } else {
+            window.targetPricesCache[stock] = num;
+        }
+        
+        const resPost = await fetch(`${API}/target-prices`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(window.targetPricesCache)
+        });
+        
+        if (resPost.ok) {
+            showToast(`${stock} 목표가 저장 완료`, 'success');
+            refreshSignalPrices(); // 도달 여부 즉시 반영
+        } else {
+            showToast('목표가 저장 실패', 'error');
+        }
+    } catch(e) {
+        showToast('목표가 저장 오류', 'error');
+    }
+};

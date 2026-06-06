@@ -199,25 +199,11 @@ export default function SignalScreen() {
         <View style={styles.cardHeader}>
           <View>
             <Text style={styles.stockName}>{stock}</Text>
-            {isTargetReached && <Text style={styles.targetReachedBadge}>🚨 목표가 도달</Text>}
+            {isTargetReached && <Text style={styles.targetReachedBadge}>🚨 목표가 도달 ({targetPrice.toLocaleString()}원)</Text>}
           </View>
           <Text style={styles.price}>{current.toLocaleString()}원</Text>
         </View>
         <View style={styles.cardBody}>
-          <View style={[styles.infoRow, { width: '100%', marginBottom: 12, alignItems: 'center' }]}>
-            <Text style={styles.infoLabel}>🎯 목표가 설정</Text>
-            <TextInput
-              style={styles.targetInput}
-              keyboardType="numeric"
-              placeholder="목표가 (원)"
-              placeholderTextColor="#475569"
-              value={targetPrice ? targetPrice.toString() : ''}
-              onChangeText={(text) => {
-                const num = parseInt(text.replace(/[^0-9]/g, ''), 10);
-                setTargetPrice(stock, isNaN(num) ? null : num);
-              }}
-            />
-          </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>현재5월선</Text>
             <Text style={[styles.infoValue, ma5CurText !== '-' && styles.textDanger]}>{ma5CurText}</Text>

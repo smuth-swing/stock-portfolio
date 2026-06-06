@@ -983,6 +983,33 @@ def ls_import_trades():
         print(traceback.format_exc())
         return jsonify({'error': f'저장 오류: {str(e)}'}), 500
 
+TARGET_PRICES_FILE = os.path.join("StockPortfolioApp", "public", "data", "target_prices.json")
+
+@app.route('/api/target-prices', methods=['GET'])
+def get_target_prices():
+    try:
+        if os.path.exists(TARGET_PRICES_FILE):
+            with open(TARGET_PRICES_FILE, 'r', encoding='utf-8') as f:
+                return jsonify(json.load(f))
+        return jsonify({})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/target-prices', methods=['POST'])
+def save_target_prices():
+    try:
+        data = request.get_json()
+        os.makedirs(os.path.dirname(TARGET_PRICES_FILE), exist_ok=True)
+        with open(TARGET_PRICES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        
+        # 파일이 업데이트되었으므로 GitHub 배포 스크립트 실행 (백그라운드)
+        trigger_export()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/ls/current-prices', methods=['POST'])
 def ls_current_prices():
     """

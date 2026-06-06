@@ -57,6 +57,7 @@ const DATA_KEYS = [
   { k: 'investigation', s: 'investigation' },
   { k: 'performance',   s: 'performance' },
   { k: 'meta',          s: 'meta' },
+  { k: 'targetPrices',  s: 'targetPrices' },
 ] as const;
 
 // ─────────────────────────────────────────────
@@ -154,7 +155,10 @@ export const useDataStore = create<AppState>((set, get) => ({
     );
 
     for (const { s, cached } of cacheResults) {
-      if (cached && isValidData(cached)) {
+      if (s === 'targetPrices' && cached) {
+        set((state: any) => ({ ...state, [s]: cached }));
+        anyCacheLoaded = true;
+      } else if (cached && isValidData(cached)) {
         set((state: any) => ({ ...state, [s]: applyQueueToData(s, cached, state.syncQueue) }));
         anyCacheLoaded = true;
       }
@@ -183,7 +187,10 @@ export const useDataStore = create<AppState>((set, get) => ({
     const syncPromises = DATA_KEYS.map(async ({ k, s }) => {
       try {
         const result = await fetchJSON(k as any);
-        if (result && result.data && isValidData(result.data)) {
+        if (s === 'targetPrices' && result) {
+          set((state: any) => ({ ...state, [s]: result }));
+          anyServerLoaded = true;
+        } else if (result && result.data && isValidData(result.data)) {
           set((state: any) => ({ ...state, [s]: applyQueueToData(s, result.data, state.syncQueue) }));
           anyServerLoaded = true;
         } else if (result === null) {

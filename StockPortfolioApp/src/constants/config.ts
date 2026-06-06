@@ -53,6 +53,7 @@ export const DATA_URLS = {
   investigation: BASE_URL ? `${BASE_URL}/data/investigation.json`  : '',
   performance:   BASE_URL ? `${BASE_URL}/data/performance.json`    : '',
   meta:          BASE_URL ? `${BASE_URL}/data/meta.json`           : '',
+  targetPrices:  BASE_URL ? `${BASE_URL}/data/target_prices.json`  : '',
 };
 
 // ─────────────────────────────────────────────
