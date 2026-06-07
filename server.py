@@ -85,7 +85,7 @@ def parse_strikethrough_text(text):
     if not isinstance(text, str) or not text:
         return text
     from openpyxl.cell.rich_text import CellRichText, TextBlock
-    from openpyxl.styles import Font
+    from openpyxl.cell.text import InlineFont
     
     text = re.sub(r'<del>(.*?)</del>', r'~~\1~~', text)
     pattern = r'~~(.*?)~~'
@@ -94,15 +94,15 @@ def parse_strikethrough_text(text):
     if len(parts) == 1: return text
     
     rich_text = CellRichText()
-    default_font = Font(name='맑은 고딕')
-    strike_font = Font(name='맑은 고딕', strike=True)
+    default_font = InlineFont(rFont='맑은 고딕')
+    strike_font = InlineFont(rFont='맑은 고딕', strike=True)
     
     for i, part in enumerate(parts):
         if not part: continue
         if i % 2 == 0:
-            rich_text.add(TextBlock(default_font, part))
+            rich_text.append(TextBlock(default_font, part))
         else:
-            rich_text.add(TextBlock(strike_font, part))
+            rich_text.append(TextBlock(strike_font, part))
     return rich_text
 
 def extract_rich_text(cell):
@@ -309,7 +309,7 @@ def read_excel():
         is_special = any(k in target_sheet for k in ["탐구", "실적"])
         if is_special:
             # openpyxl 워크북 로드
-            wb_format = openpyxl.load_workbook(io.BytesIO(file_data), data_only=True)
+            wb_format = openpyxl.load_workbook(io.BytesIO(file_data), data_only=True, rich_text=True)
             ws_format = wb_format[target_sheet]
             
             data = []
@@ -458,7 +458,7 @@ def save_journal():
         no_fill = PatternFill(fill_type=None)  # 배경색 없음(초기화용)
 
         # openpyxl을 사용하여 데이터 추가
-        wb = openpyxl.load_workbook(full_path)
+        wb = openpyxl.load_workbook(full_path, rich_text=True)
         try:
             if sheet_name not in wb.sheetnames:
                 ws = wb.create_sheet(sheet_name)
@@ -546,7 +546,7 @@ def update_row():
 
     try:
         from openpyxl.styles import Alignment
-        wb = openpyxl.load_workbook(full_path)
+        wb = openpyxl.load_workbook(full_path, rich_text=True)
         if sheet_name not in wb.sheetnames:
             return jsonify({'error': f'시트를 찾을 수 없습니다: {sheet_name}'}), 404
 
@@ -620,7 +620,7 @@ def sync_receive():
                 print(f'[sync-receive] 파일 없음: {full_path}')
                 continue
 
-            wb = openpyxl.load_workbook(full_path)
+            wb = openpyxl.load_workbook(full_path, rich_text=True)
 
             for edit in file_edits:
                 sheet_name = edit.get('sheet')
@@ -755,7 +755,7 @@ def delete_row():
         return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
 
     try:
-        wb = openpyxl.load_workbook(full_path)
+        wb = openpyxl.load_workbook(full_path, rich_text=True)
         if sheet_name not in wb.sheetnames:
             return jsonify({'error': f'시트를 찾을 수 없습니다: {sheet_name}'}), 404
 
@@ -918,7 +918,7 @@ def ls_import_trades():
         return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
 
     try:
-        wb = openpyxl.load_workbook(full_path)
+        wb = openpyxl.load_workbook(full_path, rich_text=True)
         sheet_name = '매매일지'
         if sheet_name not in wb.sheetnames:
             return jsonify({'error': f'"{sheet_name}" 시트를 찾을 수 없습니다.'}), 404

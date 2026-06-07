@@ -480,17 +480,20 @@ window.setSignalCategory = function(category) {
 
 
 
-async function refreshSignalPrices() {
+async function refreshSignalPrices(forceUpdate = false) {
     const tbody = document.getElementById('signal-table-body');
     if (!tbody) return;
 
     let stocks = [];
     if (currentSignalCategory === 'portfolio') {
-        stocks = Object.keys(portfolioMapCache).filter(name => name && name.trim());
+        stocks = Object.keys(portfolioMapCache).filter(name => name && name.trim()).map(name => name.trim());
     } else {
         // 매매우선 종목은 탐구생활 시트에서 추출된 캐시 사용
-        stocks = [...investigationPriorityCache];
+        stocks = [...investigationPriorityCache].filter(name => name && name.trim()).map(name => name.trim());
     }
+    
+    // 중복 제거
+    stocks = [...new Set(stocks)];
 
     if (stocks.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">${currentSignalCategory === 'portfolio' ? '포트폴리오' : '매매우선'} 종목이 없습니다.</td></tr>`;
@@ -519,7 +522,7 @@ async function refreshSignalPrices() {
                 <td style="font-weight:bold; color:var(--gold-light);">${stock}</td>
                 <td class="col-price">-</td>
                 <td class="col-target">
-                    <input type="number" class="target-price-input" data-stock="${stock}" value="${window.targetPricesCache[stock] || ''}" onchange="saveTargetPrice('${stock}', this.value)" style="width:80px; text-align:right; background:rgba(0,0,0,0.2); border:1px solid #444; color:#00F2FE; border-radius:4px; padding:4px;">
+                    <input type="text" class="target-price-input" data-stock="${stock}" value="${window.targetPricesCache[stock] ? window.targetPricesCache[stock].toLocaleString() : ''}" oninput="this.value = this.value.replace(/[^0-9]/g, '').replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',')" onchange="saveTargetPrice('${stock}', this.value)" style="width:80px; text-align:right; background:rgba(0,0,0,0.2); border:1px solid #444; color:#00F2FE; border-radius:4px; padding:4px;">
                 </td>
                 <td class="col-ma5-cur"><div class="spinner" style="display:inline-block;width:14px;height:14px;vertical-align:middle;border-width:2px;"></div></td>
                 <td class="col-ma5-next">-</td>
@@ -528,108 +531,163 @@ async function refreshSignalPrices() {
             </tr>`;
     }
     tbody.innerHTML = html;
-    showToast('현재가 및 이동평균선 조회를 시작합니다.', 'info');
+    showToast(forceUpdate ? '데이터 강제 갱신을 시작합니다.' : '현재가 및 이동평균선 조회를 시작합니다.', 'info');
+    const todayStr = new Date().toISOString().split('T')[0];
     
-    // 2. 개별 종목별로 비동기 MA 조회 (순차적으로 실행하여 API 속도 제한 방지)
-    for (const stock of stocks) {
-        const safeId = stock.replace(/[^a-zA-Z0-9가-힣]/g, '');
-        const row = document.getElementById(`signal-row-${safeId}`);
-        if (!row) continue;
+    // 2. 개별 종목별로 비동기 MA 조회 (실패 시 자동 재시도 포함)
+    let pendingStocks = [...stocks];
+    let retryCount = 0;
+    const MAX_RETRIES = 10;
+    
+    while (pendingStocks.length > 0 && retryCount < MAX_RETRIES) {
+        if (retryCount > 0) {
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            showToast(`조회 지연 종목 ${pendingStocks.length}개 재시도 중... (${retryCount}/${MAX_RETRIES}회차)`, 'info');
+        }
         
-        try {
-            const res = await fetch(`${API}/ls/moving-averages?name=${encodeURIComponent(stock)}`);
-            if (!res.ok) throw new Error('API Error');
-            const result = await res.json();
+        const nextPending = [];
+        
+        for (const stock of pendingStocks) {
+            const safeId = stock.replace(/[^a-zA-Z0-9가-힣]/g, '');
+            const row = document.getElementById(`signal-row-${safeId}`);
+            if (!row) continue;
             
-            if (result.success && result.data && result.data.current) {
-                const data = result.data;
-                const current = data.current;
-                const ma5_month = data.ma5_month || 0;
+            try {
+                const cacheKey = `signalData_${stock}`;
+                let data = null;
+                const todayStr = new Date().toISOString().split('T')[0];
                 
-                // 현재가 표시
-                row.querySelector('.col-price').innerHTML = `<span style="color:var(--highlight); font-weight:bold;">${current.toLocaleString()}원</span>`;
-                
-                let ma5CurHtml = '<span style="color:#555;">-</span>';
-                let ma5NextHtml = '<span style="color:#555;">-</span>';
-                let ma120Html = '<span style="color:#555;">-</span>';
-                let rsiHtml = '<span style="color:#555;">-</span>';
-                
-                // 목표가 도달 체크
-                const tp = window.targetPricesCache && window.targetPricesCache[stock];
-                const isTargetReached = tp && current >= tp;
-                
-                if (isTargetReached) {
-                    row.querySelector('td:first-child').innerHTML = `${stock}<br><span style="color:var(--danger); font-size:11px; font-weight:bold;">🚨 목표가 도달</span>`;
-                    row.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
-                    row.style.borderLeft = '3px solid var(--danger)';
+                if (!forceUpdate) {
+                    try {
+                        const stored = localStorage.getItem(cacheKey);
+                        if (stored) {
+                            const parsed = JSON.parse(stored);
+                            if (parsed.date === todayStr) {
+                                data = parsed.data;
+                            }
+                        }
+                    } catch(e) {}
                 }
                 
-                if (ma5_month > 0) {
-                    const ma5_month_next = data.ma5_month_next || ma5_month;
+                if (!data) {
+                    const res = await fetch(`${API}/ls/moving-averages?name=${encodeURIComponent(stock)}`);
+                    if (!res.ok) throw new Error('API Error');
+                    const result = await res.json();
                     
-                    if (current < ma5_month_next && !isTargetReached) {
+                    if (result.success && result.data && result.data.current) {
+                        data = result.data;
+                        try {
+                            localStorage.setItem(cacheKey, JSON.stringify({ date: todayStr, data: data }));
+                        } catch(e) {}
+                    }
+                }
+                
+                if (data && data.current) {
+                    const current = data.current;
+                    const ma5_month = data.ma5_month || 0;
+                    
+                    // 현재가 표시
+                    row.querySelector('.col-price').innerHTML = `<span style="color:var(--highlight); font-weight:bold;">${current.toLocaleString()}원</span>`;
+                    
+                    let ma5CurHtml = '<span style="color:#555;">-</span>';
+                    let ma5NextHtml = '<span style="color:#555;">-</span>';
+                    let ma120Html = '<span style="color:#555;">-</span>';
+                    let rsiHtml = '<span style="color:#555;">-</span>';
+                    
+                    // 목표가 도달 체크
+                    const tp = window.targetPricesCache && window.targetPricesCache[stock];
+                    let isTargetReached = false;
+                    if (tp) {
+                        const high_1w = data.high_1w || current;
+                        const low_1w = data.low_1w || current;
+                        if (high_1w >= tp && low_1w <= tp) {
+                            isTargetReached = true;
+                        }
+                    }
+                    
+                    if (isTargetReached) {
+                        row.querySelector('td:first-child').innerHTML = `${stock}<br><span style="color:var(--danger); font-size:11px; font-weight:bold;">🚨 목표가 도달</span>`;
                         row.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
                         row.style.borderLeft = '3px solid var(--danger)';
                     }
                     
-                    if (current < ma5_month) {
-                        const diffCur = Math.abs(((current - ma5_month) / ma5_month) * 100);
-                        ma5CurHtml = `<span style="color:var(--danger); font-weight:bold; font-size:12px;">${diffCur.toFixed(1)}% 하회</span>`;
-                    }
-                    
-                    if (current < ma5_month_next) {
-                        const diffNext = Math.abs(((current - ma5_month_next) / ma5_month_next) * 100);
-                        ma5NextHtml = `<span style="color:var(--danger); font-weight:bold; font-size:12px;">${diffNext.toFixed(1)}% 하회</span>`;
-                    }
-                }
-                
-                const ma120_week = data.ma120_week || 0;
-                if (ma120_week > 0) {
-                    const diff120Raw = ((current - ma120_week) / ma120_week) * 100;
-                    const diff120Abs = Math.abs(diff120Raw);
-                    
-                    // 0% ~ 5% 이내로 근접한 경우만 표기
-                    if (diff120Abs <= 5.0) {
-                        if (diff120Raw < 0) {
-                            ma120Html = `<span style="color:var(--danger); font-weight:bold; font-size:12px;">${diff120Abs.toFixed(1)}% 하회</span>`;
-                        } else {
-                            ma120Html = `<span style="color:var(--highlight); font-weight:bold; font-size:12px;">${diff120Abs.toFixed(1)}% 상회</span>`;
+                    if (ma5_month > 0) {
+                        const ma5_month_next = data.ma5_month_next || ma5_month;
+                        
+                        if (current < ma5_month_next && !isTargetReached) {
+                            row.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+                            row.style.borderLeft = '3px solid var(--danger)';
+                        }
+                        
+                        if (current < ma5_month) {
+                            const diffCur = Math.abs(((current - ma5_month) / ma5_month) * 100);
+                            ma5CurHtml = `<span style="color:var(--danger); font-weight:bold; font-size:12px;">${diffCur.toFixed(1)}% 하회</span>`;
+                        }
+                        
+                        if (current < ma5_month_next) {
+                            const diffNext = Math.abs(((current - ma5_month_next) / ma5_month_next) * 100);
+                            ma5NextHtml = `<span style="color:var(--danger); font-weight:bold; font-size:12px;">${diffNext.toFixed(1)}% 하회</span>`;
                         }
                     }
+                    
+                    const ma120_week = data.ma120_week || 0;
+                    if (ma120_week > 0) {
+                        const diff120Raw = ((current - ma120_week) / ma120_week) * 100;
+                        const diff120Abs = Math.abs(diff120Raw);
+                        
+                        // 0% ~ 5% 이내로 근접한 경우만 표기
+                        if (diff120Abs <= 5.0) {
+                            if (diff120Raw < 0) {
+                                ma120Html = `<span style="color:var(--danger); font-weight:bold; font-size:12px;">${diff120Abs.toFixed(1)}% 하회</span>`;
+                            } else {
+                                ma120Html = `<span style="color:var(--highlight); font-weight:bold; font-size:12px;">${diff120Abs.toFixed(1)}% 상회</span>`;
+                            }
+                        }
+                    }
+                    
+                    const rsiD = data.rsi_day || 0;
+                    const rsiW = data.rsi_week || 0;
+                    const rsiM = data.rsi_month || 0;
+                    
+                    let rsiTexts = [];
+                    if (rsiD > 0 && rsiD <= 30) rsiTexts.push(`일:${rsiD}`);
+                    if (rsiW > 0 && rsiW <= 30) rsiTexts.push(`주:${rsiW}`);
+                    if (rsiM > 0 && rsiM <= 30) rsiTexts.push(`월:${rsiM}`);
+                    
+                    if (rsiTexts.length > 0) {
+                        rsiHtml = `<span style="color:var(--danger); font-weight:bold; font-size:12px;">${rsiTexts.join(', ')}</span>`;
+                    }
+                    
+                    // 기존 컬럼 업데이트
+                    row.querySelector('.col-ma5-cur').innerHTML = ma5CurHtml;
+                    row.querySelector('.col-ma5-next').innerHTML = ma5NextHtml;
+                    row.querySelector('.col-ma120-week').innerHTML = ma120Html;
+                    row.querySelector('.col-rsi').innerHTML = rsiHtml;
+                } else {
+                    // 오류/조회불가 상태에 대한 재시도 로직
+                    nextPending.push(stock);
+                    row.querySelector('.col-ma5-cur').innerHTML = '<span style="color:gray; font-size:12px;">조회 지연 (대기중)</span>';
                 }
-                
-                const rsiD = data.rsi_day || 0;
-                const rsiW = data.rsi_week || 0;
-                const rsiM = data.rsi_month || 0;
-                
-                let rsiTexts = [];
-                if (rsiD > 0 && rsiD <= 30) rsiTexts.push(`일:${rsiD}`);
-                if (rsiW > 0 && rsiW <= 30) rsiTexts.push(`주:${rsiW}`);
-                if (rsiM > 0 && rsiM <= 30) rsiTexts.push(`월:${rsiM}`);
-                
-                if (rsiTexts.length > 0) {
-                    rsiHtml = `<span style="color:var(--danger); font-weight:bold; font-size:12px;">${rsiTexts.join(', ')}</span>`;
-                }
-                
-                // 기존 컬럼 업데이트
-                row.querySelector('.col-ma5-cur').innerHTML = ma5CurHtml;
-                row.querySelector('.col-ma5-next').innerHTML = ma5NextHtml;
-                row.querySelector('.col-ma120-week').innerHTML = ma120Html;
-                row.querySelector('.col-rsi').innerHTML = rsiHtml;
-            } else {
-                // 오류/조회불가 상태에 대한 기본값 설정
-                row.querySelector('.col-ma5-cur').innerHTML = '<span style="color:gray; font-size:12px;">조회 불가</span>';
-                row.querySelector('.col-ma5-next').innerHTML = '-';
-                row.querySelector('.col-ma120-week').innerHTML = '-';
-                row.querySelector('.col-rsi').innerHTML = '-';
+            } catch (e) {
+                console.error(`MA fetch error for ${stock}:`, e);
+                nextPending.push(stock);
+                row.querySelector('.col-ma5-cur').innerHTML = '<span style="color:gray; font-size:12px;">오류 (재시도)</span>';
             }
-        } catch (e) {
-            console.error(`MA fetch error for ${stock}:`, e);
-            row.querySelector('.col-ma5-cur').innerHTML = '<span style="color:gray; font-size:12px;">오류</span>';
-            row.querySelector('.col-ma5-next').innerHTML = '-';
-            row.querySelector('.col-ma120-week').innerHTML = '-';
-            row.querySelector('.col-rsi').innerHTML = '-';
         }
+        
+        pendingStocks = nextPending;
+        retryCount++;
+    }
+    
+    // 최대 재시도 후에도 남은 종목은 최종 조회 불가 처리
+    for (const stock of pendingStocks) {
+        const safeId = stock.replace(/[^a-zA-Z0-9가-힣]/g, '');
+        const row = document.getElementById(`signal-row-${safeId}`);
+        if (!row) continue;
+        row.querySelector('.col-ma5-cur').innerHTML = '<span style="color:gray; font-size:12px;">최종 조회 불가</span>';
+        row.querySelector('.col-ma5-next').innerHTML = '-';
+        row.querySelector('.col-ma120-week').innerHTML = '-';
+        row.querySelector('.col-rsi').innerHTML = '-';
     }
 }
 
@@ -770,6 +828,8 @@ function renderChart(data) {
     }
 
     if (data.current_sheet === '실적') {
+        if (tablePanel) tablePanel.classList.add('hidden');
+        
         const perfCols = data.numeric_columns.filter(c => 
             ['수익', '수익율', 'BM 대비 수익율', '배당수익'].includes(c)
         );
@@ -1861,16 +1921,6 @@ async function saveInvestigationRow(rowIndex, rowData) {
     }
 }
 
-function filterTable() {
-    if (!currentData) return;
-    const q = document.getElementById('table-search').value.toLowerCase();
-    const filtered = currentData.data.filter(r =>
-        currentData.columns.some(c => String(r[c]).toLowerCase().includes(q))
-    );
-    renderTableRows(filtered, currentData.columns);
-    const select = document.getElementById('chart-col-select');
-    if (select) updateChart({ ...currentData, data: filtered }, select.value);
-}
 
 function refreshData(isAuto = false) {
     if (currentData) {

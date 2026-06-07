@@ -119,7 +119,7 @@ def sheet_to_json(file_data: bytes, sheet_name: str, sheet_names: list) -> dict:
     # 탐구생활 / 실적 시트: 취소선 서식 보존
     is_special = any(k in sheet_name for k in ['탐구', '실적'])
     if is_special:
-        wb = openpyxl.load_workbook(io.BytesIO(file_data), data_only=True)
+        wb = openpyxl.load_workbook(io.BytesIO(file_data), data_only=True, rich_text=True)
         ws = wb[sheet_name]
         start_row = header_row_idx + 3 if '실적' in sheet_name else 2
         data = []

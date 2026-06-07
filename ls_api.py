@@ -121,6 +121,13 @@ def get_stock_codes_by_names(token: str, names: list) -> dict:
             clean_name = name_str.replace(" ", "").upper()
             if clean_name in clean_to_code:
                 result[name_str] = clean_to_code[clean_name]
+            else:
+                # 3. API 글자수 제한 등으로 이름이 잘린 경우 (부분 일치)
+                if len(clean_name) >= 4:
+                    for api_name, code in clean_to_code.items():
+                        if len(api_name) >= 4 and (clean_name.startswith(api_name) or api_name.startswith(clean_name)):
+                            result[name_str] = code
+                            break
                 
     return result
 
