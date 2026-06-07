@@ -102,7 +102,7 @@ def main():
     with open(OUT_FILE, 'w', encoding='utf-8') as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
         
-    print(f"\n✅ 데이터 저장 완료: {OUT_FILE}")
+    print(f"\n데이터 저장 완료: {OUT_FILE}")
 
 if __name__ == '__main__':
     main()

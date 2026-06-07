@@ -60,27 +60,34 @@ def run_git_upload():
     try:
         # 1단계: JSON 내보내기
         log.info("1. JSON 내보내기 중...")
-        result = run_no_window(
-            [PYTHON_EXE, EXPORT_SCRIPT],
-            cwd=PROJECT_DIR,
-            timeout=120,
-        )
-        if result.returncode != 0:
-            log.error(f"   JSON 내보내기 실패: {result.stderr[:300]}")
+        try:
+            result = run_no_window(
+                [PYTHON_EXE, EXPORT_SCRIPT],
+                cwd=PROJECT_DIR,
+                timeout=180,
+            )
+            if result.returncode != 0:
+                log.error(f"   JSON 내보내기 실패: {result.stderr[:300]}")
+                return False
+            log.info("   JSON 내보내기 완료")
+        except subprocess.TimeoutExpired:
+            log.error("   JSON 내보내기 시간 초과 오류 (180초)")
             return False
-        log.info("   JSON 내보내기 완료")
 
         # 1-5단계: 신호 데이터 내보내기
         log.info("1-5. 신호 데이터(이평선/RSI) 내보내기 중...")
-        result_sig = run_no_window(
-            [PYTHON_EXE, os.path.join(PROJECT_DIR, "export_signals.py")],
-            cwd=PROJECT_DIR,
-            timeout=180,
-        )
-        if result_sig.returncode != 0:
-            log.error(f"   신호 데이터 내보내기 실패: {result_sig.stderr[:300]}")
-        else:
-            log.info("   신호 데이터 내보내기 완료")
+        try:
+            result_sig = run_no_window(
+                [PYTHON_EXE, os.path.join(PROJECT_DIR, "export_signals.py")],
+                cwd=PROJECT_DIR,
+                timeout=300,
+            )
+            if result_sig.returncode != 0:
+                log.error(f"   신호 데이터 내보내기 실패: {result_sig.stderr[:300]}")
+            else:
+                log.info("   신호 데이터 내보내기 완료")
+        except subprocess.TimeoutExpired:
+            log.error("   신호 데이터 내보내기 시간 초과 오류 (300초), 하지만 업로드는 계속 진행합니다.")
 
         # 2단계: 모바일 데이터 복사
         log.info("2. 모바일 데이터 복사 중...")
@@ -125,9 +132,6 @@ def run_git_upload():
             log.error(f"   GitHub push 실패: {result.stderr[:300]}")
             return False
 
-    except subprocess.TimeoutExpired:
-        log.error("   시간 초과 오류 (120초 내 완료 안됨)")
-        return False
     except Exception as e:
         log.error(f"   예외 발생: {e}")
         return False
