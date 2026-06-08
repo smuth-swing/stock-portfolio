@@ -2848,24 +2848,42 @@ async function importLsTrades() {
     const tradesToSave = selectedIndices.map(idx => {
         const trade = { ...lsImportData[idx] };
         
-        // 사용자가 수정한 값 반영
+        // 사용자가 수정한 값 반영 (0이나 빈 문자열 등도 정상 반영되도록 || 대신 조건문 처리)
         const dateInput = document.querySelector(`.ls-trade-date[data-idx="${idx}"]`);
-        if (dateInput) trade.date = dateInput.value.trim() || trade.date;
+        if (dateInput) {
+            const val = dateInput.value.trim();
+            if (val !== "") trade.date = val;
+        }
         
         const nameInput = document.querySelector(`.ls-trade-name[data-idx="${idx}"]`);
-        if (nameInput) trade.name = nameInput.value.trim() || trade.name;
+        if (nameInput) {
+            const val = nameInput.value.trim();
+            if (val !== "") trade.name = val;
+        }
         
         const qtyInput = document.querySelector(`.ls-trade-qty[data-idx="${idx}"]`);
-        if (qtyInput) trade.qty = parseFloat(qtyInput.value) || trade.qty;
+        if (qtyInput) {
+            const val = parseFloat(qtyInput.value);
+            if (!isNaN(val)) trade.qty = val;
+        }
         
         const priceInput = document.querySelector(`.ls-trade-price[data-idx="${idx}"]`);
-        if (priceInput) trade.price = parseFloat(priceInput.value) || trade.price;
+        if (priceInput) {
+            const val = parseFloat(priceInput.value);
+            if (!isNaN(val)) trade.price = val;
+        }
         
         const typeInput = document.querySelector(`.ls-trade-type[data-idx="${idx}"]`);
-        if (typeInput) trade.type = typeInput.value.trim() || trade.type;
+        if (typeInput) {
+            const val = typeInput.value.trim();
+            if (val !== "") trade.type = val;
+        }
         
         const invInput = document.querySelector(`.ls-trade-inv[data-idx="${idx}"]`);
-        if (invInput) trade.investment = parseFloat(invInput.value) || trade.investment;
+        if (invInput) {
+            const val = parseFloat(invInput.value);
+            if (!isNaN(val)) trade.investment = val;
+        }
         
         trade.memo = ''; // 메모 필드는 삭제됨
         
