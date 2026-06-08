@@ -1,5 +1,5 @@
-﻿# 서버 재시작 스크립트 (매일 21:10 자동 실행용)
-$ProjectDir = "C:\Users\zerod\.antigravity\주식 포트폴리오 관리"
+content = """# 서버 재시작 스크립트 (매일 21:10 자동 실행용)
+$ProjectDir = "C:\\Users\\zerod\\.antigravity\\주식 포트폴리오 관리"
 $TaskName   = "StockPortfolioServer"
 $LogFile    = Join-Path $ProjectDir "restart_log.txt"
 
@@ -29,8 +29,12 @@ $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
 if ($task) {
     Start-ScheduledTask -TaskName $TaskName
 } else {
-    $PythonExe = "C:\Users\zerod\AppData\Local\Programs\Python\Python312\python.exe"
+    $PythonExe = "C:\\Users\\zerod\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"
     $Script    = Join-Path $ProjectDir "server.py"
     Start-Process -FilePath $PythonExe -ArgumentList "`"$Script`"" -WorkingDirectory $ProjectDir -WindowStyle Hidden
 }
 Write-Log "===== 서버 자동 재시작 완료 ====="
+"""
+
+with open('restart_server.ps1', 'w', encoding='utf-8-sig') as f:
+    f.write(content)
