@@ -238,6 +238,13 @@ export default function SignalScreen() {
     <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>신호 포착 🎯</Text>
+        <TouchableOpacity style={styles.refreshBtn} onPress={refreshSignals} disabled={loading}>
+          {loading ? (
+            <ActivityIndicator size="small" color="#00F2FE" />
+          ) : (
+            <Text style={styles.refreshBtnText}>🔄 새로고침</Text>
+          )}
+        </TouchableOpacity>
       </View>
       
       <View style={styles.filterContainer}>
@@ -268,8 +275,28 @@ export default function SignalScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { padding: 20, paddingTop: 60, paddingBottom: 10 },
+  header: { 
+    padding: 20, 
+    paddingTop: 60, 
+    paddingBottom: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
   title: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
+  refreshBtn: {
+    backgroundColor: 'rgba(0, 242, 254, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 254, 0.3)',
+  },
+  refreshBtnText: {
+    color: '#00F2FE',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   filterContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,

@@ -162,15 +162,15 @@ def check_file():
 last_scheduled_date = None
 
 def check_schedule():
-    """오후 9시 정각 스케줄 확인"""
+    """오후 9시 이후 스케줄 확인"""
     global last_scheduled_date
     now = datetime.now()
     
-    # 21시 0분에 실행 (오차 감안해서 분만 체크)
-    if now.hour == 21 and now.minute == 0:
+    # 21시 이후이고, 오늘 아직 실행 안 했으면 실행 (절전 모드 등으로 21시 정각을 놓쳐도 보장)
+    if now.hour >= 21:
         today_str = now.strftime('%Y-%m-%d')
         if last_scheduled_date != today_str:
-            log.info("⏰ 오후 9시 정각! 스케줄 자동 업데이트 시작...")
+            log.info("⏰ 오후 9시 스케줄 자동 업데이트 시작...")
             last_scheduled_date = today_str
             run_git_upload()
 
