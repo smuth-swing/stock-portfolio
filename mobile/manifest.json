@@ -2,7 +2,7 @@
   "name": "주식 포트폴리오",
   "short_name": "주식앱",
   "description": "나만의 주식 포트폴리오 관리 앱",
-  "start_url": "/stock-portfolio/mobile/",
+  "start_url": "/mobile/",
   "display": "standalone",
   "background_color": "#0F172A",
   "theme_color": "#0F172A",
@@ -10,13 +10,13 @@
   "lang": "ko",
   "icons": [
     {
-      "src": "/stock-portfolio/mobile/assets/icon.png",
+      "src": "/mobile/assets/icon.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/stock-portfolio/mobile/assets/icon.png",
+      "src": "/mobile/assets/icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
