@@ -9,6 +9,10 @@ import sys
 import json
 import re
 from pathlib import Path
+
+# 작업 디렉토리를 스크립트 위치로 고정 (작업 스케줄러 실행 시 System32 참조 방지)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+os.chdir(BASE_DIR)
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import pandas as pd

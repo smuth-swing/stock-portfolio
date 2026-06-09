@@ -393,53 +393,65 @@ def fetch_moving_averages(stock_code):
             }
         }
         
-        try:
-            resp = requests.post(f"{LS_BASE_URL}/stock/chart", headers=headers, json=body, timeout=10)
-            if resp.status_code == 200:
-                data = resp.json()
-                outblock = data.get("t8413OutBlock1", [])
-                if outblock:
-                    # 권리락/액면분할에 대한 수정주가가 미적용된 오류 자동 보정
-                    for i in range(len(outblock) - 1):
-                        try:
-                            rate_val = float(outblock[i+1].get("rate", 0) or 0)
-                            if rate_val <= -20.0:  # 20% 이상 하락하는 권리락/액면분할
-                                ratio = 1 + (rate_val / 100.0)
-                                for j in range(i + 1):
-                                    outblock[j]["close"] = float(outblock[j]["close"]) * ratio
-                        except:
-                            pass
-                            
-                    closes = [float(item.get("close", 0)) for item in outblock]
-                    result[rsi_key] = calculate_rsi(closes)
+        for attempt in range(3):
+            try:
+                resp = requests.post(f"{LS_BASE_URL}/stock/chart", headers=headers, json=body, timeout=10)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    rsp_cd = data.get("rsp_cd", "")
                     
-                    if gubun == "2":
-                        recent_days = outblock[-5:] if len(outblock) >= 5 else outblock
-                        highs = [float(item.get("high", item.get("close", 0))) for item in recent_days]
-                        lows = [float(item.get("low", item.get("close", 0))) for item in recent_days]
-                        result["high_1w"] = max(highs) if highs else 0
-                        result["low_1w"] = min(lows) if lows else 0
-                    
-                    if gubun == "3":
-                        if len(closes) >= 120:
-                            result["ma120_week"] = sum(closes[-120:]) / 120
-                            
-                    if gubun == "4":
-                        result["current"] = closes[-1]
+                    if rsp_cd in ["IGW00201", "00136", "00133"]:
+                        print(f"t8413 Rate limit hit ({rsp_cd}), waiting 2s...")
+                        time.sleep(2.0)
+                        continue
                         
-                        if len(closes) >= 5:
-                            recent5 = closes[-5:]
-                            result["ma5_month"] = sum(recent5) / 5
-                            # 다음 달 5월봉 예측 (현재가 유지 가정)
-                            next_recent5 = recent5[1:] + [recent5[-1]]
-                            result["ma5_month_next"] = sum(next_recent5) / 5
-                        else:
-                            result["ma5_month"] = sum(closes) / len(closes) if closes else 0
-                            result["ma5_month_next"] = result["ma5_month"]
+                    outblock = data.get("t8413OutBlock1", [])
+                    if outblock:
+                        # 권리락/액면분할에 대한 수정주가가 미적용된 오류 자동 보정
+                        for i in range(len(outblock) - 1):
+                            try:
+                                rate_val = float(outblock[i+1].get("rate", 0) or 0)
+                                if rate_val <= -20.0:  # 20% 이상 하락하는 권리락/액면분할
+                                    ratio = 1 + (rate_val / 100.0)
+                                    for j in range(i + 1):
+                                        outblock[j]["close"] = float(outblock[j]["close"]) * ratio
+                            except:
+                                pass
+                                
+                        closes = [float(item.get("close", 0)) for item in outblock]
+                        result[rsi_key] = calculate_rsi(closes)
+                        
+                        if gubun == "2":
+                            recent_days = outblock[-5:] if len(outblock) >= 5 else outblock
+                            highs = [float(item.get("high", item.get("close", 0))) for item in recent_days]
+                            lows = [float(item.get("low", item.get("close", 0))) for item in recent_days]
+                            result["high_1w"] = max(highs) if highs else 0
+                            result["low_1w"] = min(lows) if lows else 0
+                        
+                        if gubun == "3":
+                            if len(closes) >= 120:
+                                result["ma120_week"] = sum(closes[-120:]) / 120
+                                
+                        if gubun == "4":
+                            result["current"] = closes[-1]
+                            
+                            if len(closes) >= 5:
+                                recent5 = closes[-5:]
+                                result["ma5_month"] = sum(recent5) / 5
+                                # 다음 달 5월봉 예측 (현재가 유지 가정)
+                                next_recent5 = recent5[1:] + [recent5[-1]]
+                                result["ma5_month_next"] = sum(next_recent5) / 5
+                            else:
+                                result["ma5_month"] = sum(closes) / len(closes) if closes else 0
+                                result["ma5_month_next"] = result["ma5_month"]
+                    
+                    break # 성공했거나 데이터가 비어있는 정상이므로 루프 종료
             
-            # LS OpenAPI 초당 1건 제한(TR) 우회
-            time.sleep(1.05)
-        except Exception as e:
-            print(f"t8413 (gubun {gubun}) API 호출 중 오류 발생: {e}")
+            except Exception as e:
+                print(f"t8413 (gubun {gubun}) API 호출 중 오류 발생: {e}")
+                time.sleep(2.0)
+                
+        # LS OpenAPI 초당 1건 제한(TR) 우회
+        time.sleep(1.05)
             
     return result
