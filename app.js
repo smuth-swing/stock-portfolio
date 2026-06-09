@@ -640,7 +640,12 @@ async function refreshSignalPrices(forceUpdate = false) {
                             if (diff120Raw < 0) {
                                 ma120Html = `<span style="color:var(--danger); font-weight:bold; font-size:12px;">${diff120Abs.toFixed(1)}% 하회</span>`;
                             } else {
-                                ma120Html = `<span style="color:var(--highlight); font-weight:bold; font-size:12px;">${diff120Abs.toFixed(1)}% 상회</span>`;
+                                ma120Html = `<span style="color:var(--danger); font-weight:bold; font-size:12px;">${diff120Abs.toFixed(1)}% 상회</span>`;
+                            }
+                            // 120주선 조건 만족 시 행 전체 붉은색 강조
+                            if (!isTargetReached) {
+                                row.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+                                row.style.borderLeft = '3px solid var(--danger)';
                             }
                         }
                     }

@@ -179,6 +179,7 @@ export default function SignalScreen() {
       const diffAbs = Math.abs(diffRaw);
       if (diffAbs <= 5.0) {
         ma120Text = diffRaw < 0 ? `${diffAbs.toFixed(1)}% 하회` : `${diffAbs.toFixed(1)}% 상회`;
+        danger = true;
       }
     }
     
@@ -221,7 +222,7 @@ export default function SignalScreen() {
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>120주선</Text>
-            <Text style={[styles.infoValue, ma120Text.includes('하회') ? styles.textDanger : ma120Text.includes('상회') ? styles.textHighlight : null]}>{ma120Text}</Text>
+            <Text style={[styles.infoValue, ma120Text !== '-' && styles.textDanger]}>{ma120Text}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>RSI 경고</Text>
