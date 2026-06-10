@@ -33,24 +33,53 @@ export default function InvestigationScreen() {
     ceo: 80,
   });
 
-  const handleContentSizeChange = useCallback((field: string, event: any) => {
-    // 웹 환경에서는 높이 변경 이벤트가 무한 루프를 유발할 수 있으므로 비활성화 (스크롤로 대처)
-    if (Platform.OS === 'web') return;
+  // 웹 전용: 텍스트 줄 수 기반으로 높이 계산 (onContentSizeChange 무한 루프 방지)
+  const LINE_HEIGHT = 22;
+  const INPUT_PADDING = 24; // 상하 패딩 합계
+  const MIN_HEIGHT = 80;
 
+  const computeWebHeight = useCallback((text: string | undefined): number => {
+    if (!text) return MIN_HEIGHT;
+    const lineCount = text.split('\n').length;
+    return Math.max(MIN_HEIGHT, lineCount * LINE_HEIGHT + INPUT_PADDING);
+  }, []);
+
+  // 네이티브 전용: onContentSizeChange 이벤트 기반 높이 조절
+  const handleContentSizeChange = useCallback((field: string, event: any) => {
+    if (Platform.OS === 'web') return; // 웹은 computeWebHeight 사용
     if (!event?.nativeEvent?.contentSize) return;
     const { height } = event.nativeEvent.contentSize;
     if (typeof height !== 'number') return;
     
     setInputHeights(prev => {
-      const newHeight = Math.max(80, height + 20);
-      // 오차 범위 5px 이내면 업데이트 생략 (무한 리렌더 방지)
-      if (Math.abs((prev[field] || 80) - newHeight) < 5) return prev;
+      const newHeight = Math.max(MIN_HEIGHT, height + 20);
+      if (Math.abs((prev[field] || MIN_HEIGHT) - newHeight) < 5) return prev;
       return {
         ...prev,
         [field]: newHeight,
       };
     });
   }, []);
+
+  // 웹에서 사용할 필드별 높이 계산 (editForm이 변경될 때만 재계산)
+  const webHeights = useMemo(() => {
+    if (Platform.OS !== 'web') return null;
+    return {
+      reason: computeWebHeight(editForm.reason),
+      risk: computeWebHeight(editForm.risk),
+      momentum: computeWebHeight(editForm.momentum),
+      strategy: computeWebHeight(editForm.strategy),
+      ceo: computeWebHeight(editForm.ceo),
+    };
+  }, [editForm.reason, editForm.risk, editForm.momentum, editForm.strategy, editForm.ceo, computeWebHeight]);
+
+  // 플랫폼에 따라 적절한 높이를 반환하는 헬퍼
+  const getFieldHeight = useCallback((field: string): number => {
+    if (Platform.OS === 'web' && webHeights) {
+      return (webHeights as any)[field] || MIN_HEIGHT;
+    }
+    return inputHeights[field] || MIN_HEIGHT;
+  }, [webHeights, inputHeights]);
 
   // refreshData를 ref로 보관: useEffect 의존성 배열에서 제외하여 무한 리렌더 방지
   const refreshDataRef = useRef(refreshData);
@@ -283,7 +312,7 @@ export default function InvestigationScreen() {
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>🎯 매수 이유</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: inputHeights.reason || 80 }]} 
+                            style={[styles.multilineInput, { height: getFieldHeight('reason') }]} 
                             multiline scrollEnabled={true} value={editForm.reason} 
                             onChangeText={t => setEditForm(prev => ({...prev, reason: t}))} 
                             onContentSizeChange={e => handleContentSizeChange('reason', e)}
@@ -292,7 +321,7 @@ export default function InvestigationScreen() {
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>⚠️ 리스크</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: inputHeights.risk || 80 }]} 
+                            style={[styles.multilineInput, { height: getFieldHeight('risk') }]} 
                             multiline scrollEnabled={true} value={editForm.risk} 
                             onChangeText={t => setEditForm(prev => ({...prev, risk: t}))} 
                             onContentSizeChange={e => handleContentSizeChange('risk', e)}
@@ -301,7 +330,7 @@ export default function InvestigationScreen() {
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>💡 핵심 모멘텀</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: inputHeights.momentum || 80 }]} 
+                            style={[styles.multilineInput, { height: getFieldHeight('momentum') }]} 
                             multiline scrollEnabled={true} value={editForm.momentum} 
                             onChangeText={t => setEditForm(prev => ({...prev, momentum: t}))} 
                             onContentSizeChange={e => handleContentSizeChange('momentum', e)}
@@ -310,7 +339,7 @@ export default function InvestigationScreen() {
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>📈 매매 전략</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: inputHeights.strategy || 80 }]} 
+                            style={[styles.multilineInput, { height: getFieldHeight('strategy') }]} 
                             multiline scrollEnabled={true} value={editForm.strategy} 
                             onChangeText={t => setEditForm(prev => ({...prev, strategy: t}))} 
                             onContentSizeChange={e => handleContentSizeChange('strategy', e)}
@@ -319,7 +348,7 @@ export default function InvestigationScreen() {
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>👤 대표 / 경영진</Text>
                           <TextInput 
-                            style={[styles.multilineInput, { height: inputHeights.ceo || 80 }]} 
+                            style={[styles.multilineInput, { height: getFieldHeight('ceo') }]} 
                             multiline scrollEnabled={true} value={editForm.ceo} 
                             onChangeText={t => setEditForm(prev => ({...prev, ceo: t}))} 
                             onContentSizeChange={e => handleContentSizeChange('ceo', e)}
