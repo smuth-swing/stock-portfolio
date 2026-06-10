@@ -4,14 +4,13 @@
  * - 캐시 우선(Cache-First) 전략 사용
  */
 
-const CACHE_NAME = 'stock-portfolio-pwa-v3';
-const DATA_CACHE_NAME = 'stock-portfolio-data-v3';
+const CACHE_NAME = 'stock-portfolio-pwa-v4';
+const DATA_CACHE_NAME = 'stock-portfolio-data-v4';
 
 // 앱 쉘 파일 목록 (빌드 후 자동 생성되는 파일들 포함)
 const APP_SHELL_URLS = [
-  '/mobile/',
-  '/mobile/index.html',
-  '/mobile/_expo/static/js/web/AppEntry.web.js',
+  '/stock-portfolio/mobile/',
+  '/stock-portfolio/mobile/index.html',
 ];
 
 // 서비스 워커 설치: 앱 쉘 사전 캐싱
@@ -53,8 +52,8 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // /mobile/data/*.json → 네트워크 우선, 실패 시 캐시 (최신 데이터 우선)
-  if (url.pathname.startsWith('/mobile/data/') && request.method === 'GET') {
+  // 데이터 JSON → 네트워크 우선, 실패 시 캐시 (최신 데이터 우선)
+  if (url.pathname.includes('/data/') && url.pathname.endsWith('.json') && request.method === 'GET') {
     event.respondWith(
       caches.open(DATA_CACHE_NAME).then((cache) => {
         return fetch(request)

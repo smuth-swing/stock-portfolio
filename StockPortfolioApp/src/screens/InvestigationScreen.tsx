@@ -321,7 +321,7 @@ export default function InvestigationScreen() {
                         
                         <View style={styles.actionButtons}>
                           <TouchableOpacity style={[styles.actionBtn, styles.cancelBtn]} onPress={(e) => {
-                            if (Platform.OS === 'web' && e && (e as any).stopPropagation) {
+                            if (Platform.OS === 'web' && e && typeof (e as any).stopPropagation === 'function') {
                               (e as any).stopPropagation();
                             }
                             cancelEditing();
@@ -329,7 +329,7 @@ export default function InvestigationScreen() {
                             <Text style={styles.cancelBtnText}>취소</Text>
                           </TouchableOpacity>
                           <TouchableOpacity style={[styles.actionBtn, styles.saveBtn]} onPress={(e) => {
-                            if (Platform.OS === 'web' && e && (e as any).stopPropagation) {
+                            if (Platform.OS === 'web' && e && typeof (e as any).stopPropagation === 'function') {
                               (e as any).stopPropagation();
                             }
                             saveEditing(realIdx, item);
@@ -376,7 +376,7 @@ export default function InvestigationScreen() {
                         ) : null}
                         
                         <TouchableOpacity style={styles.editContentBtn} onPress={(e) => {
-                          if (Platform.OS === 'web' && e && (e as any).stopPropagation) {
+                          if (Platform.OS === 'web' && e && typeof (e as any).stopPropagation === 'function') {
                             (e as any).stopPropagation();
                           }
                           startEditing(realIdx, item);
