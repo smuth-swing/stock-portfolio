@@ -34,7 +34,10 @@ export default function InvestigationScreen() {
   });
 
   const handleContentSizeChange = useCallback((field: string, event: any) => {
+    if (!event?.nativeEvent?.contentSize) return;
     const { height } = event.nativeEvent.contentSize;
+    if (typeof height !== 'number') return;
+    
     setInputHeights(prev => {
       // 불필요한 리렌더 방지를 위해 높이가 다를 때만 업데이트
       if (prev[field] === height + 20) return prev;
