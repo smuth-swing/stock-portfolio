@@ -34,16 +34,20 @@ export default function InvestigationScreen() {
   });
 
   const handleContentSizeChange = useCallback((field: string, event: any) => {
+    // 웹 환경에서는 높이 변경 이벤트가 무한 루프를 유발할 수 있으므로 비활성화 (스크롤로 대처)
+    if (Platform.OS === 'web') return;
+
     if (!event?.nativeEvent?.contentSize) return;
     const { height } = event.nativeEvent.contentSize;
     if (typeof height !== 'number') return;
     
     setInputHeights(prev => {
-      // 불필요한 리렌더 방지를 위해 높이가 다를 때만 업데이트
-      if (prev[field] === height + 20) return prev;
+      const newHeight = Math.max(80, height + 20);
+      // 오차 범위 5px 이내면 업데이트 생략 (무한 리렌더 방지)
+      if (Math.abs((prev[field] || 80) - newHeight) < 5) return prev;
       return {
         ...prev,
-        [field]: Math.max(80, height + 20),
+        [field]: newHeight,
       };
     });
   }, []);
