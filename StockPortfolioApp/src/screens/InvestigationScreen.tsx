@@ -320,10 +320,20 @@ export default function InvestigationScreen() {
                         </View>
                         
                         <View style={styles.actionButtons}>
-                          <TouchableOpacity style={[styles.actionBtn, styles.cancelBtn]} onPress={cancelEditing}>
+                          <TouchableOpacity style={[styles.actionBtn, styles.cancelBtn]} onPress={(e) => {
+                            if (Platform.OS === 'web' && e && (e as any).stopPropagation) {
+                              (e as any).stopPropagation();
+                            }
+                            cancelEditing();
+                          }}>
                             <Text style={styles.cancelBtnText}>취소</Text>
                           </TouchableOpacity>
-                          <TouchableOpacity style={[styles.actionBtn, styles.saveBtn]} onPress={() => saveEditing(realIdx, item)} disabled={isSaving}>
+                          <TouchableOpacity style={[styles.actionBtn, styles.saveBtn]} onPress={(e) => {
+                            if (Platform.OS === 'web' && e && (e as any).stopPropagation) {
+                              (e as any).stopPropagation();
+                            }
+                            saveEditing(realIdx, item);
+                          }} disabled={isSaving}>
                             {isSaving ? <ActivityIndicator size="small" color="#0F172A" /> : <Text style={styles.saveBtnText}>저장</Text>}
                           </TouchableOpacity>
                         </View>
@@ -365,7 +375,12 @@ export default function InvestigationScreen() {
                           </View>
                         ) : null}
                         
-                        <TouchableOpacity style={styles.editContentBtn} onPress={() => startEditing(realIdx, item)}>
+                        <TouchableOpacity style={styles.editContentBtn} onPress={(e) => {
+                          if (Platform.OS === 'web' && e && (e as any).stopPropagation) {
+                            (e as any).stopPropagation();
+                          }
+                          startEditing(realIdx, item);
+                        }}>
                           <Text style={styles.editContentBtnText}>내용 수정 ✏️</Text>
                         </TouchableOpacity>
                       </View>
