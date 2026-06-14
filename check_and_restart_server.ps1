@@ -46,4 +46,24 @@ if ($listening) {
     else { Write-Log "ERROR - Restart failed" }
 }
 
+# ==================== Uploader 생존 확인 ====================
+Write-Log "--- Uploader check ---"
+$uploaderProc = Get-WmiObject Win32_Process | Where-Object {
+    $_.CommandLine -like "*auto_github_uploader*" -and $_.Name -like "*python*"
+}
+
+if ($uploaderProc) {
+    Write-Log "OK - Uploader running (PID $($uploaderProc.ProcessId))"
+} else {
+    Write-Log "ALERT - Uploader down. Starting..."
+    $UploaderScript = Join-Path $ProjectDir "auto_github_uploader.py"
+    Start-Process -FilePath $PythonExe -ArgumentList "`"$UploaderScript`"" -WorkingDirectory $ProjectDir -WindowStyle Hidden
+    Start-Sleep -Seconds 3
+    $recheck = Get-WmiObject Win32_Process | Where-Object {
+        $_.CommandLine -like "*auto_github_uploader*" -and $_.Name -like "*python*"
+    }
+    if ($recheck) { Write-Log "SUCCESS - Uploader restarted (PID $($recheck.ProcessId))" }
+    else { Write-Log "ERROR - Uploader restart failed" }
+}
+
 Write-Log "===== Health check done ====="

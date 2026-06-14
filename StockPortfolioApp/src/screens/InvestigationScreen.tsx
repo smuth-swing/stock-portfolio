@@ -235,7 +235,6 @@ export default function InvestigationScreen() {
     <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-  
           <View style={styles.filterContainer}>
             <TouchableOpacity 
               style={[styles.filterBtn, filter === 'all' && styles.filterBtnActive]}
@@ -250,6 +249,19 @@ export default function InvestigationScreen() {
               <Text style={[styles.filterBtnText, filter === 'priority' && styles.filterBtnTextActive]}>매매우선</Text>
             </TouchableOpacity>
           </View>
+          <TouchableOpacity 
+            style={styles.refreshBtn} 
+            onPress={() => {
+              // 수동 갱신 시 alert으로 피드백 제공
+              refreshDataRef.current();
+              if (Platform.OS === 'web') alert('최신 데이터를 불러오는 중입니다...');
+            }}
+            disabled={isLoading}
+          >
+            <Text style={styles.refreshBtnText}>
+              {isLoading ? '⏳ 갱신 중' : '🔄 정보 갱신'}
+            </Text>
+          </TouchableOpacity>
         </View>
         <View style={styles.searchContainer}>
           <TextInput
@@ -447,6 +459,15 @@ const styles = StyleSheet.create({
   filterBtnActive: { backgroundColor: 'rgba(0, 242, 254, 0.2)' },
   filterBtnText: { color: '#64748B', fontSize: 13, fontWeight: '700' },
   filterBtnTextActive: { color: '#00F2FE' },
+  refreshBtn: {
+    backgroundColor: 'rgba(0, 242, 254, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 254, 0.3)',
+  },
+  refreshBtnText: { color: '#00F2FE', fontSize: 13, fontWeight: 'bold' },
   searchContainer: { marginBottom: 16 },
   searchInput: {
     backgroundColor: 'rgba(255,255,255,0.05)',

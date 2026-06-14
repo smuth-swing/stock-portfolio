@@ -11,6 +11,7 @@ import os
 import time
 import subprocess
 import logging
+import logging.handlers
 from datetime import datetime
 
 # Windows 콘솔 창 팝업 방지 플래그
@@ -24,13 +25,14 @@ LOG_FILE    = os.path.join(PROJECT_DIR, "upload_log.txt")
 EXPORT_SCRIPT = os.path.join(PROJECT_DIR, "export_to_json.py")
 
 # ==================== 로그 설정 ====================
-logging.basicConfig(
-    filename=LOG_FILE,
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    encoding="utf-8",
-)
+# RotatingFileHandler로 로그 파일 크기 제한 (500KB, 백업 2개)
 log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+_handler = logging.handlers.RotatingFileHandler(
+    LOG_FILE, maxBytes=512000, backupCount=2, encoding="utf-8"
+)
+_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+log.addHandler(_handler)
 
 last_mtime = 0
 _is_uploading = False  # 동시 실행 방지 락
@@ -94,13 +96,18 @@ def run_git_upload():
         src = os.path.join(PROJECT_DIR, "StockPortfolioApp", "public", "data")
         dst = os.path.join(PROJECT_DIR, "mobile", "data")
         if os.path.exists(src):
-            subprocess.run(
+            copy_result = subprocess.run(
                 f'xcopy "{src}" "{dst}" /E /I /Y',
                 shell=True,
                 creationflags=CREATE_NO_WINDOW,
                 capture_output=True,
             )
-        log.info("   모바일 데이터 복사 완료")
+            if copy_result.returncode != 0:
+                log.error(f"   모바일 데이터 복사 실패 (exit={copy_result.returncode})")
+            else:
+                log.info("   모바일 데이터 복사 완료")
+        else:
+            log.error(f"   소스 디렉토리 없음: {src}")
 
         # 3단계: git add
         log.info("3. Git 스테이징 중...")
@@ -122,7 +129,7 @@ def run_git_upload():
         result = run_no_window(
             ["git", "push", "origin", "main"],
             cwd=PROJECT_DIR,
-            timeout=60,
+            timeout=120,
         )
         if result.returncode == 0:
             log.info("=== GitHub 업로드 성공! ===")
@@ -166,11 +173,12 @@ def check_schedule():
     global last_scheduled_date
     now = datetime.now()
     
-    # 21시 이후이고, 오늘 아직 실행 안 했으면 실행 (절전 모드 등으로 21시 정각을 놓쳐도 보장)
-    if now.hour >= 21:
+    # 20시 50분 이후이고, 오늘 아직 실행 안 했으면 실행
+    # (21:10 restart_server.ps1 재시작과 충돌 방지를 위해 20:50에 실행)
+    if now.hour >= 20 and (now.hour > 20 or now.minute >= 50):
         today_str = now.strftime('%Y-%m-%d')
         if last_scheduled_date != today_str:
-            log.info("⏰ 오후 9시 스케줄 자동 업데이트 시작...")
+            log.info("⏰ 오후 8시 50분 스케줄 자동 업데이트 시작...")
             last_scheduled_date = today_str
             run_git_upload()
 
@@ -182,6 +190,9 @@ if __name__ == "__main__":
     log.info("=" * 50)
 
     while True:
-        check_file()
-        check_schedule()
+        try:
+            check_file()
+            check_schedule()
+        except Exception as e:
+            log.error(f"메인 루프 예외 발생: {e}")
         time.sleep(10)

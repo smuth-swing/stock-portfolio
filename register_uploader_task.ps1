@@ -1,45 +1,70 @@
-# 작업 스케줄러에 GitHub 자동 업로더 등록
-# PC 로그온 시 auto_github_uploader.py 자동 시작
-
-$taskName = "StockAutoGitHubUploader"
-$description = "엑셀 파일 변경 감지 시 GitHub 자동 업로드 (로그온 시 자동 시작)"
-
-# 기존 작업이 있으면 삭제
-$existing = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
-if ($existing) {
-    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
-    Write-Host "[INFO] 기존 작업 '$taskName' 삭제 완료"
+# register_uploader_task.ps1
+# GitHub auto uploader task scheduler registration
+# Auto-elevate to admin
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+    exit
 }
 
-# 실행할 프로그램 설정 (VBS 래퍼를 통해 콘솔 창 숨김)
-$vbsPath = "c:\Users\zerod\.antigravity\주식 포트폴리오 관리\run_auto_uploader_hidden.vbs"
-$action = New-ScheduledTaskAction -Execute "wscript.exe" -Argument "`"$vbsPath`""
+$taskName = "StockAutoGitHubUploader"
+$description = "Excel file change detection and GitHub auto upload"
+$ProjectDir = $PSScriptRoot
+$PythonExe = 'C:\Users\zerod\AppData\Local\Programs\Python\Python312\python.exe'
+$UploaderScript = Join-Path $ProjectDir "auto_github_uploader.py"
 
-# 트리거: 로그온 시 실행 (30초 딜레이)
-$trigger = New-ScheduledTaskTrigger -AtLogOn
-$trigger.Delay = "PT30S"
+# Remove existing task
+$existing = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+if ($existing) {
+    Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
+    Write-Host "[INFO] Removed existing task '$taskName'"
+}
 
-# 설정: 무기한 실행, 배터리 무시
+# Python direct execution (no VBS wrapper for stability)
+$action = New-ScheduledTaskAction -Execute $PythonExe -Argument "`"$UploaderScript`"" -WorkingDirectory $ProjectDir
+
+# Trigger: At logon with 30s delay
+$triggerLogon = New-ScheduledTaskTrigger -AtLogOn
+$triggerLogon.Delay = "PT30S"
+
+# Settings: unlimited execution, battery ignore, auto restart
 $settings = New-ScheduledTaskSettingsSet `
     -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries `
+    -DontStopOnIdleEnd `
     -ExecutionTimeLimit (New-TimeSpan -Days 0) `
-    -RestartCount 3 `
+    -RestartCount 5 `
     -RestartInterval (New-TimeSpan -Minutes 1)
 
-# 등록
+$principal = New-ScheduledTaskPrincipal `
+    -UserId $env:USERNAME `
+    -LogonType Interactive `
+    -RunLevel Highest
+
+# Register
 Register-ScheduledTask `
     -TaskName $taskName `
     -Description $description `
     -Action $action `
-    -Trigger $trigger `
+    -Trigger $triggerLogon `
     -Settings $settings `
-    -RunLevel Highest `
-    -Force
+    -Principal $principal `
+    -Force | Out-Null
 
 Write-Host ""
-Write-Host "========================================"
-Write-Host "[완료] '$taskName' 작업 스케줄러 등록 성공!"
-Write-Host "  - PC 로그온 시 30초 후 자동 시작"
-Write-Host "  - 엑셀 저장 시 자동 GitHub push"
-Write-Host "========================================"
+Write-Host "=========================================="
+Write-Host "[DONE] '$taskName' registered successfully!"
+Write-Host "  - Auto start 30s after logon"
+Write-Host "  - 5 auto restarts on failure (1min interval)"
+Write-Host "  - Resume check via on_resume_check.ps1"
+Write-Host "  - Daily restart via restart_server.ps1 at 21:10"
+Write-Host "=========================================="
+
+# Verify
+$check = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+if ($check) {
+    Write-Host "  State: $($check.State)"
+}
+
+Write-Host ""
+Read-Host "Press Enter to close"

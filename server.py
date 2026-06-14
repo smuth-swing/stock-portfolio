@@ -70,15 +70,23 @@ def find_target_onedrive_path():
 ONEDRIVE_PATH = find_target_onedrive_path()
 
 # ==================== 자동 동기화 트리거 ====================
+_export_lock = threading.Lock()
+
 def trigger_export():
     """데이터 변경 시 export_to_json.py를 실행하여 앱용 JSON 갱신"""
     def run():
+        # 이미 변환 중이면 새 요청 무시 (충돌 및 IO 과부하 방지)
+        if not _export_lock.acquire(blocking=False):
+            print("[AUTO-SYNC] 이미 JSON 변환 중입니다. 이번 요청은 건너뜁니다.")
+            return
         try:
             print("[AUTO-SYNC] JSON 변환 시작...")
             subprocess.run([sys.executable, "export_to_json.py"], check=True)
             print("[AUTO-SYNC] ✅ JSON 변환 완료!")
         except Exception as e:
             print(f"[AUTO-SYNC] ❌ 변환 실패: {e}")
+        finally:
+            _export_lock.release()
 
     # 서버 응답을 방해하지 않도록 별도 스레드에서 실행
     threading.Thread(target=run).start()
@@ -551,32 +559,35 @@ def update_row():
     try:
         from openpyxl.styles import Alignment
         wb = openpyxl.load_workbook(full_path, rich_text=True)
-        if sheet_name not in wb.sheetnames:
-            return jsonify({'error': f'시트를 찾을 수 없습니다: {sheet_name}'}), 404
+        try:
+            if sheet_name not in wb.sheetnames:
+                return jsonify({'error': f'시트를 찾을 수 없습니다: {sheet_name}'}), 404
 
-        ws = wb[sheet_name]
-        target_row = row_index + 2
-        for col_idx, value in enumerate(values, start=1):
-            cell = ws.cell(row=target_row, column=col_idx)
-            # 취소선 처리
-            processed_value = parse_strikethrough_text(value)
-            cell.value = processed_value
-            
-            # 줄바꿈(\n)이 포함된 셀은 엑셀에서도 표시되도록 wrap_text 설정
-            if isinstance(value, str) and '\n' in value:
-                cell.alignment = Alignment(wrap_text=True)
+            ws = wb[sheet_name]
+            target_row = row_index + 2
+            for col_idx, value in enumerate(values, start=1):
+                cell = ws.cell(row=target_row, column=col_idx)
+                # 취소선 처리
+                processed_value = parse_strikethrough_text(value)
+                cell.value = processed_value
+                
+                # 줄바꿈(\n)이 포함된 셀은 엑셀에서도 표시되도록 wrap_text 설정
+                if isinstance(value, str) and '\n' in value:
+                    cell.alignment = Alignment(wrap_text=True)
 
-        # 매매일지인 경우 포트폴리오 맵 동기화
-        if sheet_name == '매매일지':
-            try:
-                stock_name = values[1] if len(values) > 1 else ""
-                amount = float(values[5]) if len(values) > 5 else 0
-                if stock_name:
-                    sync_portfolio_map(wb, stock_name, amount)
+            # 매매일지인 경우 포트폴리오 맵 동기화
+            if sheet_name == '매매일지':
+                try:
+                    stock_name = values[1] if len(values) > 1 else ""
+                    amount = float(values[5]) if len(values) > 5 else 0
+                    if stock_name:
+                        sync_portfolio_map(wb, stock_name, amount)
+                except: pass
+
+            wb.save(full_path)
+        finally:
+            try: wb.close()
             except: pass
-
-        wb.save(full_path)
-        wb.close()
         
         # 아이폰 앱용 데이터 자동 갱신
         trigger_export()
@@ -626,59 +637,62 @@ def sync_receive():
 
             wb = openpyxl.load_workbook(full_path, rich_text=True)
 
-            for edit in file_edits:
-                sheet_name = edit.get('sheet')
-                row_index = int(edit.get('rowIndex', 0))
-                values = edit.get('values', [])
+            try:
+                for edit in file_edits:
+                    sheet_name = edit.get('sheet')
+                    row_index = int(edit.get('rowIndex', 0))
+                    values = edit.get('values', [])
 
-                if sheet_name not in wb.sheetnames:
-                    continue
+                    if sheet_name not in wb.sheetnames:
+                        continue
 
-                ws = wb[sheet_name]
-                # 기본값: pandas iloc[N] → openpyxl row = N+2
-                target_row = row_index + 2
-                
-                stock_name = edit.get('stockName', '').strip().replace(' ', '')
-                if stock_name:
-                    # 1. 헤더에서 '종목명' 컬럼 인덱스 찾기 (보통 1~3행 사이)
-                    name_col_idx = None
-                    for r in range(1, 4):
-                        for c in range(1, ws.max_column + 1):
-                            val = str(ws.cell(row=r, column=c).value or '').strip()
-                            if val == '종목명' or val == 'Unnamed: 1':
-                                name_col_idx = c
+                    ws = wb[sheet_name]
+                    # 기본값: pandas iloc[N] → openpyxl row = N+2
+                    target_row = row_index + 2
+                    
+                    stock_name = edit.get('stockName', '').strip().replace(' ', '')
+                    if stock_name:
+                        # 1. 헤더에서 '종목명' 컬럼 인덱스 찾기 (보통 1~3행 사이)
+                        name_col_idx = None
+                        for r in range(1, 4):
+                            for c in range(1, ws.max_column + 1):
+                                val = str(ws.cell(row=r, column=c).value or '').strip()
+                                if val == '종목명' or val == 'Unnamed: 1':
+                                    name_col_idx = c
+                                    break
+                            if name_col_idx:
                                 break
-                        if name_col_idx:
-                            break
-                    
-                    # 2. 헤더를 못 찾았으면 기본 B열(2)로 가정
-                    if not name_col_idx:
-                        name_col_idx = 2
                         
-                    # 3. 해당 컬럼에서 종목명이 일치하는 행 찾기
-                    found_row = None
-                    for r in range(1, ws.max_row + 1):
-                        cell_val = str(ws.cell(row=r, column=name_col_idx).value or '').strip().replace(' ', '')
-                        if cell_val and cell_val == stock_name:
-                            found_row = r
-                            break
-                    
-                    if found_row:
-                        target_row = found_row
-                        print(f'[sync-receive] 종목명 "{stock_name}" 매칭 성공! -> 엑셀 {target_row}행 덮어쓰기 진행')
-                    else:
-                        print(f'[sync-receive] 종목명 "{stock_name}" 매칭 실패! -> 기존 로직대로 {target_row}행에 덮어씁니다.')
+                        # 2. 헤더를 못 찾았으면 기본 B열(2)로 가정
+                        if not name_col_idx:
+                            name_col_idx = 2
+                            
+                        # 3. 해당 컬럼에서 종목명이 일치하는 행 찾기
+                        found_row = None
+                        for r in range(1, ws.max_row + 1):
+                            cell_val = str(ws.cell(row=r, column=name_col_idx).value or '').strip().replace(' ', '')
+                            if cell_val and cell_val == stock_name:
+                                found_row = r
+                                break
+                        
+                        if found_row:
+                            target_row = found_row
+                            print(f'[sync-receive] 종목명 "{stock_name}" 매칭 성공! -> 엑셀 {target_row}행 덮어쓰기 진행')
+                        else:
+                            print(f'[sync-receive] 종목명 "{stock_name}" 매칭 실패! -> 기존 로직대로 {target_row}행에 덮어씁니다.')
 
-                for col_idx, value in enumerate(values, start=1):
-                    cell = ws.cell(row=target_row, column=col_idx)
-                    processed_value = parse_strikethrough_text(value)
-                    cell.value = processed_value
-                    if isinstance(value, str) and '\n' in value:
-                        cell.alignment = Alignment(wrap_text=True)
+                    for col_idx, value in enumerate(values, start=1):
+                        cell = ws.cell(row=target_row, column=col_idx)
+                        processed_value = parse_strikethrough_text(value)
+                        cell.value = processed_value
+                        if isinstance(value, str) and '\n' in value:
+                            cell.alignment = Alignment(wrap_text=True)
 
-            # 파일당 1회만 저장/닫기
-            wb.save(full_path)
-            wb.close()
+                # 파일당 1회만 저장/닫기
+                wb.save(full_path)
+            finally:
+                try: wb.close()
+                except: pass
 
         # 아이폰 앱용 데이터 자동 갱신
         trigger_export()
@@ -760,37 +774,40 @@ def delete_row():
 
     try:
         wb = openpyxl.load_workbook(full_path, rich_text=True)
-        if sheet_name not in wb.sheetnames:
-            return jsonify({'error': f'시트를 찾을 수 없습니다: {sheet_name}'}), 404
+        try:
+            if sheet_name not in wb.sheetnames:
+                return jsonify({'error': f'시트를 찾을 수 없습니다: {sheet_name}'}), 404
 
-        ws = wb[sheet_name]
-        target_row_idx = row_index + 2
-        
-        # 삭제 전 정보 기억
-        stock_name = None
-        if sheet_name == '매매일지':
-            stock_name = str(ws.cell(row=target_row_idx, column=2).value or "").strip()
-        
-        # 행 삭제
-        ws.delete_rows(target_row_idx)
-        
-        # 매매일지 삭제 후 동기화
-        if sheet_name == '매매일지' and stock_name:
-            last_amount = 0
-            stock_clean = stock_name.replace(" ", "")
-            for r in range(2, ws.max_row + 1):
-                cell_val = str(ws.cell(row=r, column=2).value or "").strip().replace(" ", "")
-                if cell_val == stock_clean:
-                    try:
-                        val = ws.cell(row=r, column=6).value
-                        if val is not None: last_amount = float(val)
-                    except: pass
+            ws = wb[sheet_name]
+            target_row_idx = row_index + 2
             
-            sync_portfolio_map(wb, stock_name, last_amount)
-            print(f"🗑️ [{stock_name}] 삭제 및 이전 데이터({last_amount}) 동기화")
+            # 삭제 전 정보 기억
+            stock_name = None
+            if sheet_name == '매매일지':
+                stock_name = str(ws.cell(row=target_row_idx, column=2).value or "").strip()
+            
+            # 행 삭제
+            ws.delete_rows(target_row_idx)
+            
+            # 매매일지 삭제 후 동기화
+            if sheet_name == '매매일지' and stock_name:
+                last_amount = 0
+                stock_clean = stock_name.replace(" ", "")
+                for r in range(2, ws.max_row + 1):
+                    cell_val = str(ws.cell(row=r, column=2).value or "").strip().replace(" ", "")
+                    if cell_val == stock_clean:
+                        try:
+                            val = ws.cell(row=r, column=6).value
+                            if val is not None: last_amount = float(val)
+                        except: pass
+                
+                sync_portfolio_map(wb, stock_name, last_amount)
+                print(f"🗑️ [{stock_name}] 삭제 및 이전 데이터({last_amount}) 동기화")
 
-        wb.save(full_path)
-        wb.close()
+            wb.save(full_path)
+        finally:
+            try: wb.close()
+            except: pass
         
         # 아이폰 앱용 데이터 자동 갱신
         trigger_export()
@@ -923,55 +940,58 @@ def ls_import_trades():
 
     try:
         wb = openpyxl.load_workbook(full_path, rich_text=True)
-        sheet_name = '매매일지'
-        if sheet_name not in wb.sheetnames:
-            return jsonify({'error': f'"{sheet_name}" 시트를 찾을 수 없습니다.'}), 404
+        try:
+            sheet_name = '매매일지'
+            if sheet_name not in wb.sheetnames:
+                return jsonify({'error': f'"{sheet_name}" 시트를 찾을 수 없습니다.'}), 404
 
-        ws = wb[sheet_name]
-        saved_count = 0
-        errors = []
+            ws = wb[sheet_name]
+            saved_count = 0
+            errors = []
 
-        for trade in trades:
-            try:
-                # 기존 매매일지 컬럼 순서: [날짜, 종목, 수량, 단가, 매매종류, 투자금]
-                row_values = [
-                    trade.get('date', ''),
-                    trade.get('name', ''),
-                    int(trade.get('qty', 0)),
-                    int(trade.get('price', 0)),
-                    trade.get('type', '매수'),
-                    float(trade.get('investment', 0)),
-                ]
-                # 메모가 있으면 7번째 컬럼에 추가
-                memo = trade.get('memo', '')
-                if memo:
-                    row_values.append(memo)
+            for trade in trades:
+                try:
+                    # 기존 매매일지 컬럼 순서: [날짜, 종목, 수량, 단가, 매매종류, 투자금]
+                    row_values = [
+                        trade.get('date', ''),
+                        trade.get('name', ''),
+                        int(trade.get('qty', 0)),
+                        int(trade.get('price', 0)),
+                        trade.get('type', '매수'),
+                        float(trade.get('investment', 0)),
+                    ]
+                    # 메모가 있으면 7번째 컬럼에 추가
+                    memo = trade.get('memo', '')
+                    if memo:
+                        row_values.append(memo)
 
-                ws.append(row_values)
+                    ws.append(row_values)
 
-                # 폰트 색상 (매도=빨강, 매수=검정)
-                last_row = ws.max_row
-                font_color = "FF0000" if trade.get('type') == '매도' else "000000"
-                cell_font = Font(color=font_color)
-                for col_idx in range(1, len(row_values) + 1):
-                    ws.cell(row=last_row, column=col_idx).font = cell_font
+                    # 폰트 색상 (매도=빨강, 매수=검정)
+                    last_row = ws.max_row
+                    font_color = "FF0000" if trade.get('type') == '매도' else "000000"
+                    cell_font = Font(color=font_color)
+                    for col_idx in range(1, len(row_values) + 1):
+                        ws.cell(row=last_row, column=col_idx).font = cell_font
 
-                # 포트폴리오 맵 동기화
-                stock_name = trade.get('name', '')
-                investment = float(trade.get('investment', 0))
-                if stock_name:
-                    try:
-                        sync_portfolio_map(wb, stock_name, investment)
-                    except Exception:
-                        pass  # 맵 동기화 실패는 저장 자체를 막지 않음
+                    # 포트폴리오 맵 동기화
+                    stock_name = trade.get('name', '')
+                    investment = float(trade.get('investment', 0))
+                    if stock_name:
+                        try:
+                            sync_portfolio_map(wb, stock_name, investment)
+                        except Exception:
+                            pass  # 맵 동기화 실패는 저장 자체를 막지 않음
 
-                saved_count += 1
+                    saved_count += 1
 
-            except Exception as row_e:
-                errors.append(f"{trade.get('name', '?')}: {str(row_e)}")
+                except Exception as row_e:
+                    errors.append(f"{trade.get('name', '?')}: {str(row_e)}")
 
-        wb.save(full_path)
-        wb.close()
+            wb.save(full_path)
+        finally:
+            try: wb.close()
+            except: pass
 
         # 아이폰 앱용 JSON 자동 갱신
         trigger_export()
