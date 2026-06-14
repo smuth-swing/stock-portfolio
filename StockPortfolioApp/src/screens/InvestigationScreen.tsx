@@ -18,7 +18,7 @@ const getCeo       = (item: any) => item['대표/경영진'] || item['Unnamed: 5
 const getStrategy  = (item: any) => item['매매 전략'] || item['Unnamed: 6'] || '';
 
 export default function InvestigationScreen() {
-  const { investigation, isLoading, refreshData, syncQueue, addToSyncQueue, markQueueAsSynced, meta } = useDataStore();
+  const { investigation, isLoading, isSyncing, refreshData, syncQueue, addToSyncQueue, markQueueAsSynced, meta } = useDataStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'priority'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -252,14 +252,12 @@ export default function InvestigationScreen() {
           <TouchableOpacity 
             style={styles.refreshBtn} 
             onPress={() => {
-              // 수동 갱신 시 alert으로 피드백 제공
               refreshDataRef.current();
-              if (Platform.OS === 'web') alert('최신 데이터를 불러오는 중입니다...');
             }}
-            disabled={isLoading}
+            disabled={isLoading || isSyncing}
           >
             <Text style={styles.refreshBtnText}>
-              {isLoading ? '⏳ 갱신 중' : '🔄 정보 갱신'}
+              {(isLoading || isSyncing) ? '⏳ 갱신 중' : '🔄 정보 갱신'}
             </Text>
           </TouchableOpacity>
         </View>
