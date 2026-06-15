@@ -35,8 +35,8 @@ export default function InvestigationScreen() {
 
   // 웹 전용: 텍스트 줄 수 기반으로 높이 계산 (onContentSizeChange 무한 루프 방지)
   const LINE_HEIGHT = 22;
-  const INPUT_PADDING = 24; // 상하 패딩 합계
-  const MIN_HEIGHT = 80;
+  const INPUT_PADDING = 44; // 상하 패딩 합계 + 추가 하단 여백
+  const MIN_HEIGHT = 90;
 
   const computeWebHeight = useCallback((text: string | undefined): number => {
     if (!text) return MIN_HEIGHT;
@@ -52,7 +52,7 @@ export default function InvestigationScreen() {
     if (typeof height !== 'number') return;
     
     setInputHeights(prev => {
-      const newHeight = Math.max(MIN_HEIGHT, height + 20);
+      const newHeight = Math.max(MIN_HEIGHT, height + 40); // 하단 여백 공간 추가 확보
       if (Math.abs((prev[field] || MIN_HEIGHT) - newHeight) < 5) return prev;
       return {
         ...prev,
@@ -508,7 +508,8 @@ const styles = StyleSheet.create({
   multilineInput: {
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 8, padding: 12,
+    borderRadius: 8, 
+    paddingTop: 12, paddingHorizontal: 12, paddingBottom: 32,
     color: '#FFFFFF', fontSize: 15, lineHeight: 22,
     textAlignVertical: 'top',
   },
