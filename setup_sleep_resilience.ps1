@@ -64,60 +64,6 @@ Write-Host "[3/3] 절전 복귀 후 서버 자동 복구 작업 등록..." -Fore
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $resumeScript = Join-Path $ScriptDir "on_resume_check.ps1"
 
-# 복구 스크립트 생성
-$resumeScriptContent = @'
-# 절전 복귀 시 자동 실행: 서버 및 ngrok 상태 확인 및 복구
-$ScriptDir = "SCRIPT_DIR_PLACEHOLDER"
-$logFile = Join-Path $ScriptDir "resume_log.txt"
-$timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-
-function Write-Log {
-    param($msg)
-    $line = "[$timestamp] $msg"
-    Write-Host $line
-    Add-Content -Path $logFile -Value $line -Encoding UTF8
-}
-
-Write-Log "=== 절전 복귀 감지 ==="
-
-# 네트워크 연결 복구 대기 (NIC 재초기화 시간)
-Start-Sleep -Seconds 5
-
-# Flask 서버 상태 확인
-$portCheck = netstat -ano 2>$null | Select-String ":5000 " | Where-Object { $_ -match "LISTENING" }
-if (-not $portCheck) {
-    Write-Log "[복구] Flask 서버 다운 감지 → 재시작 중..."
-    Start-Process -FilePath "wscript.exe" -ArgumentList "`"$ScriptDir\run_server_hidden.vbs`"" -WorkingDirectory $ScriptDir
-    Start-Sleep -Seconds 8
-    Write-Log "[복구] Flask 서버 재시작 명령 전송 완료"
-} else {
-    Write-Log "[정상] Flask 서버 실행 중"
-}
-
-# ngrok 상태 확인 (ngrok API 포트 4040)
-try {
-    $ngrokCheck = Invoke-WebRequest -Uri "http://localhost:4040/api/tunnels" -TimeoutSec 3 -ErrorAction Stop
-    Write-Log "[정상] ngrok 터널 활성"
-} catch {
-    Write-Log "[복구] ngrok 터널 다운 감지 → 재시작 중..."
-    # 기존 ngrok 프로세스 종료
-    Get-Process -Name "ngrok" -ErrorAction SilentlyContinue | Stop-Process -Force
-    Start-Sleep -Seconds 2
-    # ngrok 재시작 (백그라운드)
-    $ngrokPath = (Get-Command ngrok -ErrorAction SilentlyContinue).Source
-    if ($ngrokPath) {
-        Start-Process -FilePath $ngrokPath -ArgumentList "http 5000" -WindowStyle Hidden
-        Write-Log "[복구] ngrok 재시작 명령 전송 완료"
-    } else {
-        Write-Log "[경고] ngrok을 찾을 수 없습니다"
-    }
-}
-
-Write-Log "=== 복구 점검 완료 ==="
-'@
-
-$resumeScriptContent = $resumeScriptContent -replace "SCRIPT_DIR_PLACEHOLDER", $ScriptDir
-$resumeScriptContent | Out-File -FilePath $resumeScript -Encoding UTF8
 
 # 작업 스케줄러: 절전 복귀 이벤트에 반응하는 트리거 등록
 $taskName = "StockApp_OnResume"
@@ -176,4 +122,3 @@ Write-Host ""
 Write-Host "  ⚠️  NIC 설정 반영을 위해 재부팅을 권장합니다." -ForegroundColor Yellow
 Write-Host ""
 
-Read-Host "엔터를 눌러 종료"
