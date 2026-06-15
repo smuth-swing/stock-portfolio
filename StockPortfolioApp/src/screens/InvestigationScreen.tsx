@@ -35,13 +35,20 @@ export default function InvestigationScreen() {
 
   // 웹 전용: 텍스트 줄 수 기반으로 높이 계산 (onContentSizeChange 무한 루프 방지)
   const LINE_HEIGHT = 22;
-  const INPUT_PADDING = 44; // 상하 패딩 합계 + 추가 하단 여백
-  const MIN_HEIGHT = 90;
+  const INPUT_PADDING = 60; // 상하 패딩 합계 + 추가 하단 여유 공간 (더 넉넉하게)
+  const MIN_HEIGHT = 100;
 
   const computeWebHeight = useCallback((text: string | undefined): number => {
     if (!text) return MIN_HEIGHT;
-    const lineCount = text.split('\n').length;
-    return Math.max(MIN_HEIGHT, lineCount * LINE_HEIGHT + INPUT_PADDING);
+    const explicitLines = text.split('\n');
+    let totalEstimatedLines = 0;
+    explicitLines.forEach(line => {
+      // 한 줄이 길어서 모바일 화면에서 자동 줄바꿈되는 경우(Word Wrap)까지 계산
+      // 모바일 폭을 고려하여 약 22글자마다 한 줄이 늘어난다고 넉넉하게 산정
+      const wrappedLines = Math.ceil(line.length / 22) || 1;
+      totalEstimatedLines += wrappedLines;
+    });
+    return Math.max(MIN_HEIGHT, totalEstimatedLines * LINE_HEIGHT + INPUT_PADDING);
   }, []);
 
   // 네이티브 전용: onContentSizeChange 이벤트 기반 높이 조절
