@@ -254,7 +254,24 @@ def fetch_trade_history(from_date, to_date, stock_code=""):
             "_source": "ls_api"
         })
 
-    return trades
+    # 그룹화 (같은 날, 같은 종목, 같은 매매종류 -> 수량 합산, 가장 높은 가격 기준)
+    grouped_trades = {}
+    for t in trades:
+        key = (t["date"], t["ticker"], t["type"])
+        if key not in grouped_trades:
+            grouped_trades[key] = t.copy()
+        else:
+            grouped_trades[key]["qty"] += t["qty"]
+            grouped_trades[key]["price"] = max(grouped_trades[key]["price"], t["price"])
+            grouped_trades[key]["amount"] += t["amount"]
+            grouped_trades[key]["fee"] += t["fee"]
+            grouped_trades[key]["investment"] = round(grouped_trades[key]["amount"] / 10000, 1)
+
+    # 날짜, 종목명 순으로 정렬하여 반환
+    result_trades = list(grouped_trades.values())
+    result_trades.sort(key=lambda x: (x["date"], x["name"], x["type"]))
+    
+    return result_trades
 
 
 def invalidate_token():
