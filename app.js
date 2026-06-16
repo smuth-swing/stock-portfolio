@@ -2838,6 +2838,124 @@ function lsToggleAll(checked) {
     });
 }
 
+function groupLsTrades() {
+    if (!lsImportData || lsImportData.length === 0) return;
+    
+    // 현재 입력되어 있는 값들을(수량, 가격 등) 먼저 lsImportData에 임시 반영
+    const cbs = document.querySelectorAll('.ls-trade-cb');
+    cbs.forEach(cb => {
+        const idx = parseInt(cb.dataset.idx, 10);
+        const qtyInput = document.querySelector(`.ls-trade-qty[data-idx="${idx}"]`);
+        const priceInput = document.querySelector(`.ls-trade-price[data-idx="${idx}"]`);
+        const nameInput = document.querySelector(`.ls-trade-name[data-idx="${idx}"]`);
+        const typeInput = document.querySelector(`.ls-trade-type[data-idx="${idx}"]`);
+        const invInput = document.querySelector(`.ls-trade-inv[data-idx="${idx}"]`);
+        
+        if (qtyInput) lsImportData[idx].qty = parseFloat(qtyInput.value) || 0;
+        if (priceInput) lsImportData[idx].price = parseFloat(priceInput.value) || 0;
+        if (nameInput) lsImportData[idx].name = nameInput.value.trim();
+        if (typeInput) lsImportData[idx].type = typeInput.value.trim();
+        if (invInput) lsImportData[idx].investment = parseFloat(invInput.value) || 0;
+    });
+
+    const grouped = new Map();
+    
+    lsImportData.forEach(t => {
+        const key = `${t.date}_${t.ticker}_${t.type}`;
+        if (!grouped.has(key)) {
+            grouped.set(key, { ...t });
+        } else {
+            const existing = grouped.get(key);
+            existing.qty += t.qty;
+            existing.price = Math.max(existing.price, t.price);
+            existing.amount += t.amount;
+            existing.fee += t.fee;
+            
+            // 투자금: 단순히 합치기 (나중에 랜더링시 포트폴리오 금액 고려해 다시 계산됨)
+            existing.investment += t.investment;
+        }
+    });
+
+    const result = Array.from(grouped.values());
+    result.sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        if (a.name !== b.name) return a.name.localeCompare(b.name);
+        return a.type.localeCompare(b.type);
+    });
+    
+    lsImportData = result;
+    
+    // UI 다시 그리기 (기존 렌더링 로직 일부 재사용)
+    document.getElementById('ls-result-count').textContent = `조회 결과: ${lsImportData.length}건 (합치기 완료)`;
+    const listContainer = document.getElementById('ls-trades-list');
+    if (listContainer) {
+        listContainer.innerHTML = '';
+        lsImportData.forEach((trade, idx) => {
+            const div = document.createElement('div');
+            div.className = 'journal-form-container';
+            div.style.padding = '15px';
+            div.style.marginBottom = '10px';
+            div.style.position = 'relative';
+            
+            const isSell = trade.type === '매도';
+            const typeColor = isSell ? '#EF4444' : '#00F2FE';
+            
+            const baseAmount = portfolioMapCache[trade.name] || 0;
+            const tradeOnes = Math.round((trade.qty * trade.price) / 1000000);
+            const tradeAmount = tradeOnes * 100;
+            
+            let computedInvestment = tradeAmount;
+            if (baseAmount > 0) {
+                if (isSell) {
+                    computedInvestment = Math.max(0, baseAmount - tradeAmount);
+                } else {
+                    computedInvestment = baseAmount + tradeAmount;
+                }
+            } else if (isSell) {
+                computedInvestment = 0;
+            }
+            trade.investment = computedInvestment;
+            
+            div.innerHTML = `
+                <div style="position:absolute; right:15px; top:15px; z-index:10;">
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; color:var(--text-secondary);">
+                        <input type="checkbox" class="ls-trade-cb" data-idx="${idx}" checked style="width:16px; height:16px; accent-color:var(--gold-primary);">
+                        선택 포함
+                    </label>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label style="font-size:12px; margin-bottom:6px;">날짜</label>
+                        <input type="text" class="ls-trade-date" data-idx="${idx}" value="${trade.date}" style="background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.05); color:#fff; font-size:14px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label style="font-size:12px; margin-bottom:6px;">종목</label>
+                        <input type="text" class="ls-trade-name" data-idx="${idx}" value="${trade.name}" style="background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.1); color:#fff; font-size:14px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label style="font-size:12px; margin-bottom:6px;">수량</label>
+                        <input type="number" class="ls-trade-qty" data-idx="${idx}" value="${trade.qty}" style="background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.1); color:#fff; font-size:14px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label style="font-size:12px; margin-bottom:6px;">단가</label>
+                        <input type="number" class="ls-trade-price" data-idx="${idx}" value="${trade.price}" style="background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.1); color:#fff; font-size:14px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label style="font-size:12px; margin-bottom:6px;">매매종류</label>
+                        <input type="text" class="ls-trade-type" data-idx="${idx}" value="${trade.type}" style="background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.1); color:${typeColor}; font-weight:bold; font-size:14px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label style="font-size:12px; margin-bottom:6px;">투자금(만원)</label>
+                        <input type="number" class="ls-trade-inv" data-idx="${idx}" value="${trade.investment}" style="background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.1); color:var(--gold-light); font-weight:bold; font-size:14px;">
+                    </div>
+                </div>
+            `;
+            listContainer.appendChild(div);
+        });
+    }
+    showToast('동일한 날짜, 종목, 매매종류의 거래가 합쳐졌습니다.', 'success');
+}
+
 async function importLsTrades() {
     // 체크된 항목 가져오기
     const selectedIndices = Array.from(document.querySelectorAll('.ls-trade-cb'))
