@@ -220,6 +220,35 @@ export default function ImportTradeScreen() {
     setTrades(prev => prev.map((t, i) => i === idx ? { ...t, memo } : t));
   };
 
+  // 동일 거래 합치기 (날짜, 종목, 매매종류 기준)
+  const handleGroupTrades = () => {
+    const grouped = new Map<string, Trade>();
+    
+    trades.forEach(t => {
+      const key = `${t.date}_${t.ticker}_${t.type}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, { ...t });
+      } else {
+        const existing = grouped.get(key)!;
+        existing.qty += t.qty;
+        existing.price = Math.max(existing.price, t.price);
+        existing.amount += t.amount;
+        existing.fee += t.fee;
+        existing.investment = Math.round((existing.amount / 10000) * 10) / 10;
+      }
+    });
+
+    const result = Array.from(grouped.values());
+    result.sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      if (a.name !== b.name) return a.name.localeCompare(b.name);
+      return a.type.localeCompare(b.type);
+    });
+    
+    setTrades(result);
+    Alert.alert('합치기 완료', '동일한 날짜, 종목, 매매종류의 거래가 합쳐졌습니다.\n(단가는 최고가 기준)');
+  };
+
   // Excel DB 저장
   const handleImport = useCallback(async () => {
     const base = getApiBase();
@@ -346,6 +375,9 @@ export default function ImportTradeScreen() {
               <View style={styles.resultHeader}>
                 <Text style={styles.resultCount}>{trades.length}건 조회됨</Text>
                 <View style={styles.selectAllRow}>
+                  <TouchableOpacity style={styles.groupBtn} onPress={handleGroupTrades}>
+                    <Text style={styles.groupBtnText}>🔄 같은 거래 합치기</Text>
+                  </TouchableOpacity>
                   <Text style={styles.inputLabel}>전체 선택</Text>
                   <Switch
                     value={selectAll}
@@ -465,6 +497,8 @@ const styles = StyleSheet.create({
   resultHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   resultCount: { color: '#00F2FE', fontSize: 15, fontWeight: 'bold' },
   selectAllRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  groupBtn: { backgroundColor: 'rgba(0,242,254,0.15)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, marginRight: 4, borderWidth: 1, borderColor: 'rgba(0,242,254,0.3)' },
+  groupBtnText: { color: '#00F2FE', fontSize: 12, fontWeight: 'bold' },
 
   // 거래 카드
   tradeCard: {
