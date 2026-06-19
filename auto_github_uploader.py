@@ -126,10 +126,15 @@ def run_git_upload():
 
         # 5단계: git push
         log.info("5. GitHub push 중...")
+        env = os.environ.copy()
+        env["GCM_INTERACTIVE"] = "never"
+        env["GIT_TERMINAL_PROMPT"] = "0"
+        
         result = run_no_window(
             ["git", "push", "origin", "main"],
             cwd=PROJECT_DIR,
             timeout=120,
+            env=env
         )
         if result.returncode == 0:
             log.info("=== GitHub 업로드 성공! ===")
