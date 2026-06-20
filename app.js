@@ -68,7 +68,7 @@ async function init() {
     // 키보드 단축키 설정
     document.addEventListener('keydown', (e) => {
         // Ctrl+S: 취소선 토글
-        if (e.ctrlKey && e.key === 's' && !e.shiftKey && !e.altKey && !e.metaKey) {
+        if (e.ctrlKey && e.key.toLowerCase() === 's' && !e.shiftKey && !e.altKey && !e.metaKey) {
             e.preventDefault(); // 기본 저장 동작 방지
             e.stopPropagation(); // 이벤트 버블링 방지
 
@@ -1845,10 +1845,17 @@ function getTextFromEditable(td) {
         block.prepend('\n');
         block.replaceWith(...block.childNodes);
     });
-    // <del> 태그를 ~~텍스트~~ 형식으로 변환 (취소선 정보 유지)
-    clone.querySelectorAll('del').forEach(del => {
-        const text = del.textContent;
-        del.replaceWith(`~~${text}~~`);
+    // <del>, <s>, <strike> 태그를 ~~텍스트~~ 형식으로 변환 (취소선 정보 유지)
+    clone.querySelectorAll('del, s, strike').forEach(el => {
+        const text = el.textContent;
+        el.replaceWith(`~~${text}~~`);
+    });
+    // line-through 스타일이 적용된 span 등 처리
+    clone.querySelectorAll('*').forEach(el => {
+        if (el.style && el.style.textDecoration && el.style.textDecoration.includes('line-through')) {
+            const text = el.textContent;
+            el.replaceWith(`~~${text}~~`);
+        }
     });
     // 최종 텍스트 추출 후 앞뒤 공백 제거, 연속 줄바꿈 3개 이상은 2개로 압축
     return clone.textContent.replace(/\n{3,}/g, '\n\n').trim();
@@ -1983,38 +1990,11 @@ function toggleStrikethrough() {
             return;
         }
 
-        const range = selection.getRangeAt(0);
-
-        // 선택 영역에 이미 취소선이 적용되어 있는지 확인
-        let isInStrikethrough = false;
-        let elementToCheck = range.commonAncestorContainer;
-        if (elementToCheck.nodeType === Node.TEXT_NODE) elementToCheck = elementToCheck.parentElement;
-
-        let delElement = null;
-        let temp = elementToCheck;
-        while (temp && temp !== activeEl) {
-            if (temp.tagName === 'DEL') {
-                isInStrikethrough = true;
-                delElement = temp;
-                break;
-            }
-            temp = temp.parentElement;
-        }
-
-        try {
-            if (isInStrikethrough) {
-                const textNode = document.createTextNode(delElement.textContent);
-                delElement.parentNode.replaceChild(textNode, delElement);
-                showToast('취소선이 해제되었습니다.', 'success');
-            } else {
-                const del = document.createElement('del');
-                range.surroundContents(del);
-                showToast('취소선이 적용되었습니다.', 'success');
-            }
-        } catch (e) {
-            showToast('복잡한 선택 영역에서는 취소선을 적용할 수 없습니다.', 'warning');
-            return;
-        }
+        // 브라우저 내장 명령을 사용하여 취소선을 토글합니다.
+        // 이는 <del>, <s>, <strike> 및 복잡한 선택 영역을 가장 안전하게 처리합니다.
+        document.execCommand('strikeThrough', false, null);
+        
+        showToast('취소선 상태가 변경되었습니다.', 'success');
 
         selection.removeAllRanges();
         activeEl.dispatchEvent(new Event('blur', { bubbles: true }));
