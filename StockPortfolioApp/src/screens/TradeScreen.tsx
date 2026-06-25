@@ -136,6 +136,14 @@ export default function TradeScreen() {
     }
   };
 
+  const handleZoomIn = () => {
+    setZoomLevel(prev => Math.min(150, prev * 1.3));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel(prev => Math.max(15, prev * 0.7));
+  };
+
   const getTouchDistance = (touches: any[]) => {
     const [firstTouch, secondTouch] = touches;
     const dx = firstTouch.pageX - secondTouch.pageX;
@@ -229,8 +237,11 @@ export default function TradeScreen() {
               
               {/* 줌 컨트롤러 */}
               <View style={styles.zoomControls}>
-                <TouchableOpacity style={styles.zoomBtn} onPress={handleFitToScreen}>
-                  <Text style={styles.zoomBtnText}>전체보기</Text>
+                <TouchableOpacity style={styles.zoomBtn} onPress={handleZoomOut}>
+                  <Text style={styles.zoomBtnText}>축소</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.zoomBtn} onPress={handleZoomIn}>
+                  <Text style={styles.zoomBtnText}>확대</Text>
                 </TouchableOpacity>
               </View>
             </View>
