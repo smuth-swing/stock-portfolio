@@ -236,6 +236,7 @@ export default function SignalScreen() {
                 placeholder="설정"
                 onChangeText={text => handlePriceChange(stock, text)}
                 onBlur={() => handlePriceSubmit(stock)}
+                onSubmitEditing={() => handlePriceSubmit(stock)}
               />
             </View>          </View>
           <Text style={styles.price}>{current.toLocaleString()}원</Text>
