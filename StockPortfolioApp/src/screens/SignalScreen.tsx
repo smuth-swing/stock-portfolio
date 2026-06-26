@@ -231,7 +231,7 @@ export default function SignalScreen() {
               <Text style={{ color: '#94A3B8', marginRight: 6 }}>목표가:</Text>
               <TextInput
                 style={styles.targetInput}
-                value={priceInputs[stock] ?? ''}
+                value={priceInputs[stock] !== undefined ? priceInputs[stock] : (targetPrices?.[stock] ? String(targetPrices[stock]) : '')}
                 keyboardType="numeric"
                 placeholder="설정"
                 onChangeText={text => handlePriceChange(stock, text)}
