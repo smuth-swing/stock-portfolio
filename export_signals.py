@@ -59,6 +59,8 @@ def get_stocks_from_json():
         
     return list(stocks)
 
+MAX_RETRIES = 3  # 실패 시 최대 재시도 횟수
+
 def main():
     print("="*60)
     print("  신호 포착 데이터(이평선/RSI) 자동 수집 시작")
@@ -71,6 +73,16 @@ def main():
         print("대상 종목이 없습니다.")
         return
 
+    # 이전 성공 데이터 로드 (실패 시 fallback용)
+    prev_results = {}
+    if OUT_FILE.exists():
+        try:
+            with open(OUT_FILE, 'r', encoding='utf-8') as f:
+                prev_results = json.load(f)
+            print(f"이전 캐시 데이터 로드 완료 ({len(prev_results)}개 종목)")
+        except Exception:
+            pass
+
     cfg = load_config()
     token = get_access_token(cfg.get("app_key", ""), cfg.get("app_secret", ""))
     if not token:
@@ -80,6 +92,8 @@ def main():
     name_to_code = get_stock_codes_by_names(token, stocks)
     
     results = {}
+    failed_stocks = []  # 실패 종목 목록 (재시도 대상)
+    
     for i, stock in enumerate(stocks):
         shcode = name_to_code.get(stock)
         print(f"[{i+1}/{len(stocks)}] {stock} ({shcode}) 조회 중...", end="", flush=True)
@@ -94,15 +108,49 @@ def main():
             print(" -> 완료")
         except Exception as e:
             print(f" -> 실패 ({e})")
-            results[stock] = {"error": str(e)}
+            failed_stocks.append((stock, shcode))
             
         # API 속도 제한 고려 (1초 대기)
         time.sleep(1)
+    
+    # 실패한 종목 재시도 (최대 MAX_RETRIES회)
+    for retry in range(1, MAX_RETRIES + 1):
+        if not failed_stocks:
+            break
+        print(f"\n--- 재시도 {retry}/{MAX_RETRIES} ({len(failed_stocks)}개 종목) ---")
+        time.sleep(3)  # 재시도 전 대기
+        
+        still_failed = []
+        for stock, shcode in failed_stocks:
+            print(f"  재시도: {stock} ({shcode})...", end="", flush=True)
+            try:
+                data = fetch_moving_averages(shcode)
+                results[stock] = data
+                print(" -> 성공!")
+            except Exception as e:
+                print(f" -> 실패 ({e})")
+                still_failed.append((stock, shcode))
+            time.sleep(1)
+        
+        failed_stocks = still_failed
+
+    # 재시도 후에도 실패한 종목은 이전 캐시 데이터로 대체
+    for stock, shcode in failed_stocks:
+        prev_data = prev_results.get(stock)
+        if prev_data and prev_data.get('current'):
+            results[stock] = prev_data
+            print(f"  {stock}: 이전 캐시 데이터 사용 (current={prev_data['current']})")
+        else:
+            results[stock] = {"error": "조회 실패 (재시도 초과)"}
+            print(f"  {stock}: 이전 캐시도 없음, 에러로 기록")
         
     with open(OUT_FILE, 'w', encoding='utf-8') as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
-        
+    
+    success_count = sum(1 for v in results.values() if v.get('current'))
+    fail_count = sum(1 for v in results.values() if v.get('error'))
     print(f"\n데이터 저장 완료: {OUT_FILE}")
+    print(f"  성공: {success_count}개 / 실패: {fail_count}개")
 
 if __name__ == '__main__':
     main()
