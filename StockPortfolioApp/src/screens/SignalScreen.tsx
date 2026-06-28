@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useDataStore } from '../store/useDataStore';
 
 export default function SignalScreen() {
-  const { portfolioMap, investigation, meta } = useDataStore();
+  const { portfolioMap, investigation, meta, targetPrices } = useDataStore();
   const [category, setCategory] = useState<'portfolio' | 'priority'>('portfolio');
   const [signals, setSignals] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
@@ -192,11 +192,32 @@ export default function SignalScreen() {
     if (rsiM > 0 && rsiM <= 30) rsiTexts.push(`월:${rsiM}`);
     const rsiText = rsiTexts.length > 0 ? rsiTexts.join(', ') : '-';
 
+    const targetPrice = targetPrices?.[stock];
+    let isTargetReached = false;
+    if (targetPrice) {
+      const high_1w = data.high_1w || current;
+      const low_1w = data.low_1w || current;
+      if (current >= targetPrice || (high_1w >= targetPrice && low_1w <= targetPrice)) {
+        isTargetReached = true;
+      }
+    }
+
     return (
-      <View key={stock} style={[styles.card, danger && styles.cardDanger]}>
+      <View key={stock} style={[styles.card, (danger || isTargetReached) && styles.cardDanger]}>
         <View style={styles.cardHeader}>
           <View>
-            <Text style={styles.stockName}>{stock}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+              <Text style={styles.stockName}>{stock}</Text>
+              {isTargetReached && targetPrice && (
+                <Text style={styles.targetReachedBadge}>🚨 목표가 도달 ({targetPrice.toLocaleString()}원)</Text>
+              )}
+            </View>
+            {targetPrice ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                <Text style={{ color: '#94A3B8', fontSize: 13 }}>목표가: </Text>
+                <Text style={{ color: '#00F2FE', fontSize: 13, fontWeight: 'bold' }}>{targetPrice.toLocaleString()}원</Text>
+              </View>
+            ) : null}
           </View>
           <Text style={styles.price}>{current.toLocaleString()}원</Text>
         </View>
@@ -354,4 +375,10 @@ const styles = StyleSheet.create({
   textHighlight: { color: '#10B981' },
   errorText: { color: '#EF4444', fontSize: 13, marginTop: 10 },
   emptyText: { color: '#94A3B8', textAlign: 'center', marginTop: 40 },
+  targetReachedBadge: {
+    color: '#EF4444',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
 });
