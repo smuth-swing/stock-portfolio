@@ -293,18 +293,19 @@ export const useDataStore = create<AppState>((set, get) => ({
     if (!meta || !meta.updated_at) return;
     
     const serverTime = new Date(meta.updated_at).getTime();
-    // ★ 서버 시간에 30초 마진 적용 (export → git push → CDN 반영 지연 보정)
-    const MARGIN_MS = 30000;
     const newQueue = syncQueue.filter(edit => {
       if (!edit.timestamp) return false; // 예외 방지용 (이전 구조)
       
       // 아직 PC로 전송하지 않은 항목은 무조건 유지
       if (edit.isPendingSync !== false) return true;
       
-      const editTime = new Date(edit.timestamp).getTime();
-      // 서버 갱신 시각 + 마진보다 이전에 작성된 편집만 삭제
-      // (서버에서 이미 반영된 것으로 간주)
-      return editTime > (serverTime + MARGIN_MS);
+      // ★ sentAt(PC 전송 시각) 기준으로 서버 반영 여부 확인
+      // 서버의 meta.updated_at이 sentAt보다 이후이면,
+      // 서버 데이터가 우리 전송 이후에 갱신된 것이므로 편집이 반영됨 → 삭제 가능
+      const sentTime = edit.sentAt ? new Date(edit.sentAt).getTime() : 0;
+      if (!sentTime) return true; // sentAt이 없으면 유지 (안전장치)
+      
+      return serverTime < sentTime; // 서버가 전송 이전에 갱신됨 → 아직 미반영 → 유지
     });
     
     if (newQueue.length !== syncQueue.length) {
