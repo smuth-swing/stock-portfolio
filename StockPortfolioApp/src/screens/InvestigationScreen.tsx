@@ -109,13 +109,13 @@ export default function InvestigationScreen() {
         // URL 파라미터 즉시 정리 (새로고침 시 중복 처리 방지)
         window.history.replaceState({}, document.title, window.location.pathname);
         
-        // ★ PC 전송 완료 처리: 큐를 즉시 삭제하고 서버 데이터를 새로고침
-        // server.py에서 이미 JSON 내보내기 + Git Push를 동기적으로 완료한 상태이므로
-        // GitHub Pages에서 최신 데이터를 받을 수 있습니다.
-        const { clearSyncQueue } = useDataStore.getState();
-        clearSyncQueue().then(() => {
-          alert('✅ PC 서버에 정상 반영되었습니다.\n최신 데이터를 불러옵니다.');
-          // 서버 데이터 새로고침 (큐가 비어있으므로 오버레이 없이 순수 서버 데이터 적용)
+        // ★ PC 전송 완료: 큐를 "전송 완료" 상태로 표시 (삭제하지 않음!)
+        // 큐를 유지하여 서버 데이터가 GitHub Pages에 반영되기 전까지
+        // applyQueueToData 오버레이로 편집 내용을 화면에 유지합니다.
+        // 서버 데이터가 반영되면 cleanupSyncQueue에서 자동으로 큐가 정리됩니다.
+        markQueueAsSynced().then(() => {
+          alert('✅ PC 서버에 정상 반영되었습니다.');
+          // 서버 데이터 새로고침 (큐 오버레이가 적용되므로 편집 내용 유지됨)
           refreshDataRef.current();
         });
       }
