@@ -121,7 +121,7 @@ def trigger_export_and_push_sync():
             print("[SYNC-PUSH] 1. JSON 내보내기 시작...")
             result = subprocess.run(
                 [sys.executable, "export_to_json.py"],
-                capture_output=True, text=True, encoding="utf-8", timeout=180
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180
             )
             if result.returncode != 0:
                 print(f"[SYNC-PUSH] ❌ JSON 내보내기 실패: {result.stderr[:300]}")
@@ -132,7 +132,7 @@ def trigger_export_and_push_sync():
             print("[SYNC-PUSH] 1-5. 신호 데이터(이평선/RSI) 내보내기 시작...")
             result_sig = subprocess.run(
                 [sys.executable, "export_signals.py"],
-                capture_output=True, text=True, encoding="utf-8", timeout=300
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300
             )
             if result_sig.returncode != 0:
                 print(f"[SYNC-PUSH] ❌ 신호 데이터 내보내기 실패: {result_sig.stderr[:300]}")
@@ -158,7 +158,7 @@ def trigger_export_and_push_sync():
             commit_msg = f"Mobile sync update {dt.now().strftime('%Y-%m-%d %H:%M')}"
             commit_result = subprocess.run(
                 ["git", "commit", "-m", commit_msg],
-                cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", timeout=30
+                cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30
             )
             if commit_result.returncode != 0 and "nothing to commit" in commit_result.stdout:
                 print("[SYNC-PUSH] 변경사항 없음, 커밋 건너뜀")
@@ -169,7 +169,7 @@ def trigger_export_and_push_sync():
             env["GIT_TERMINAL_PROMPT"] = "0"
             push_result = subprocess.run(
                 ["git", "push", "origin", "main"],
-                cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8",
+                cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace",
                 timeout=120, env=env
             )
             if push_result.returncode == 0:
