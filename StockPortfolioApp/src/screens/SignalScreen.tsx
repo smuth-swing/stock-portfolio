@@ -143,6 +143,37 @@ export default function SignalScreen() {
     setLoading(false);
   }, [category, portfolioMap, investigation, isGitHubPages]);
 
+  // CORS 프록시를 순차 시도하는 헬퍼 함수
+  const fetchWithProxy = async (targetUrl: string, timeoutMs: number = 3000): Promise<any> => {
+    const proxies = [
+      (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+      (url: string) => `https://thingproxy.freeboard.io/fetch/${url}`,
+      (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`
+    ];
+
+    for (let i = 0; i < proxies.length; i++) {
+      try {
+        const proxyUrl = proxies[i](targetUrl);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        
+        const res = await fetch(proxyUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const json = await res.json();
+          if (typeof json === 'string') {
+            return JSON.parse(json);
+          }
+          return json;
+        }
+      } catch (err) {
+        console.warn(`Proxy ${i + 1} failed for ${targetUrl}:`, err);
+      }
+    }
+    throw new Error('All CORS proxies failed');
+  };
+
   const handleLiveUpdate = async () => {
     if (liveLoading || loading) return;
     
@@ -192,36 +223,25 @@ export default function SignalScreen() {
         try {
           const cleanCode = shcode.replace('A', '').trim();
           const naverUrl = `https://polling.finance.naver.com/api/realtime?query=SERVICE_ITEM:${cleanCode}`;
-          const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(naverUrl)}`;
           
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3500); // 3.5초 타임아웃
-          
-          const res = await fetch(proxyUrl, { signal: controller.signal });
-          clearTimeout(timeoutId);
+          const resJson = await fetchWithProxy(naverUrl, 3500);
+          const dataObj = resJson?.result?.areas?.[0]?.datas?.[0];
+          const currentPrice = dataObj?.nv;
 
-          if (res.ok) {
-            const resJson = await res.json();
-            const dataObj = resJson?.result?.areas?.[0]?.datas?.[0];
-            const currentPrice = dataObj?.nv;
+          if (currentPrice && currentPrice > 0) {
+            const prevData = signals[stock] || {};
+            const high_1w = Math.max(prevData.high_1w || currentPrice, currentPrice);
+            const low_1w = Math.min(prevData.low_1w || currentPrice, currentPrice);
 
-            if (currentPrice && currentPrice > 0) {
-              const prevData = signals[stock] || {};
-              const high_1w = Math.max(prevData.high_1w || currentPrice, currentPrice);
-              const low_1w = Math.min(prevData.low_1w || currentPrice, currentPrice);
-
-              newSignals[stock] = {
-                ...prevData,
-                current: currentPrice,
-                high_1w: high_1w,
-                low_1w: low_1w,
-                loading: false,
-                error: false,
-                isLiveFetched: true // 외부 API 조회 플래그
-              };
-            } else {
-              newSignals[stock] = { ...signals[stock], loading: false, error: true };
-            }
+            newSignals[stock] = {
+              ...prevData,
+              current: currentPrice,
+              high_1w: high_1w,
+              low_1w: low_1w,
+              loading: false,
+              error: false,
+              isLiveFetched: true // 외부 API 조회 플래그
+            };
           } else {
             newSignals[stock] = { ...signals[stock], loading: false, error: true };
           }
