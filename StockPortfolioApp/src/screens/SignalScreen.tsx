@@ -9,6 +9,23 @@ export default function SignalScreen() {
   const [signals, setSignals] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [liveLoading, setLiveLoading] = useState(false);
+  const [stockCodes, setStockCodes] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const loadStockCodes = async () => {
+      try {
+        const ts = new Date().getTime();
+        const res = await fetch(`data/stock_codes.json?t=${ts}`);
+        if (res.ok) {
+          const data = await res.json();
+          setStockCodes(data);
+        }
+      } catch (e) {
+        console.warn('Failed to load stock codes:', e);
+      }
+    };
+    loadStockCodes();
+  }, []);
 
   const pcIp = meta?.server_ip || '192.168.0.2';
   // PC 로컬 네트워크 환경에서의 API 접근 (Flask)
@@ -134,29 +151,87 @@ export default function SignalScreen() {
 
     setLiveLoading(true);
     
-    // 로컬 PC API 연결 확인 (타임아웃 2.5초)
+    let useLocalPC = true;
+
+    // 1단계: 로컬 PC API 연결 확인 (타임아웃 2초)
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
       const testRes = await fetch(`${API_BASE}/api/ls/moving-averages?name=${encodeURIComponent(stocks[0])}`, {
         signal: controller.signal
       });
       clearTimeout(timeoutId);
       if (!testRes.ok) throw new Error('Connect fail');
     } catch (e) {
-      alert(`로컬 PC 서버에 연결할 수 없습니다.\n\n1. PC 서버(flask)가 정상 구동 중인지 확인해 주세요.\n2. 핸드폰과 PC가 동일한 Wi-Fi 공유기에 연결되어 있는지 확인해 주세요.\n\n(설정된 PC IP: ${pcIp})`);
-      setLiveLoading(false);
-      return;
+      // 로컬 PC 연결 실패 시, 외부 실시간 시세 조회 모드로 전환
+      useLocalPC = false;
+      alert(`로컬 PC 서버가 꺼져 있습니다.\n외부 시세 API(네이버 금융)를 연동하여 모바일 단독 실시간 현재가 조회를 시작합니다.`);
     }
 
     const newSignals: Record<string, any> = { ...signals };
 
-    // 로컬 PC API 순차 실시간 조회 실행
-    for (const stock of stocks) {
-      setSignals(prev => ({ ...prev, [stock]: { loading: true } }));
-      const data = await fetchSignal(stock);
-      newSignals[stock] = data ? { ...data, loading: false } : { error: true, loading: false };
-      setSignals(prev => ({ ...prev, [stock]: newSignals[stock] }));
+    if (useLocalPC) {
+      // 로컬 PC API 순차 실시간 조회 실행 (고정밀 이평선 분석 데이터 갱신)
+      for (const stock of stocks) {
+        setSignals(prev => ({ ...prev, [stock]: { ...prev[stock], loading: true } }));
+        const data = await fetchSignal(stock);
+        newSignals[stock] = data ? { ...data, loading: false } : { error: true, loading: false };
+        setSignals(prev => ({ ...prev, [stock]: newSignals[stock] }));
+      }
+    } else {
+      // 모바일 자체 외부 API (네이버 금융 실시간 시세 + CORS 프록시) 순차 조회 실행
+      for (const stock of stocks) {
+        const shcode = stockCodes[stock];
+        if (!shcode) {
+          // 종목코드가 없으면 에러 표기 없이 이전 데이터 유지
+          continue;
+        }
+
+        setSignals(prev => ({ ...prev, [stock]: { ...prev[stock], loading: true } }));
+
+        try {
+          const cleanCode = shcode.replace('A', '').trim();
+          const naverUrl = `https://polling.finance.naver.com/api/realtime?query=SERVICE_ITEM:${cleanCode}`;
+          const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(naverUrl)}`;
+          
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3500); // 3.5초 타임아웃
+          
+          const res = await fetch(proxyUrl, { signal: controller.signal });
+          clearTimeout(timeoutId);
+
+          if (res.ok) {
+            const resJson = await res.json();
+            const dataObj = resJson?.result?.areas?.[0]?.datas?.[0];
+            const currentPrice = dataObj?.nv;
+
+            if (currentPrice && currentPrice > 0) {
+              const prevData = signals[stock] || {};
+              const high_1w = Math.max(prevData.high_1w || currentPrice, currentPrice);
+              const low_1w = Math.min(prevData.low_1w || currentPrice, currentPrice);
+
+              newSignals[stock] = {
+                ...prevData,
+                current: currentPrice,
+                high_1w: high_1w,
+                low_1w: low_1w,
+                loading: false,
+                error: false,
+                isLiveFetched: true // 외부 API 조회 플래그
+              };
+            } else {
+              newSignals[stock] = { ...signals[stock], loading: false, error: true };
+            }
+          } else {
+            newSignals[stock] = { ...signals[stock], loading: false, error: true };
+          }
+        } catch (err) {
+          console.warn(`외부 API 조회 실패 (${stock}):`, err);
+          newSignals[stock] = { ...signals[stock], loading: false, error: true };
+        }
+        
+        setSignals(prev => ({ ...prev, [stock]: newSignals[stock] }));
+      }
     }
 
     setLiveLoading(false);

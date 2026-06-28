@@ -146,6 +146,20 @@ def main():
         
     with open(OUT_FILE, 'w', encoding='utf-8') as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
+
+    # 종목명 -> 코드 매핑 파일 저장
+    CODES_FILE = DATA_DIR / 'stock_codes.json'
+    try:
+        existing_codes = {}
+        if CODES_FILE.exists():
+            with open(CODES_FILE, 'r', encoding='utf-8') as f:
+                existing_codes = json.load(f)
+        existing_codes.update(name_to_code)
+        with open(CODES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(existing_codes, f, ensure_ascii=False, indent=2)
+        print(f"종목 코드 매핑 저장 완료: {CODES_FILE}")
+    except Exception as e:
+        print(f"종목 코드 매핑 저장 실패: {e}")
     
     success_count = sum(1 for v in results.values() if v.get('current'))
     fail_count = sum(1 for v in results.values() if v.get('error'))
