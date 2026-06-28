@@ -4,24 +4,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useDataStore } from '../store/useDataStore';
 
 export default function SignalScreen() {
-  const { portfolioMap, investigation, meta, targetPrices, setTargetPrice } = useDataStore();
+  const { portfolioMap, investigation, meta } = useDataStore();
   const [category, setCategory] = useState<'portfolio' | 'priority'>('portfolio');
   const [signals, setSignals] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
-  const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
-  const [priceInput, setPriceInput] = useState(''); // temporary, not used
-  const handlePriceChange = (stock: string, text: string) => {
-    setPriceInputs(prev => ({ ...prev, [stock]: text }));
-  };
-  const handlePriceSubmit = (stock: string) => {
-    const val = priceInputs[stock];
-    const price = parseFloat(val?.replace(/,/g, '').trim());
-    if (!isNaN(price)) {
-      setTargetPrice(stock, price);
-    } else {
-      setTargetPrice(stock, null);
-    }
-  };
 
   const pcIp = meta?.server_ip || '192.168.0.2';
   // PC 로컬 네트워크 환경에서의 API 접근 (Flask)
@@ -206,39 +192,12 @@ export default function SignalScreen() {
     if (rsiM > 0 && rsiM <= 30) rsiTexts.push(`월:${rsiM}`);
     const rsiText = rsiTexts.length > 0 ? rsiTexts.join(', ') : '-';
 
-    const targetPrice = targetPrices?.[stock];
-    let isTargetReached = false;
-    if (targetPrice) {
-      const high_1w = data.high_1w || current;
-      const low_1w = data.low_1w || current;
-      if (current >= targetPrice || (high_1w >= targetPrice && low_1w <= targetPrice)) {
-        isTargetReached = true;
-      }
-    }
-
     return (
-      <View key={stock} style={[styles.card, (danger || isTargetReached) && styles.cardDanger]}>
+      <View key={stock} style={[styles.card, danger && styles.cardDanger]}>
         <View style={styles.cardHeader}>
           <View>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={styles.stockName}>{stock}</Text>
-              {isTargetReached && targetPrice && (
-                <Text style={styles.targetReachedBadge}>🚨 목표가 도달 ({targetPrice.toLocaleString()}원)</Text>
-              )}
-            </View>
-            {/* 목표가 입력 */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-              <Text style={{ color: '#94A3B8', marginRight: 6 }}>목표가:</Text>
-              <TextInput
-                style={styles.targetInput}
-                value={priceInputs[stock] !== undefined ? priceInputs[stock] : (targetPrices?.[stock] ? String(targetPrices[stock]) : '')}
-                keyboardType="numeric"
-                placeholder="설정"
-                onChangeText={text => handlePriceChange(stock, text)}
-                onBlur={() => handlePriceSubmit(stock)}
-                onSubmitEditing={() => handlePriceSubmit(stock)}
-              />
-            </View>          </View>
+            <Text style={styles.stockName}>{stock}</Text>
+          </View>
           <Text style={styles.price}>{current.toLocaleString()}원</Text>
         </View>
         <View style={styles.cardBody}>
@@ -395,23 +354,4 @@ const styles = StyleSheet.create({
   textHighlight: { color: '#10B981' },
   errorText: { color: '#EF4444', fontSize: 13, marginTop: 10 },
   emptyText: { color: '#94A3B8', textAlign: 'center', marginTop: 40 },
-  targetInput: {
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    color: '#00F2FE',
-    fontSize: 14,
-    fontWeight: 'bold',
-    borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    width: 120,
-    textAlign: 'right',
-  },
-  targetReachedBadge: {
-    color: '#EF4444',
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginTop: 4,
-  },
 });
