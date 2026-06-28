@@ -4,8 +4,8 @@
  * - 캐시 우선(Cache-First) 전략 사용
  */
 
-const CACHE_NAME = 'stock-portfolio-pwa-v10';
-const DATA_CACHE_NAME = 'stock-portfolio-data-v10';
+const CACHE_NAME = 'stock-portfolio-pwa-v11';
+const DATA_CACHE_NAME = 'stock-portfolio-data-v11';
 
 // 앱 쉘 파일 목록 (빌드 후 자동 생성되는 파일들 포함)
 const APP_SHELL_URLS = [

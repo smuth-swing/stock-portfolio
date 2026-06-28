@@ -8,6 +8,7 @@ export default function SignalScreen() {
   const [category, setCategory] = useState<'portfolio' | 'priority'>('portfolio');
   const [signals, setSignals] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
+  const [liveLoading, setLiveLoading] = useState(false);
 
   const pcIp = meta?.server_ip || '192.168.0.2';
   // PC 로컬 네트워크 환경에서의 API 접근 (Flask)
@@ -124,6 +125,42 @@ export default function SignalScreen() {
     
     setLoading(false);
   }, [category, portfolioMap, investigation, isGitHubPages]);
+
+  const handleLiveUpdate = async () => {
+    if (liveLoading || loading) return;
+    
+    const stocks = category === 'portfolio' ? getPortfolioStocks() : getPriorityStocks();
+    if (stocks.length === 0) return;
+
+    setLiveLoading(true);
+    
+    // 로컬 PC API 연결 확인 (타임아웃 2.5초)
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      const testRes = await fetch(`${API_BASE}/api/ls/moving-averages?name=${encodeURIComponent(stocks[0])}`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (!testRes.ok) throw new Error('Connect fail');
+    } catch (e) {
+      alert(`로컬 PC 서버에 연결할 수 없습니다.\n\n1. PC 서버(flask)가 정상 구동 중인지 확인해 주세요.\n2. 핸드폰과 PC가 동일한 Wi-Fi 공유기에 연결되어 있는지 확인해 주세요.\n\n(설정된 PC IP: ${pcIp})`);
+      setLiveLoading(false);
+      return;
+    }
+
+    const newSignals: Record<string, any> = { ...signals };
+
+    // 로컬 PC API 순차 실시간 조회 실행
+    for (const stock of stocks) {
+      setSignals(prev => ({ ...prev, [stock]: { loading: true } }));
+      const data = await fetchSignal(stock);
+      newSignals[stock] = data ? { ...data, loading: false } : { error: true, loading: false };
+      setSignals(prev => ({ ...prev, [stock]: newSignals[stock] }));
+    }
+
+    setLiveLoading(false);
+  };
 
   useEffect(() => {
     refreshSignals();
@@ -249,13 +286,26 @@ export default function SignalScreen() {
     <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>신호 포착 🎯</Text>
-        <TouchableOpacity style={styles.refreshBtn} onPress={refreshSignals} disabled={loading}>
-          {loading ? (
-            <ActivityIndicator size="small" color="#00F2FE" />
-          ) : (
-            <Text style={styles.refreshBtnText}>🔄 새로고침</Text>
-          )}
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity 
+            style={[styles.liveUpdateBtn, { marginRight: 8 }]} 
+            onPress={handleLiveUpdate} 
+            disabled={liveLoading || loading}
+          >
+            {liveLoading ? (
+              <ActivityIndicator size="small" color="#FFD700" />
+            ) : (
+              <Text style={styles.liveUpdateBtnText}>⚡ 실시간 업데이트</Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.refreshBtn} onPress={refreshSignals} disabled={liveLoading || loading}>
+            {loading ? (
+              <ActivityIndicator size="small" color="#00F2FE" />
+            ) : (
+              <Text style={styles.refreshBtnText}>🔄 새로고침</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
       
       <View style={styles.filterContainer}>
@@ -295,6 +345,19 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   title: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
+  liveUpdateBtn: {
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.4)',
+  },
+  liveUpdateBtnText: {
+    color: '#FFD700',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   refreshBtn: {
     backgroundColor: 'rgba(0, 242, 254, 0.1)',
     paddingHorizontal: 12,
