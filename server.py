@@ -98,6 +98,23 @@ def trigger_export_and_push_sync():
     모바일에서 PC로 전송 후 리다이렉트 전에 호출하여,
     GitHub Pages에 최신 데이터가 반영된 상태에서 앱이 데이터를 받을 수 있게 합니다.
     """
+    import time
+    lock_file = os.path.join(BASE_DIR, ".git_sync.lock")
+    
+    # 1. 락 획득 시도 (최대 15초 대기)
+    for i in range(15):
+        if not os.path.exists(lock_file):
+            break
+        print(f"[SYNC-PUSH] ⚠️ Git 동기화 락 감지. 대기 중... ({i+1}/15)")
+        time.sleep(1)
+        
+    # 락 파일 생성
+    try:
+        with open(lock_file, "w", encoding="utf-8") as f:
+            f.write(str(os.getpid()))
+    except Exception as e:
+        print(f"[SYNC-PUSH] 락 파일 생성 실패: {e}")
+
     with _export_lock:
         try:
             # 1단계: JSON 내보내기
@@ -110,6 +127,17 @@ def trigger_export_and_push_sync():
                 print(f"[SYNC-PUSH] ❌ JSON 내보내기 실패: {result.stderr[:300]}")
                 return False
             print("[SYNC-PUSH] ✅ JSON 내보내기 완료")
+
+            # 1-5단계: 신호 데이터(이평선/RSI) 내보내기
+            print("[SYNC-PUSH] 1-5. 신호 데이터(이평선/RSI) 내보내기 시작...")
+            result_sig = subprocess.run(
+                [sys.executable, "export_signals.py"],
+                capture_output=True, text=True, encoding="utf-8", timeout=300
+            )
+            if result_sig.returncode != 0:
+                print(f"[SYNC-PUSH] ❌ 신호 데이터 내보내기 실패: {result_sig.stderr[:300]}")
+            else:
+                print("[SYNC-PUSH] ✅ 신호 데이터 내보내기 완료")
 
             # 2단계: 모바일 데이터 복사 (StockPortfolioApp/public/data → mobile/data)
             print("[SYNC-PUSH] 2. 모바일 데이터 복사 중...")
@@ -157,6 +185,13 @@ def trigger_export_and_push_sync():
         except Exception as e:
             print(f"[SYNC-PUSH] ❌ 예외 발생: {e}")
             return False
+        finally:
+            # 락 해제
+            if os.path.exists(lock_file):
+                try:
+                    os.remove(lock_file)
+                except:
+                    pass
 
 # ==================== 유틸리티 함수 (취소선 처리) ====================
 def parse_strikethrough_text(text):

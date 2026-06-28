@@ -56,7 +56,20 @@ def run_git_upload():
     if _is_uploading:
         log.info("이미 업로드 진행 중 — 건너뜀")
         return False
+
+    lock_file = os.path.join(PROJECT_DIR, ".git_sync.lock")
+    if os.path.exists(lock_file):
+        log.info("로컬 서버가 현재 모바일 동기화를 진행 중입니다. 자동 업로드를 잠시 지연합니다.")
+        return False
+
     _is_uploading = True
+    
+    try:
+        with open(lock_file, "w", encoding="utf-8") as f:
+            f.write(str(os.getpid()))
+    except Exception as e:
+        log.error(f"락 파일 생성 실패: {e}")
+
     log.info("=== GitHub 자동 업로드 시작 ===")
 
     try:
@@ -148,6 +161,13 @@ def run_git_upload():
         log.error(f"   예외 발생: {e}")
         return False
     finally:
+        # 락 해제
+        lock_file = os.path.join(PROJECT_DIR, ".git_sync.lock")
+        if os.path.exists(lock_file):
+            try:
+                os.remove(lock_file)
+            except:
+                pass
         _is_uploading = False
 
 
