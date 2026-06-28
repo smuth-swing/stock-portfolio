@@ -144,7 +144,7 @@ export default function SignalScreen() {
   }, [category, portfolioMap, investigation, isGitHubPages]);
 
   // CORS 프록시를 순차 시도하는 헬퍼 함수
-  const fetchWithProxy = async (targetUrl: string, timeoutMs: number = 3500): Promise<any> => {
+  const fetchWithProxy = async (targetUrl: string, timeoutMs: number = 8000): Promise<any> => {
     const proxies = [
       // 1순위: allorigins 표준 GET (CORS 헤더 제공)
       async (url: string, signal: AbortSignal) => {
@@ -158,34 +158,39 @@ export default function SignalScreen() {
         }
         throw new Error('AllOrigins contents missing');
       },
-      // 2순위: thingproxy
+      // 2순위: codetabs proxy (아주 빠르고 깔끔한 raw JSON 응답 제공)
       async (url: string, signal: AbortSignal) => {
-        const proxyUrl = `https://thingproxy.freeboard.io/fetch/${url}`;
+        const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
         const res = await fetch(proxyUrl, { signal });
         if (res.ok) {
           return await res.json();
         }
-        throw new Error('Thingproxy fail');
+        throw new Error('Codetabs proxy fail');
       },
-      // 3순위: corsproxy.io
+      // 3순위: yacdn proxy
       async (url: string, signal: AbortSignal) => {
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        const proxyUrl = `https://yacdn.org/proxy/${url}`;
         const res = await fetch(proxyUrl, { signal });
         if (res.ok) {
           return await res.json();
         }
-        throw new Error('Corsproxy.io fail');
+        throw new Error('Yacdn proxy fail');
       }
     ];
 
     for (let i = 0; i < proxies.length; i++) {
+      let timeoutId: any = null;
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        timeoutId = setTimeout(() => {
+          try { controller.abort(); } catch(e){}
+        }, timeoutMs);
+        
         const data = await proxies[i](targetUrl, controller.signal);
         clearTimeout(timeoutId);
         return data;
       } catch (err) {
+        if (timeoutId) clearTimeout(timeoutId);
         console.warn(`Proxy ${i + 1} failed for ${targetUrl}:`, err);
       }
     }
