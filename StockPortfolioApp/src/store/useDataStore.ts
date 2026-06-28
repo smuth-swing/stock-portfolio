@@ -189,8 +189,8 @@ export const useDataStore = create<AppState>((set, get) => ({
     const syncPromises = DATA_KEYS.map(async ({ k, s }) => {
       try {
         const result = await fetchJSON(k as any);
-        if (s === 'targetPrices' && result) {
-          set((state: any) => ({ ...state, [s]: result }));
+        if (s === 'targetPrices' && result && result.data) {
+          set((state: any) => ({ ...state, [s]: result.data }));
           anyServerLoaded = true;
         } else if (result && result.data && isValidData(result.data)) {
           set((state: any) => ({ ...state, [s]: applyQueueToData(s, result.data, state.syncQueue) }));
