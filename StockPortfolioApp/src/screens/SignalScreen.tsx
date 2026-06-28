@@ -144,29 +144,47 @@ export default function SignalScreen() {
   }, [category, portfolioMap, investigation, isGitHubPages]);
 
   // CORS 프록시를 순차 시도하는 헬퍼 함수
-  const fetchWithProxy = async (targetUrl: string, timeoutMs: number = 3000): Promise<any> => {
+  const fetchWithProxy = async (targetUrl: string, timeoutMs: number = 3500): Promise<any> => {
     const proxies = [
-      (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-      (url: string) => `https://thingproxy.freeboard.io/fetch/${url}`,
-      (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`
+      // 1순위: allorigins 표준 GET (CORS 헤더 제공)
+      async (url: string, signal: AbortSignal) => {
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        const res = await fetch(proxyUrl, { signal });
+        if (res.ok) {
+          const resJson = await res.json();
+          if (resJson && resJson.contents) {
+            return JSON.parse(resJson.contents);
+          }
+        }
+        throw new Error('AllOrigins contents missing');
+      },
+      // 2순위: thingproxy
+      async (url: string, signal: AbortSignal) => {
+        const proxyUrl = `https://thingproxy.freeboard.io/fetch/${url}`;
+        const res = await fetch(proxyUrl, { signal });
+        if (res.ok) {
+          return await res.json();
+        }
+        throw new Error('Thingproxy fail');
+      },
+      // 3순위: corsproxy.io
+      async (url: string, signal: AbortSignal) => {
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        const res = await fetch(proxyUrl, { signal });
+        if (res.ok) {
+          return await res.json();
+        }
+        throw new Error('Corsproxy.io fail');
+      }
     ];
 
     for (let i = 0; i < proxies.length; i++) {
       try {
-        const proxyUrl = proxies[i](targetUrl);
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-        
-        const res = await fetch(proxyUrl, { signal: controller.signal });
+        const data = await proxies[i](targetUrl, controller.signal);
         clearTimeout(timeoutId);
-
-        if (res.ok) {
-          const json = await res.json();
-          if (typeof json === 'string') {
-            return JSON.parse(json);
-          }
-          return json;
-        }
+        return data;
       } catch (err) {
         console.warn(`Proxy ${i + 1} failed for ${targetUrl}:`, err);
       }
