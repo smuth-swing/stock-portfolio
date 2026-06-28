@@ -600,7 +600,7 @@ async function refreshSignalPrices(forceUpdate = false) {
                     if (tp) {
                         const high_1w = data.high_1w || current;
                         const low_1w = data.low_1w || current;
-                        if (high_1w >= tp && low_1w <= tp) {
+                        if (current <= tp || (high_1w >= tp && low_1w <= tp)) {
                             isTargetReached = true;
                         }
                     }

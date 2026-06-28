@@ -197,7 +197,7 @@ export default function SignalScreen() {
     if (targetPrice) {
       const high_1w = data.high_1w || current;
       const low_1w = data.low_1w || current;
-      if (current >= targetPrice || (high_1w >= targetPrice && low_1w <= targetPrice)) {
+      if (current <= targetPrice || (high_1w >= targetPrice && low_1w <= targetPrice)) {
         isTargetReached = true;
       }
     }
