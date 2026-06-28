@@ -106,9 +106,17 @@ export default function InvestigationScreen() {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('sync') === 'success') {
-        markQueueAsSynced().then(() => {
-          alert('✅ 성공적으로 PC 서버에 전송되었습니다.\n데이터는 잠시 후 화면에 반영됩니다.');
-          window.history.replaceState({}, document.title, window.location.pathname);
+        // URL 파라미터 즉시 정리 (새로고침 시 중복 처리 방지)
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // ★ PC 전송 완료 처리: 큐를 즉시 삭제하고 서버 데이터를 새로고침
+        // server.py에서 이미 JSON 내보내기 + Git Push를 동기적으로 완료한 상태이므로
+        // GitHub Pages에서 최신 데이터를 받을 수 있습니다.
+        const { clearSyncQueue } = useDataStore.getState();
+        clearSyncQueue().then(() => {
+          alert('✅ PC 서버에 정상 반영되었습니다.\n최신 데이터를 불러옵니다.');
+          // 서버 데이터 새로고침 (큐가 비어있으므로 오버레이 없이 순수 서버 데이터 적용)
+          refreshDataRef.current();
         });
       }
     }

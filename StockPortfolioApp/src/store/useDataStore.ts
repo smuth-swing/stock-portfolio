@@ -75,6 +75,8 @@ const applyQueueToData = (dataKey: string, dataObj: any, queue: any[]) => {
   if (!queue || queue.length === 0 || !dataObj || !dataObj.data) return dataObj;
   
   const newData = { ...dataObj, data: [...dataObj.data] };
+  // ★ columns는 dataObj에서 직접 참조 (스프레드 시 누락 방지)
+  const columns = dataObj.columns || [];
   
   queue.forEach(edit => {
     if (edit.sheet === '탐구생활' && dataKey === 'investigation') {
@@ -82,7 +84,7 @@ const applyQueueToData = (dataKey: string, dataObj: any, queue: any[]) => {
       if (newData.data[idx]) {
         newData.data[idx] = { ...newData.data[idx] };
         edit.values.forEach((val: any, i: number) => {
-           const colName = newData.columns[i];
+           const colName = columns[i];
            if (colName) {
                newData.data[idx][colName] = val;
            }
@@ -277,26 +279,38 @@ export const useDataStore = create<AppState>((set, get) => ({
 
   markQueueAsSynced: async () => {
     const { syncQueue } = get();
-    const newQueue = syncQueue.map(item => ({ ...item, isPendingSync: false }));
+    // ★ PC 서버 전송 완료: isPendingSync를 false로, sentAt에 전송 시각 기록
+    const now = new Date().toISOString();
+    const newQueue = syncQueue.map(item => ({ ...item, isPendingSync: false, sentAt: now }));
     set({ syncQueue: newQueue });
     await AsyncStorage.setItem('@sync_queue', JSON.stringify(newQueue));
+    console.log(`[useDataStore] 📤 큐 ${newQueue.length}건 PC 전송 완료 표시`);
   },
 
   cleanupSyncQueue: async () => {
     const { syncQueue, meta } = get();
-    if (!meta || !meta.updated_at || !syncQueue || syncQueue.length === 0) return;
+    if (!syncQueue || syncQueue.length === 0) return;
+    if (!meta || !meta.updated_at) return;
     
     const serverTime = new Date(meta.updated_at).getTime();
+    // ★ 서버 시간에 30초 마진 적용 (export → git push → CDN 반영 지연 보정)
+    const MARGIN_MS = 30000;
     const newQueue = syncQueue.filter(edit => {
       if (!edit.timestamp) return false; // 예외 방지용 (이전 구조)
+      
+      // 아직 PC로 전송하지 않은 항목은 무조건 유지
+      if (edit.isPendingSync !== false) return true;
+      
       const editTime = new Date(edit.timestamp).getTime();
-      return editTime > serverTime; // 서버 갱신 시각보다 늦게 작성된 것만 유지
+      // 서버 갱신 시각 + 마진보다 이전에 작성된 편집만 삭제
+      // (서버에서 이미 반영된 것으로 간주)
+      return editTime > (serverTime + MARGIN_MS);
     });
     
     if (newQueue.length !== syncQueue.length) {
       set({ syncQueue: newQueue });
       await AsyncStorage.setItem('@sync_queue', JSON.stringify(newQueue));
-      console.log(`[useDataStore] 🧹 서버에 이미 반영된 큐 ${syncQueue.length - newQueue.length}개 정리 완료`);
+      console.log(`[useDataStore] 🧹 서버에 이미 반영된 큐 ${syncQueue.length - newQueue.length}개 정리 완료 (남은 큐: ${newQueue.length}건)`);
     }
   }
 }));

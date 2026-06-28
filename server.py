@@ -73,7 +73,7 @@ ONEDRIVE_PATH = find_target_onedrive_path()
 _export_lock = threading.Lock()
 
 def trigger_export():
-    """데이터 변경 시 export_to_json.py를 실행하여 앱용 JSON 갱신"""
+    """데이터 변경 시 export_to_json.py를 실행하여 앱용 JSON 갱신 (비동기)"""
     def run():
         # 이미 변환 중이면 새 요청 무시 (충돌 및 IO 과부하 방지)
         if not _export_lock.acquire(blocking=False):
@@ -90,6 +90,73 @@ def trigger_export():
 
     # 서버 응답을 방해하지 않도록 별도 스레드에서 실행
     threading.Thread(target=run).start()
+
+
+def trigger_export_and_push_sync():
+    """동기적으로 JSON 내보내기 + Git Push까지 실행 (sync-receive 전용)
+    
+    모바일에서 PC로 전송 후 리다이렉트 전에 호출하여,
+    GitHub Pages에 최신 데이터가 반영된 상태에서 앱이 데이터를 받을 수 있게 합니다.
+    """
+    with _export_lock:
+        try:
+            # 1단계: JSON 내보내기
+            print("[SYNC-PUSH] 1. JSON 내보내기 시작...")
+            result = subprocess.run(
+                [sys.executable, "export_to_json.py"],
+                capture_output=True, text=True, encoding="utf-8", timeout=180
+            )
+            if result.returncode != 0:
+                print(f"[SYNC-PUSH] ❌ JSON 내보내기 실패: {result.stderr[:300]}")
+                return False
+            print("[SYNC-PUSH] ✅ JSON 내보내기 완료")
+
+            # 2단계: 모바일 데이터 복사 (StockPortfolioApp/public/data → mobile/data)
+            print("[SYNC-PUSH] 2. 모바일 데이터 복사 중...")
+            src = os.path.join(BASE_DIR, "StockPortfolioApp", "public", "data")
+            dst = os.path.join(BASE_DIR, "mobile", "data")
+            if os.path.exists(src):
+                subprocess.run(
+                    f'xcopy "{src}" "{dst}" /E /I /Y',
+                    shell=True, capture_output=True, timeout=30
+                )
+            print("[SYNC-PUSH] ✅ 모바일 데이터 복사 완료")
+
+            # 3단계: Git add + commit + push
+            print("[SYNC-PUSH] 3. Git push 시작...")
+            subprocess.run(["git", "add", "."], cwd=BASE_DIR, capture_output=True, timeout=30)
+            
+            from datetime import datetime as dt
+            commit_msg = f"Mobile sync update {dt.now().strftime('%Y-%m-%d %H:%M')}"
+            commit_result = subprocess.run(
+                ["git", "commit", "-m", commit_msg],
+                cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", timeout=30
+            )
+            if commit_result.returncode != 0 and "nothing to commit" in commit_result.stdout:
+                print("[SYNC-PUSH] 변경사항 없음, 커밋 건너뜀")
+                return True
+
+            env = os.environ.copy()
+            env["GCM_INTERACTIVE"] = "never"
+            env["GIT_TERMINAL_PROMPT"] = "0"
+            push_result = subprocess.run(
+                ["git", "push", "origin", "main"],
+                cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8",
+                timeout=120, env=env
+            )
+            if push_result.returncode == 0:
+                print("[SYNC-PUSH] ✅ GitHub push 완료!")
+                return True
+            else:
+                print(f"[SYNC-PUSH] ❌ GitHub push 실패: {push_result.stderr[:300]}")
+                return False
+
+        except subprocess.TimeoutExpired as e:
+            print(f"[SYNC-PUSH] ❌ 시간 초과: {e}")
+            return False
+        except Exception as e:
+            print(f"[SYNC-PUSH] ❌ 예외 발생: {e}")
+            return False
 
 # ==================== 유틸리티 함수 (취소선 처리) ====================
 def parse_strikethrough_text(text):
@@ -694,30 +761,66 @@ def sync_receive():
                 try: wb.close()
                 except: pass
 
-        # 아이폰 앱용 데이터 자동 갱신
-        trigger_export()
+        # ★ 모바일 동기화: JSON 내보내기 + Git Push를 동기적으로 실행
+        # 비동기 trigger_export() 대신 동기적으로 실행하여
+        # GitHub Pages에 최신 데이터가 반영된 후 리다이렉트합니다.
+        push_success = trigger_export_and_push_sync()
 
-        return """
-        <html>
-        <head>
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <script>
-            // 전송 완료 시 즉시 돌아가기
-            window.location.href = 'https://smuth-swing.github.io/stock-portfolio/mobile/?sync=success';
-          </script>
-          <style>
-            body { background: #0F172A; color: white; font-family: sans-serif; text-align: center; padding-top: 100px; }
-            h2 { color: #00F2FE; }
-            button { background: #00F2FE; color: #0F172A; border: none; padding: 15px 30px; border-radius: 10px; font-size: 18px; font-weight: bold; margin-top: 30px; cursor: pointer; }
-          </style>
-        </head>
-        <body>
-          <h2>✅ 데이터 전송 중...</h2>
-          <p>앱으로 돌아갑니다...</p>
-          <button onclick="window.location.href='https://smuth-swing.github.io/stock-portfolio/mobile/?sync=success'">돌아가기</button>
-        </body>
-        </html>
-        """
+        if push_success:
+            return """
+            <html>
+            <head>
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <script>
+                // GitHub Pages CDN 반영 대기 (약 5초) 후 리다이렉트
+                setTimeout(function() {
+                  window.location.href = 'https://smuth-swing.github.io/stock-portfolio/mobile/?sync=success';
+                }, 5000);
+              </script>
+              <style>
+                body { background: #0F172A; color: white; font-family: sans-serif; text-align: center; padding-top: 100px; }
+                h2 { color: #00F2FE; }
+                p { color: #94A3B8; font-size: 16px; margin-top: 20px; }
+                .spinner { display: inline-block; width: 40px; height: 40px; border: 4px solid rgba(0,242,254,0.2); border-top: 4px solid #00F2FE; border-radius: 50%; animation: spin 1s linear infinite; margin-top: 30px; }
+                @keyframes spin { to { transform: rotate(360deg); } }
+                button { background: #00F2FE; color: #0F172A; border: none; padding: 15px 30px; border-radius: 10px; font-size: 18px; font-weight: bold; margin-top: 30px; cursor: pointer; }
+              </style>
+            </head>
+            <body>
+              <h2>✅ PC 서버 반영 완료!</h2>
+              <p>GitHub Pages 반영 대기 중... (약 5초)</p>
+              <div class="spinner"></div>
+              <br>
+              <button onclick="window.location.href='https://smuth-swing.github.io/stock-portfolio/mobile/?sync=success'">바로 돌아가기</button>
+            </body>
+            </html>
+            """
+        else:
+            # Push 실패 시에도 엑셀에는 이미 저장되었으므로, 큐 정리를 위해 success로 리다이렉트
+            return """
+            <html>
+            <head>
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <script>
+                setTimeout(function() {
+                  window.location.href = 'https://smuth-swing.github.io/stock-portfolio/mobile/?sync=success';
+                }, 3000);
+              </script>
+              <style>
+                body { background: #0F172A; color: white; font-family: sans-serif; text-align: center; padding-top: 100px; }
+                h2 { color: #EAB308; }
+                p { color: #94A3B8; font-size: 14px; margin-top: 15px; }
+                button { background: #EAB308; color: #422006; border: none; padding: 15px 30px; border-radius: 10px; font-size: 18px; font-weight: bold; margin-top: 30px; cursor: pointer; }
+              </style>
+            </head>
+            <body>
+              <h2>⚠️ PC에 저장됨 (GitHub 반영은 잠시 후)</h2>
+              <p>엑셀 파일에는 정상 저장되었습니다.</p>
+              <p>GitHub Pages 반영은 자동 업로더가 곧 처리합니다.</p>
+              <button onclick="window.location.href='https://smuth-swing.github.io/stock-portfolio/mobile/?sync=success'">돌아가기</button>
+            </body>
+            </html>
+            """
     except Exception as e:
         import traceback
         print(traceback.format_exc())
