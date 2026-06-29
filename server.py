@@ -1260,6 +1260,115 @@ def ls_moving_averages():
         return jsonify({'error': f'이동평균선 조회 실패: {str(e)}'}), 500
 
 
+# ── 신호 데이터 원격 갱신 (모바일 → PC 서버 트리거) ──
+_signal_refresh_lock = threading.Lock()
+
+@app.route('/api/refresh-signals', methods=['GET', 'POST'])
+def refresh_signals():
+    """
+    모바일에서 호출하여 신호 데이터(이평선/RSI)를 갱신하고 GitHub에 반영.
+    CORS 프록시 없이 모바일에서도 최신 시세를 확인할 수 있게 합니다.
+    
+    동작 흐름:
+    1. export_signals.py 실행 (LS증권 API로 최신 이평선/RSI 수집)
+    2. StockPortfolioApp/public/data → mobile/data 복사
+    3. Git add + commit + push (GitHub Pages 반영)
+    4. 완료 시 JSON 응답 반환
+    """
+    if not _signal_refresh_lock.acquire(blocking=False):
+        return jsonify({
+            'success': False,
+            'message': '이미 신호 데이터 갱신이 진행 중입니다. 잠시 후 다시 시도하세요.'
+        }), 429  # Too Many Requests
+
+    try:
+        import time as _time
+
+        # 1단계: export_signals.py 실행 (이평선/RSI 수집)
+        print("[REFRESH-SIGNALS] 1. 신호 데이터(이평선/RSI) 수집 시작...")
+        result_sig = subprocess.run(
+            [sys.executable, os.path.join(BASE_DIR, "export_signals.py")],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            cwd=BASE_DIR, timeout=600  # 종목 수에 따라 시간이 걸릴 수 있음
+        )
+        if result_sig.returncode != 0:
+            print(f"[REFRESH-SIGNALS] ❌ 수집 실패: {result_sig.stderr[:500]}")
+            return jsonify({
+                'success': False,
+                'message': f'신호 데이터 수집 실패: {result_sig.stderr[:200]}'
+            }), 500
+        print("[REFRESH-SIGNALS] ✅ 신호 데이터 수집 완료")
+
+        # 2단계: mobile/data 로 복사
+        print("[REFRESH-SIGNALS] 2. 모바일 데이터 복사 중...")
+        src = os.path.join(BASE_DIR, "StockPortfolioApp", "public", "data")
+        dst = os.path.join(BASE_DIR, "mobile", "data")
+        if os.path.exists(src):
+            subprocess.run(
+                f'xcopy "{src}" "{dst}" /E /I /Y',
+                shell=True, capture_output=True, timeout=30
+            )
+        print("[REFRESH-SIGNALS] ✅ 모바일 데이터 복사 완료")
+
+        # 3단계: Git push
+        print("[REFRESH-SIGNALS] 3. Git push 시작...")
+        subprocess.run(["git", "add", "."], cwd=BASE_DIR, capture_output=True, timeout=30)
+        
+        from datetime import datetime as dt
+        commit_msg = f"Signal refresh {dt.now().strftime('%Y-%m-%d %H:%M')}"
+        commit_result = subprocess.run(
+            ["git", "commit", "-m", commit_msg],
+            cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30
+        )
+        
+        if commit_result.returncode != 0 and "nothing to commit" in commit_result.stdout:
+            print("[REFRESH-SIGNALS] 변경사항 없음 (이미 최신)")
+            return jsonify({
+                'success': True,
+                'message': '신호 데이터가 이미 최신 상태입니다.',
+                'pushed': False
+            })
+
+        env = os.environ.copy()
+        env["GCM_INTERACTIVE"] = "never"
+        env["GIT_TERMINAL_PROMPT"] = "0"
+        push_result = subprocess.run(
+            ["git", "push", "origin", "main"],
+            cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=120, env=env
+        )
+        
+        if push_result.returncode == 0:
+            print("[REFRESH-SIGNALS] ✅ GitHub push 완료!")
+            return jsonify({
+                'success': True,
+                'message': '신호 데이터 갱신 및 GitHub 반영 완료! 약 10초 후 새로고침하면 최신 데이터가 표시됩니다.',
+                'pushed': True
+            })
+        else:
+            print(f"[REFRESH-SIGNALS] ❌ GitHub push 실패: {push_result.stderr[:300]}")
+            return jsonify({
+                'success': True,
+                'message': '신호 데이터 수집은 완료했으나, GitHub 반영에 실패했습니다. 잠시 후 자동 업로더가 처리합니다.',
+                'pushed': False
+            })
+
+    except subprocess.TimeoutExpired:
+        print("[REFRESH-SIGNALS] ❌ 시간 초과")
+        return jsonify({
+            'success': False,
+            'message': '신호 데이터 수집 시간 초과 (10분). 종목 수가 너무 많을 수 있습니다.'
+        }), 500
+    except Exception as e:
+        print(f"[REFRESH-SIGNALS] ❌ 예외 발생: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'오류 발생: {str(e)}'
+        }), 500
+    finally:
+        _signal_refresh_lock.release()
+
+
 if __name__ == '__main__':
     print("=" * 60)
     print("  Stock Portfolio Analysis Server")
