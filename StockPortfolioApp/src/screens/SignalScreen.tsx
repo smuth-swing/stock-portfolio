@@ -8,7 +8,6 @@ export default function SignalScreen() {
   const [category, setCategory] = useState<'portfolio' | 'priority'>('portfolio');
   const [signals, setSignals] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
-  const [liveLoading, setLiveLoading] = useState(false);
   const [stockCodes, setStockCodes] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -143,108 +142,7 @@ export default function SignalScreen() {
     setLoading(false);
   }, [category, portfolioMap, investigation, isGitHubPages]);
 
-  const handleLiveUpdate = async () => {
-    if (liveLoading || loading) return;
-    
-    const stocks = category === 'portfolio' ? getPortfolioStocks() : getPriorityStocks();
-    if (stocks.length === 0) return;
 
-    setLiveLoading(true);
-    
-    // 1단계: 로컬 PC API 연결 확인 (타임아웃 3초)
-    let pcReachable = false;
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
-      const testRes = await fetch(`${API_BASE}/api/ping`, { signal: controller.signal });
-      clearTimeout(timeoutId);
-      pcReachable = testRes.ok;
-    } catch (e) {
-      pcReachable = false;
-    }
-
-    if (!pcReachable) {
-      alert('PC 서버에 연결할 수 없습니다.\n서버가 켜져 있는지 확인해주세요.\n\n(현재 데이터는 마지막 동기화 기준입니다)');
-      setLiveLoading(false);
-      return;
-    }
-
-    const newSignals: Record<string, any> = { ...signals };
-
-    if (isGitHubPages) {
-      // ── GitHub Pages 모바일 환경: PC 서버에 시그널 갱신 요청 후 JSON 새로고침 ──
-      try {
-        // 모든 카드에 로딩 표시
-        for (const stock of stocks) {
-          setSignals(prev => ({ ...prev, [stock]: { ...prev[stock], loading: true } }));
-        }
-
-        // PC 서버에 시그널 갱신 요청 (export_signals.py 실행 + GitHub push)
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 600000); // 10분 타임아웃
-        const refreshRes = await fetch(`${API_BASE}/api/refresh-signals`, {
-          method: 'POST',
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-
-        if (!refreshRes.ok) {
-          const errData = await refreshRes.json().catch(() => null);
-          throw new Error(errData?.message || `서버 오류 (${refreshRes.status})`);
-        }
-
-        const result = await refreshRes.json();
-        
-        if (result.pushed) {
-          // GitHub Pages CDN 반영 대기 (약 15초)
-          alert('✅ 시그널 데이터 갱신 완료!\n\nGitHub Pages 반영까지 약 15초 소요됩니다.\n확인을 누르면 자동으로 새로고침합니다.');
-          
-          // 대기 후 moving_averages.json 새로고침
-          await new Promise(resolve => setTimeout(resolve, 15000));
-        }
-        
-        // JSON 파일 새로고침으로 최신 데이터 로드
-        const ts = new Date().getTime();
-        const res = await fetch(`data/moving_averages.json?t=${ts}`);
-        if (res.ok) {
-          const cachedSignals = await res.json();
-          for (const stock of stocks) {
-            const data = cachedSignals[stock];
-            if (data && data.current) {
-              newSignals[stock] = { ...data, loading: false };
-            } else {
-              newSignals[stock] = { ...signals[stock], loading: false };
-            }
-          }
-        }
-        setSignals(newSignals);
-        
-      } catch (err: any) {
-        console.error('시그널 갱신 실패:', err);
-        // 로딩 상태 해제
-        for (const stock of stocks) {
-          newSignals[stock] = { ...signals[stock], loading: false };
-        }
-        setSignals(newSignals);
-        
-        if (err.name === 'AbortError') {
-          alert('시그널 갱신 시간 초과 (10분).\n종목 수가 너무 많을 수 있습니다.');
-        } else {
-          alert(`시그널 갱신 실패:\n${err.message || err}`);
-        }
-      }
-    } else {
-      // ── 로컬 PC 환경: LS API 실시간 순차 조회 ──
-      for (const stock of stocks) {
-        setSignals(prev => ({ ...prev, [stock]: { ...prev[stock], loading: true } }));
-        const data = await fetchSignal(stock);
-        newSignals[stock] = data ? { ...data, loading: false } : { error: true, loading: false };
-        setSignals(prev => ({ ...prev, [stock]: newSignals[stock] }));
-      }
-    }
-
-    setLiveLoading(false);
-  };
 
   useEffect(() => {
     refreshSignals();
@@ -371,18 +269,7 @@ export default function SignalScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>신호 포착 🎯</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity 
-            style={[styles.liveUpdateBtn, { marginRight: 8 }]} 
-            onPress={handleLiveUpdate} 
-            disabled={liveLoading || loading}
-          >
-            {liveLoading ? (
-              <ActivityIndicator size="small" color="#FFD700" />
-            ) : (
-              <Text style={styles.liveUpdateBtnText}>⚡ 실시간 업데이트</Text>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.refreshBtn} onPress={refreshSignals} disabled={liveLoading || loading}>
+          <TouchableOpacity style={styles.refreshBtn} onPress={refreshSignals} disabled={loading}>
             {loading ? (
               <ActivityIndicator size="small" color="#00F2FE" />
             ) : (
@@ -429,19 +316,7 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   title: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
-  liveUpdateBtn: {
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.4)',
-  },
-  liveUpdateBtnText: {
-    color: '#FFD700',
-    fontSize: 14,
-    fontWeight: '600',
-  },
+
   refreshBtn: {
     backgroundColor: 'rgba(0, 242, 254, 0.1)',
     paddingHorizontal: 12,
