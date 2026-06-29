@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # 절전 모드 탄력성 설정 스크립트
 # - PC 절전은 허용하되, 앱 접근성을 유지/복구하기 위한 설정
 # - 관리자 권한으로 실행 필요
@@ -11,13 +11,10 @@ Write-Host "  절전 모드 탄력성 설정" -ForegroundColor Cyan
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# ── 1. 관리자 권한 확인 ──────────────────────────────────────
-$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-if (-not $isAdmin) {
-    Write-Host "[오류] 관리자 권한이 필요합니다." -ForegroundColor Red
-    Write-Host "  이 스크립트를 우클릭 → '관리자 권한으로 실행' 해주세요." -ForegroundColor Yellow
-    Read-Host "엔터를 눌러 종료"
-    exit 1
+# ── 1. 관리자 권한 확인 및 자동 획득 ──────────────────────────
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+    exit
 }
 
 # ── 2. 네트워크 어댑터 절전 방지 설정 ───────────────────────

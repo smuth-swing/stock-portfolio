@@ -1,6 +1,12 @@
-# register_health_check_admin.ps1
+﻿# register_health_check_admin.ps1
 # 이 파일을 우클릭 → "PowerShell로 실행" 하거나
 # 관리자 PowerShell에서: .\register_health_check_admin.ps1
+
+# 관리자 권한 자동 획득
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+    exit
+}
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
@@ -8,11 +14,11 @@ $taskName = "StockPortfolioHealthCheck"
 $ps1File  = "C:\Users\zerod\.antigravity\주식 포트폴리오 관리\check_and_restart_server.ps1"
 
 Write-Host "=== 서버 헬스체크 스케줄러 등록 ===" -ForegroundColor Cyan
-Write-Host "  70분마다 Flask 서버 상태 확인 및 자동 재시작"
+Write-Host "  10분마다 Flask 서버 상태 확인 및 자동 재시작"
 Write-Host ""
 
 # 기존 작업 삭제
-Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
 Write-Host "[1] 기존 작업 정리 완료"
 
 # 액션 정의
@@ -21,19 +27,21 @@ $action = New-ScheduledTaskAction `
     -Argument "-ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File `"$ps1File`"" `
     -WorkingDirectory "C:\Users\zerod\.antigravity\주식 포트폴리오 관리"
 
-# 트리거: 지금 즉시 시작, 이후 70분마다 무기한 반복
+# 트리거: 지금 즉시 시작, 이후 10분마다 무기한 반복 (10년 간)
 $trigger = New-ScheduledTaskTrigger -Once `
     -At (Get-Date).AddSeconds(10) `
-    -RepetitionInterval  (New-TimeSpan -Minutes 70) `
-    -RepetitionDuration  ([TimeSpan]::MaxValue)
+    -RepetitionInterval  (New-TimeSpan -Minutes 10) `
+    -RepetitionDuration  (New-TimeSpan -Days 3650)
 
-# 설정
+# 설정 (배터리 제한 해제 포함)
 $settings = New-ScheduledTaskSettingsSet `
     -ExecutionTimeLimit  (New-TimeSpan -Minutes 5) `
     -RestartCount        2 `
     -RestartInterval     (New-TimeSpan -Minutes 1) `
     -StartWhenAvailable `
-    -MultipleInstances   IgnoreNew
+    -MultipleInstances   IgnoreNew `
+    -DontStopIfGoingOnBatteries `
+    -AllowStartIfOnBatteries
 
 # 실행 계정
 $principal = New-ScheduledTaskPrincipal `
@@ -48,7 +56,7 @@ Register-ScheduledTask `
     -Trigger    $trigger `
     -Settings   $settings `
     -Principal  $principal `
-    -Description "70분마다 Flask 서버(포트 5000) 상태 확인 및 자동 재시작" `
+    -Description "10분마다 Flask 서버(포트 5000) 상태 확인 및 자동 재시작" `
     -Force | Out-Null
 
 Write-Host "[2] 스케줄러 등록 시도 완료"
@@ -62,7 +70,7 @@ if ($task) {
     Write-Host "  작업명   : $($task.TaskName)"
     Write-Host "  상태     : $($task.State)"
     Write-Host "  다음실행 : $($info.NextRunTime)"
-    Write-Host "  반복주기 : 70분"
+    Write-Host "  반복주기 : 10분"
     Write-Host ""
     Write-Host "수동 실행: Start-ScheduledTask -TaskName '$taskName'" -ForegroundColor Gray
 } else {

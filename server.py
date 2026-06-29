@@ -21,11 +21,20 @@ import subprocess
 import threading
 from openpyxl.styles import Font
 
-# Windows 콘솔 CP949 인코딩 충돌 방지 - stdout/stderr를 UTF-8로 강제 설정
-if sys.stdout.encoding != 'utf-8':
-    sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1)
-if sys.stderr.encoding != 'utf-8':
-    sys.stderr = open(sys.stderr.fileno(), mode='w', encoding='utf-8', buffering=1)
+# Windows 콘솔 CP949 인코딩 충돌 방지 - stdout/stderr를 UTF-8로 강제 설정 (백그라운드 예외 처리)
+try:
+    if sys.stdout and hasattr(sys.stdout, 'encoding') and sys.stdout.encoding != 'utf-8':
+        try:
+            sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1)
+        except Exception:
+            pass
+    if sys.stderr and hasattr(sys.stderr, 'encoding') and sys.stderr.encoding != 'utf-8':
+        try:
+            sys.stderr = open(sys.stderr.fileno(), mode='w', encoding='utf-8', buffering=1)
+        except Exception:
+            pass
+except Exception:
+    pass
 
 
 app = Flask(__name__, static_folder='.', static_url_path='')
@@ -97,7 +106,7 @@ def git_has_changes():
     try:
         res = subprocess.run(
             ["git", "status", "--porcelain"],
-            cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", timeout=15
+            cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15
         )
         return len(res.stdout.strip()) > 0
     except Exception as e:
