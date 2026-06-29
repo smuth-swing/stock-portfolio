@@ -25,6 +25,7 @@ export default function InvestigationScreen() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [inputHeights, setInputHeights] = useState<Record<string, number>>({
     reason: 80,
     risk: 80,
@@ -114,7 +115,10 @@ export default function InvestigationScreen() {
         // applyQueueToData 오버레이로 편집 내용을 화면에 유지합니다.
         // 서버 데이터가 반영되면 cleanupSyncQueue에서 자동으로 큐가 정리됩니다.
         markQueueAsSynced().then(() => {
-          alert('✅ PC 서버에 정상 반영되었습니다.');
+          setToastMessage('✅ PC 서버에 성공적으로 전송 및 반영되었습니다.');
+          setTimeout(() => {
+            setToastMessage(null);
+          }, 3500);
           // 서버 데이터 새로고침 (큐 오버레이가 적용되므로 편집 내용 유지됨)
           refreshDataRef.current();
         });
@@ -227,20 +231,18 @@ export default function InvestigationScreen() {
       const pcIp = meta?.server_ip || '192.168.0.2';
       const targetUrl = `http://${pcIp}:5000/api/sync-receive`;
       
-      if (confirm('PC 서버로 데이터를 전송합니다.\n보안 정책(Mixed Content) 우회를 위해 화면이 깜빡일 수 있습니다.')) {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = targetUrl;
-        
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'payload';
-        input.value = JSON.stringify(syncQueue);
-        
-        form.appendChild(input);
-        document.body.appendChild(form);
-        form.submit();
-      }
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = targetUrl;
+      
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'payload';
+      input.value = JSON.stringify(syncQueue);
+      
+      form.appendChild(input);
+      document.body.appendChild(form);
+      form.submit();
     } else {
       alert('웹(PWA) 환경에서만 동기화가 지원됩니다.');
     }
@@ -249,6 +251,11 @@ export default function InvestigationScreen() {
   return (
     <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {toastMessage && (
+          <View style={styles.toastBanner}>
+            <Text style={styles.toastBannerText}>{toastMessage}</Text>
+          </View>
+        )}
         <View style={styles.headerRow}>
           <View style={styles.filterContainer}>
             <TouchableOpacity 
@@ -548,4 +555,20 @@ const styles = StyleSheet.create({
   syncBannerText: { color: '#FDE047', fontSize: 14, fontWeight: 'bold', flex: 1 },
   syncBtn: { backgroundColor: '#EAB308', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
   syncBtnText: { color: '#422006', fontSize: 13, fontWeight: 'bold' },
+  toastBanner: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toastBannerText: {
+    color: '#34D399',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
 });
