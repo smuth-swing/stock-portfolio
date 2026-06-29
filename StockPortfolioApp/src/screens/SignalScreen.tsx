@@ -143,60 +143,6 @@ export default function SignalScreen() {
     setLoading(false);
   }, [category, portfolioMap, investigation, isGitHubPages]);
 
-  // CORS 프록시를 순차 시도하는 헬퍼 함수
-  const fetchWithProxy = async (targetUrl: string, timeoutMs: number = 8000): Promise<any> => {
-    const proxies = [
-      // 1순위: allorigins 표준 GET (CORS 헤더 제공)
-      async (url: string, signal: AbortSignal) => {
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-        const res = await fetch(proxyUrl, { signal });
-        if (res.ok) {
-          const resJson = await res.json();
-          if (resJson && resJson.contents) {
-            return JSON.parse(resJson.contents);
-          }
-        }
-        throw new Error('AllOrigins contents missing');
-      },
-      // 2순위: codetabs proxy (아주 빠르고 깔끔한 raw JSON 응답 제공)
-      async (url: string, signal: AbortSignal) => {
-        const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
-        const res = await fetch(proxyUrl, { signal });
-        if (res.ok) {
-          return await res.json();
-        }
-        throw new Error('Codetabs proxy fail');
-      },
-      // 3순위: yacdn proxy
-      async (url: string, signal: AbortSignal) => {
-        const proxyUrl = `https://yacdn.org/proxy/${url}`;
-        const res = await fetch(proxyUrl, { signal });
-        if (res.ok) {
-          return await res.json();
-        }
-        throw new Error('Yacdn proxy fail');
-      }
-    ];
-
-    for (let i = 0; i < proxies.length; i++) {
-      let timeoutId: any = null;
-      try {
-        const controller = new AbortController();
-        timeoutId = setTimeout(() => {
-          try { controller.abort(); } catch(e){}
-        }, timeoutMs);
-        
-        const data = await proxies[i](targetUrl, controller.signal);
-        clearTimeout(timeoutId);
-        return data;
-      } catch (err) {
-        if (timeoutId) clearTimeout(timeoutId);
-        console.warn(`Proxy ${i + 1} failed for ${targetUrl}:`, err);
-      }
-    }
-    throw new Error('All CORS proxies failed');
-  };
-
   const handleLiveUpdate = async () => {
     if (liveLoading || loading) return;
     
@@ -205,74 +151,94 @@ export default function SignalScreen() {
 
     setLiveLoading(true);
     
-    let useLocalPC = true;
-
-    // 1단계: 로컬 PC API 연결 확인 (타임아웃 2초)
+    // 1단계: 로컬 PC API 연결 확인 (타임아웃 3초)
+    let pcReachable = false;
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000);
-      const testRes = await fetch(`${API_BASE}/api/ls/moving-averages?name=${encodeURIComponent(stocks[0])}`, {
-        signal: controller.signal
-      });
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const testRes = await fetch(`${API_BASE}/api/ping`, { signal: controller.signal });
       clearTimeout(timeoutId);
-      if (!testRes.ok) throw new Error('Connect fail');
+      pcReachable = testRes.ok;
     } catch (e) {
-      // 로컬 PC 연결 실패 시, 외부 실시간 시세 조회 모드로 전환
-      useLocalPC = false;
-      alert(`로컬 PC 서버가 꺼져 있습니다.\n외부 시세 API(네이버 금융)를 연동하여 모바일 단독 실시간 현재가 조회를 시작합니다.`);
+      pcReachable = false;
+    }
+
+    if (!pcReachable) {
+      alert('PC 서버에 연결할 수 없습니다.\n서버가 켜져 있는지 확인해주세요.\n\n(현재 데이터는 마지막 동기화 기준입니다)');
+      setLiveLoading(false);
+      return;
     }
 
     const newSignals: Record<string, any> = { ...signals };
 
-    if (useLocalPC) {
-      // 로컬 PC API 순차 실시간 조회 실행 (고정밀 이평선 분석 데이터 갱신)
+    if (isGitHubPages) {
+      // ── GitHub Pages 모바일 환경: PC 서버에 시그널 갱신 요청 후 JSON 새로고침 ──
+      try {
+        // 모든 카드에 로딩 표시
+        for (const stock of stocks) {
+          setSignals(prev => ({ ...prev, [stock]: { ...prev[stock], loading: true } }));
+        }
+
+        // PC 서버에 시그널 갱신 요청 (export_signals.py 실행 + GitHub push)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 600000); // 10분 타임아웃
+        const refreshRes = await fetch(`${API_BASE}/api/refresh-signals`, {
+          method: 'POST',
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (!refreshRes.ok) {
+          const errData = await refreshRes.json().catch(() => null);
+          throw new Error(errData?.message || `서버 오류 (${refreshRes.status})`);
+        }
+
+        const result = await refreshRes.json();
+        
+        if (result.pushed) {
+          // GitHub Pages CDN 반영 대기 (약 15초)
+          alert('✅ 시그널 데이터 갱신 완료!\n\nGitHub Pages 반영까지 약 15초 소요됩니다.\n확인을 누르면 자동으로 새로고침합니다.');
+          
+          // 대기 후 moving_averages.json 새로고침
+          await new Promise(resolve => setTimeout(resolve, 15000));
+        }
+        
+        // JSON 파일 새로고침으로 최신 데이터 로드
+        const ts = new Date().getTime();
+        const res = await fetch(`data/moving_averages.json?t=${ts}`);
+        if (res.ok) {
+          const cachedSignals = await res.json();
+          for (const stock of stocks) {
+            const data = cachedSignals[stock];
+            if (data && data.current) {
+              newSignals[stock] = { ...data, loading: false };
+            } else {
+              newSignals[stock] = { ...signals[stock], loading: false };
+            }
+          }
+        }
+        setSignals(newSignals);
+        
+      } catch (err: any) {
+        console.error('시그널 갱신 실패:', err);
+        // 로딩 상태 해제
+        for (const stock of stocks) {
+          newSignals[stock] = { ...signals[stock], loading: false };
+        }
+        setSignals(newSignals);
+        
+        if (err.name === 'AbortError') {
+          alert('시그널 갱신 시간 초과 (10분).\n종목 수가 너무 많을 수 있습니다.');
+        } else {
+          alert(`시그널 갱신 실패:\n${err.message || err}`);
+        }
+      }
+    } else {
+      // ── 로컬 PC 환경: LS API 실시간 순차 조회 ──
       for (const stock of stocks) {
         setSignals(prev => ({ ...prev, [stock]: { ...prev[stock], loading: true } }));
         const data = await fetchSignal(stock);
         newSignals[stock] = data ? { ...data, loading: false } : { error: true, loading: false };
-        setSignals(prev => ({ ...prev, [stock]: newSignals[stock] }));
-      }
-    } else {
-      // 모바일 자체 외부 API (네이버 금융 실시간 시세 + CORS 프록시) 순차 조회 실행
-      for (const stock of stocks) {
-        const shcode = stockCodes[stock];
-        if (!shcode) {
-          // 종목코드가 없으면 에러 표기 없이 이전 데이터 유지
-          continue;
-        }
-
-        setSignals(prev => ({ ...prev, [stock]: { ...prev[stock], loading: true } }));
-
-        try {
-          const cleanCode = shcode.replace('A', '').trim();
-          const naverUrl = `https://polling.finance.naver.com/api/realtime?query=SERVICE_ITEM:${cleanCode}`;
-          
-          const resJson = await fetchWithProxy(naverUrl, 3500);
-          const dataObj = resJson?.result?.areas?.[0]?.datas?.[0];
-          const currentPrice = dataObj?.nv;
-
-          if (currentPrice && currentPrice > 0) {
-            const prevData = signals[stock] || {};
-            const high_1w = Math.max(prevData.high_1w || currentPrice, currentPrice);
-            const low_1w = Math.min(prevData.low_1w || currentPrice, currentPrice);
-
-            newSignals[stock] = {
-              ...prevData,
-              current: currentPrice,
-              high_1w: high_1w,
-              low_1w: low_1w,
-              loading: false,
-              error: false,
-              isLiveFetched: true // 외부 API 조회 플래그
-            };
-          } else {
-            newSignals[stock] = { ...signals[stock], loading: false, error: true };
-          }
-        } catch (err) {
-          console.warn(`외부 API 조회 실패 (${stock}):`, err);
-          newSignals[stock] = { ...signals[stock], loading: false, error: true };
-        }
-        
         setSignals(prev => ({ ...prev, [stock]: newSignals[stock] }));
       }
     }
