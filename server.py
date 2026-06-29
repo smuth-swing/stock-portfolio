@@ -128,16 +128,16 @@ def trigger_export_and_push_sync():
                 return False
             print("[SYNC-PUSH] ✅ JSON 내보내기 완료")
 
-            # 1-5단계: 신호 데이터(이평선/RSI) 내보내기
-            print("[SYNC-PUSH] 1-5. 신호 데이터(이평선/RSI) 내보내기 시작...")
-            result_sig = subprocess.run(
-                [sys.executable, "export_signals.py"],
-                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300
-            )
-            if result_sig.returncode != 0:
-                print(f"[SYNC-PUSH] ❌ 신호 데이터 내보내기 실패: {result_sig.stderr[:300]}")
-            else:
-                print("[SYNC-PUSH] ✅ 신호 데이터 내보내기 완료")
+            # 1-5단계: 신호 데이터(이평선/RSI) 내보내기 (텍스트 동기화 시에는 40~50초 소요되어 응답 지연을 방지하기 위해 주석 처리)
+            # print("[SYNC-PUSH] 1-5. 신호 데이터(이평선/RSI) 내보내기 시작...")
+            # result_sig = subprocess.run(
+            #     [sys.executable, "export_signals.py"],
+            #     capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300
+            # )
+            # if result_sig.returncode != 0:
+            #     print(f"[SYNC-PUSH] ❌ 신호 데이터 내보내기 실패: {result_sig.stderr[:300]}")
+            # else:
+            #     print("[SYNC-PUSH] ✅ 신호 데이터 내보내기 완료")
 
             # 2단계: 모바일 데이터 복사 (StockPortfolioApp/public/data → mobile/data)
             print("[SYNC-PUSH] 2. 모바일 데이터 복사 중...")
