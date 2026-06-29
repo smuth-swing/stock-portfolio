@@ -294,18 +294,17 @@ export const useDataStore = create<AppState>((set, get) => ({
     
     const serverTime = new Date(meta.updated_at).getTime();
     const newQueue = syncQueue.filter(edit => {
-      if (!edit.timestamp) return false; // 예외 방지용 (이전 구조)
+      if (!edit.timestamp) return false;
       
       // 아직 PC로 전송하지 않은 항목은 무조건 유지
       if (edit.isPendingSync !== false) return true;
       
-      // ★ sentAt(PC 전송 시각) 기준으로 서버 반영 여부 확인
-      // 서버의 meta.updated_at이 sentAt보다 이후이면,
-      // 서버 데이터가 우리 전송 이후에 갱신된 것이므로 편집이 반영됨 → 삭제 가능
-      const sentTime = edit.sentAt ? new Date(edit.sentAt).getTime() : 0;
-      if (!sentTime) return true; // sentAt이 없으면 유지 (안전장치)
-      
-      return serverTime < sentTime; // 서버가 전송 이전에 갱신됨 → 아직 미반영 → 유지
+      // ★ 수정 시각(timestamp) 기준으로 서버 반영 여부 확인
+      // 서버의 meta.updated_at이 수정 시각(edit.timestamp)보다 이후이면,
+      // 서버 데이터가 우리 편집 이후에 갱신된 것이므로 편집이 반영됨 → 삭제 가능
+      // 기기 간 미세한 클럭 오차 방지를 위해 3초의 보정 시간을 적용
+      const editTime = new Date(edit.timestamp).getTime();
+      return serverTime < (editTime - 3000); // 서버가 수정 시각(보정치 적용) 이전에 갱신됨 → 아직 미반영 → 유지
     });
     
     if (newQueue.length !== syncQueue.length) {

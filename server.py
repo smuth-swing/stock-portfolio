@@ -92,6 +92,18 @@ def trigger_export():
     threading.Thread(target=run).start()
 
 
+def git_has_changes():
+    """Git 작업 디렉터리에 커밋되지 않은 변경 사항이 있는지 확인 (로캘에 구애받지 않음)"""
+    try:
+        res = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", timeout=15
+        )
+        return len(res.stdout.strip()) > 0
+    except Exception as e:
+        print(f"[GIT-CHECK] 변경사항 확인 오류: {e}")
+        return True  # 오류 발생 시 보수적으로 변경사항이 있는 것으로 취급
+
 def trigger_export_and_push_sync():
     """동기적으로 JSON 내보내기 + Git Push까지 실행 (sync-receive 전용)
     
@@ -154,19 +166,32 @@ def trigger_export_and_push_sync():
             print("[SYNC-PUSH] 3. Git push 시작...")
             subprocess.run(["git", "add", "."], cwd=BASE_DIR, capture_output=True, timeout=30)
             
+            # 변경 사항이 없는 경우 커밋 건너뜀
+            if not git_has_changes():
+                print("[SYNC-PUSH] 변경사항 없음, 커밋 및 푸시 건너뜀")
+                return True
+
             from datetime import datetime as dt
             commit_msg = f"Mobile sync update {dt.now().strftime('%Y-%m-%d %H:%M')}"
             commit_result = subprocess.run(
                 ["git", "commit", "-m", commit_msg],
                 cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30
             )
-            if commit_result.returncode != 0 and "nothing to commit" in commit_result.stdout:
-                print("[SYNC-PUSH] 변경사항 없음, 커밋 건너뜀")
-                return True
+            if commit_result.returncode != 0:
+                print(f"[SYNC-PUSH] ❌ Git 커밋 실패: {commit_result.stderr[:300]}")
+                return False
 
             env = os.environ.copy()
             env["GCM_INTERACTIVE"] = "never"
             env["GIT_TERMINAL_PROMPT"] = "0"
+            
+            # push 직전 rebase pull로 충돌 방지
+            print("[SYNC-PUSH] push 전 원격 변경 사항 병합 (rebase)...")
+            subprocess.run(
+                ["git", "pull", "--rebase", "origin", "main"],
+                cwd=BASE_DIR, capture_output=True, env=env, timeout=60
+            )
+
             push_result = subprocess.run(
                 ["git", "push", "origin", "main"],
                 cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace",
@@ -1314,14 +1339,8 @@ def refresh_signals():
         print("[REFRESH-SIGNALS] 3. Git push 시작...")
         subprocess.run(["git", "add", "."], cwd=BASE_DIR, capture_output=True, timeout=30)
         
-        from datetime import datetime as dt
-        commit_msg = f"Signal refresh {dt.now().strftime('%Y-%m-%d %H:%M')}"
-        commit_result = subprocess.run(
-            ["git", "commit", "-m", commit_msg],
-            cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30
-        )
-        
-        if commit_result.returncode != 0 and "nothing to commit" in commit_result.stdout:
+        # 변경 사항이 없는 경우 커밋 건너뜀
+        if not git_has_changes():
             print("[REFRESH-SIGNALS] 변경사항 없음 (이미 최신)")
             return jsonify({
                 'success': True,
@@ -1329,9 +1348,30 @@ def refresh_signals():
                 'pushed': False
             })
 
+        from datetime import datetime as dt
+        commit_msg = f"Signal refresh {dt.now().strftime('%Y-%m-%d %H:%M')}"
+        commit_result = subprocess.run(
+            ["git", "commit", "-m", commit_msg],
+            cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30
+        )
+        if commit_result.returncode != 0:
+            print(f"[REFRESH-SIGNALS] ❌ Git 커밋 실패: {commit_result.stderr[:300]}")
+            return jsonify({
+                'success': False,
+                'message': '신호 데이터 커밋 실패'
+            }), 500
+
         env = os.environ.copy()
         env["GCM_INTERACTIVE"] = "never"
         env["GIT_TERMINAL_PROMPT"] = "0"
+        
+        # push 직전 rebase pull 실행
+        print("[REFRESH-SIGNALS] push 전 원격 변경 사항 병합 (rebase)...")
+        subprocess.run(
+            ["git", "pull", "--rebase", "origin", "main"],
+            cwd=BASE_DIR, capture_output=True, env=env, timeout=60
+        )
+
         push_result = subprocess.run(
             ["git", "push", "origin", "main"],
             cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace",
@@ -1366,7 +1406,8 @@ def refresh_signals():
             'message': f'오류 발생: {str(e)}'
         }), 500
     finally:
-        _signal_refresh_lock.release()
+        if _signal_refresh_lock.locked():
+            _signal_refresh_lock.release()
 
 
 if __name__ == '__main__':
