@@ -178,7 +178,9 @@ export default function TradeScreen() {
   // 종목 선택 시 자동으로 전체보기(Fit) 적용
   useEffect(() => {
     if (selectedStock !== '전체' && chartData.investmentData.length > 0) {
-      handleFitToScreen();
+      // handleFitToScreen 로직 인라인 (의존성 순환 방지)
+      const fitSpacing = ((width - 100) / Math.max(1, chartData.investmentData.length - 1)) * 0.9;
+      setZoomLevel(Math.max(15, fitSpacing));
     }
   }, [selectedStock, chartData.investmentData.length]);
 

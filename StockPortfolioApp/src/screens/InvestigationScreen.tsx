@@ -156,9 +156,11 @@ export default function InvestigationScreen() {
     );
   }
 
-  // 데이터 추출 로직
+  // 데이터 추출 로직 — 원본 인덱스(_realIndex) 보존
   const allData = investigation?.data || [];
-  const allItems = allData.filter((r: any) => getStockName(r));
+  const allItems = allData
+    .map((r: any, idx: number) => ({ ...r, _realIndex: idx }))
+    .filter((r: any) => getStockName(r));
   
   const items = allItems.filter((item: any) => {
     if (filter === 'priority' && !getMomentum(item)) return false;
@@ -346,7 +348,7 @@ export default function InvestigationScreen() {
                           <TextInput 
                             style={[styles.multilineInput, { height: getFieldHeight('reason') }]} 
                             multiline scrollEnabled={true} value={editForm.reason} 
-                            onChangeText={t => setEditForm(prev => ({...prev, reason: t}))} 
+                            onChangeText={t => setEditForm((prev: any) => ({...prev, reason: t}))} 
                             onContentSizeChange={e => handleContentSizeChange('reason', e)}
                           />
                         </View>
@@ -355,7 +357,7 @@ export default function InvestigationScreen() {
                           <TextInput 
                             style={[styles.multilineInput, { height: getFieldHeight('risk') }]} 
                             multiline scrollEnabled={true} value={editForm.risk} 
-                            onChangeText={t => setEditForm(prev => ({...prev, risk: t}))} 
+                            onChangeText={t => setEditForm((prev: any) => ({...prev, risk: t}))} 
                             onContentSizeChange={e => handleContentSizeChange('risk', e)}
                           />
                         </View>
@@ -364,7 +366,7 @@ export default function InvestigationScreen() {
                           <TextInput 
                             style={[styles.multilineInput, { height: getFieldHeight('momentum') }]} 
                             multiline scrollEnabled={true} value={editForm.momentum} 
-                            onChangeText={t => setEditForm(prev => ({...prev, momentum: t}))} 
+                            onChangeText={t => setEditForm((prev: any) => ({...prev, momentum: t}))} 
                             onContentSizeChange={e => handleContentSizeChange('momentum', e)}
                           />
                         </View>
@@ -373,7 +375,7 @@ export default function InvestigationScreen() {
                           <TextInput 
                             style={[styles.multilineInput, { height: getFieldHeight('strategy') }]} 
                             multiline scrollEnabled={true} value={editForm.strategy} 
-                            onChangeText={t => setEditForm(prev => ({...prev, strategy: t}))} 
+                            onChangeText={t => setEditForm((prev: any) => ({...prev, strategy: t}))} 
                             onContentSizeChange={e => handleContentSizeChange('strategy', e)}
                           />
                         </View>
@@ -382,7 +384,7 @@ export default function InvestigationScreen() {
                           <TextInput 
                             style={[styles.multilineInput, { height: getFieldHeight('ceo') }]} 
                             multiline scrollEnabled={true} value={editForm.ceo} 
-                            onChangeText={t => setEditForm(prev => ({...prev, ceo: t}))} 
+                            onChangeText={t => setEditForm((prev: any) => ({...prev, ceo: t}))} 
                             onContentSizeChange={e => handleContentSizeChange('ceo', e)}
                           />
                         </View>

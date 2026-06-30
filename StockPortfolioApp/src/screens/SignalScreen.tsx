@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useDataStore } from '../store/useDataStore';
 
@@ -68,7 +68,7 @@ export default function SignalScreen() {
     });
 
     const portSet = new Set<string>();
-    portfolioMap.data.forEach((row: any) => {
+    portfolioMap.data.slice(1).forEach((row: any) => {
       const stockName = String(row[stockCol] || '').trim();
       if (stockName && stockName !== '종목' && stockName !== 'stock') {
         let hasOne = false;

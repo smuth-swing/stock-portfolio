@@ -111,27 +111,36 @@ export default function PerformanceScreen() {
               const x = getX(item.profitM);
               const isPositive = item.profitM >= 0;
               const barW = Math.abs(x - CENTER_X);
+              const topPos = index * ROW_H + (ROW_H / 2) - 8;
               
               return (
-                <View key={`bar-${index}`} style={[
-                  styles.bar,
-                  { 
-                    top: index * ROW_H + (ROW_H / 2) - 8,
-                    backgroundColor: isPositive ? '#10B981' : '#EF4444',
-                    width: barW,
-                  },
-                  isPositive ? { left: CENTER_X } : { right: CHART_W - CENTER_X }
-                ]}>
-                  {/* 막대 텍스트 (바깥쪽 배치) */}
+                <React.Fragment key={`bar-row-${index}`}>
+                  {/* 막대 차트 (단독 View) */}
+                  <View style={[
+                    styles.bar,
+                    { 
+                      top: topPos,
+                      backgroundColor: isPositive ? '#10B981' : '#EF4444',
+                      width: barW,
+                    },
+                    isPositive ? { left: CENTER_X } : { right: CHART_W - CENTER_X }
+                  ]} />
+                  
+                  {/* 막대 텍스트 (형제 컴포넌트로 분리하여 절대 좌표 배치) */}
                   <Text style={[
                     styles.barValueText,
+                    {
+                      top: topPos + 1, // 막대와 세로 정렬 맞춤
+                      color: isPositive ? '#10B981' : '#EF4444',
+                      width: 120, // 텍스트 크기 변동 시 자동 개행 및 잘림 방지용 임시 너비 지정
+                    },
                     isPositive 
-                      ? { left: barW + 6, color: '#10B981' }
-                      : { right: barW + 6, color: '#EF4444' }
+                      ? { left: CENTER_X + barW + 6, textAlign: 'left' as const }
+                      : { right: (CHART_W - CENTER_X) + barW + 6, textAlign: 'right' as const }
                   ]}>
-                    {item.profitM > 0 ? '+' : ''}{item.profitM.toFixed(1)} <Text style={{ fontSize: 9 }}>({item.yieldVal > 0 ? '+' : ''}{item.yieldVal.toFixed(1)}%)</Text>
+                    {item.profitM > 0 ? '+' : ''}{item.profitM.toFixed(1)} <Text style={{ fontSize: 9, fontWeight: 'normal' }}>({item.yieldVal > 0 ? '+' : ''}{item.yieldVal.toFixed(1)}%)</Text>
                   </Text>
-                </View>
+                </React.Fragment>
               );
             })}
 

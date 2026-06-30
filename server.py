@@ -13,7 +13,7 @@ from pathlib import Path
 # 작업 디렉토리를 스크립트 위치로 고정 (작업 스케줄러 실행 시 System32 참조 방지)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(BASE_DIR)
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, make_response
 from flask_cors import CORS
 import pandas as pd
 import openpyxl
@@ -37,9 +37,25 @@ except Exception:
     pass
 
 
-app = Flask(__name__, static_folder='.', static_url_path='')
+app = Flask(__name__, static_folder=None)
 # 모든 경로와 오리진에 대해 CORS 허용 (모바일 앱 접속용)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+CORS(app, resources={r"/*": {"origins": "*"}})
+
+@app.before_request
+def handle_options_preflight():
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        return response
+
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
 # API 응답 gzip 압축 (대용량 JSON 전송 최적화 - 약 70~80% 크기 감소)
 try:
@@ -281,6 +297,54 @@ def mobile_index():
 
 
 
+@app.route('/mobile/data/<path:filename>', methods=['GET', 'OPTIONS'])
+def serve_mobile_data(filename):
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        return response
+    
+    file_path = os.path.join('mobile/data', filename)
+    if not os.path.exists(file_path):
+        return jsonify({'error': 'File not found'}), 404
+        
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+            content = f.read()
+        response = make_response(content)
+        response.headers['Content-Type'] = 'application/json; charset=utf-8'
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
+    except Exception as e:
+        print(f"[CORS-SERVE] 모바일 데이터 로드 오류 ({filename}): {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/StockPortfolioApp/public/data/<path:filename>', methods=['GET', 'OPTIONS'])
+def serve_app_data(filename):
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        return response
+        
+    file_path = os.path.join('StockPortfolioApp/public/data', filename)
+    if not os.path.exists(file_path):
+        return jsonify({'error': 'File not found'}), 404
+        
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+            content = f.read()
+        response = make_response(content)
+        response.headers['Content-Type'] = 'application/json; charset=utf-8'
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
+    except Exception as e:
+        print(f"[CORS-SERVE] 앱 데이터 로드 오류 ({filename}): {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/onedrive-status')
 def onedrive_status():
     """OneDrive 연결 상태 확인"""
@@ -469,15 +533,15 @@ def read_excel():
             start_row = header_row_idx + 3 if "실적" in target_sheet else 2
             
             for r_idx in range(start_row, ws_format.max_row + 1):
-                row_data = {}
+                row_data = {'_realIndex': r_idx - 2}
                 for c_idx, col_name in enumerate(columns, start=1):
                     cell = ws_format.cell(row=r_idx, column=c_idx)
                     row_data[col_name] = extract_rich_text(cell)
                 data.append(row_data)
         else:
             data = []
-            for _, row in df.iterrows():
-                row_data = {}
+            for idx, row in df.iterrows():
+                row_data = {'_realIndex': idx}
                 for i, col in enumerate(df.columns):
                     val = row[col]
                     col_name = columns[i]
@@ -502,8 +566,9 @@ def read_excel():
             'stats': stats
         }
         
-        # 캐시 저장 (메모리 누수 방지를 위해 초기화 후 저장)
-        EXCEL_CACHE.clear()
+        # 캐시 저장 (메모리 누수 방지를 위해 10개 초과 시에만 정리)
+        if len(EXCEL_CACHE) > 10:
+            EXCEL_CACHE.clear()
         EXCEL_CACHE[cache_key] = response_data
 
         return jsonify(response_data)

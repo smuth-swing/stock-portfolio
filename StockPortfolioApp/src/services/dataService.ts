@@ -41,11 +41,27 @@ export const getLastSyncTime = async (): Promise<string | null> => {
 // 3. 서버에서 데이터 가져와 캐시 갱신
 // ─────────────────────────────────────────────
 export const fetchJSON = async (key: keyof typeof DATA_URLS) => {
-  const url = DATA_URLS[key];
+  let url = DATA_URLS[key];
   // BASE_URL이 없거나 빈 문자열이면 서버 없이 실행 중 → 즉시 null
   if (!url) {
     console.log(`[dataService] 📵 서버 URL 없음 - 오프라인 모드 (${key})`);
     return null;
+  }
+
+  // 만약 BASE_URL이 로컬 API 서버(localhost:5000)를 가리키고 있다면
+  // 정적 JSON 파일 대신 백엔드의 실시간 /api/read-excel API를 호출하여 CORS 문제 완벽 회피
+  if (url.includes('localhost:5000') || url.includes('127.0.0.1:5000')) {
+    const sheetMap: Record<string, string> = {
+      tradeJournal: '매매일지',
+      portfolioMap: '포트폴리오 맵',
+      investigation: '탐구생활',
+      performance: '실적',
+    };
+    const sheetName = sheetMap[key];
+    if (sheetName) {
+      const baseApiUrl = url.includes('/mobile/') ? url.split('/mobile/')[0] : url.split('/data/')[0];
+      url = `${baseApiUrl}/api/read-excel?sheet=${encodeURIComponent(sheetName)}&file=${encodeURIComponent('주식 체크 리스트_20220328.xlsx')}`;
+    }
   }
 
   // 네트워크 연결 먼저 확인

@@ -17,21 +17,28 @@ let BASE_URL = hostUri ? `http://${hostUri}` : '';
 if (Platform.OS === 'web' && typeof window !== 'undefined') {
   // 현재 경로가 /mobile 이나 /mobile/ 로 끝나는지 확인하여 BASE_URL 설정
   let pathname = window.location.pathname;
-  if (!pathname.endsWith('/')) {
-    pathname += '/'; // 항상 trailing slash를 추가
-  }
-  // index.html 같은 파일명이 있다면 제거 (보통 PWA에서는 없음)
-  pathname = pathname.replace(/\/[^/]+\.[^/]+$/, '/');
-  
-  // 모바일 웹앱 경로 보장 (만약 잘못 파싱된 경우 강제로 맞춤)
-  if (!pathname.endsWith('/mobile/')) {
-    pathname = '/stock-portfolio/mobile/';
-  } else {
-    // 맨 끝의 '/'를 제거하여 일관성 유지
+  // trailing slash 제거 (일관성)
+  if (pathname.endsWith('/')) {
     pathname = pathname.slice(0, -1);
   }
+  // index.html 같은 파일명이 있다면 제거 (보통 PWA에서는 없음)
+  pathname = pathname.replace(/\/[^/]+\.[^/]+$/, '');
   
-  BASE_URL = window.location.origin + pathname;
+  // 모바일 웹앱 경로 보장 (만약 잘못 파싱된 경우 강제로 맞춤)
+  if (!pathname.endsWith('/mobile')) {
+    pathname = '/stock-portfolio/mobile';
+  }
+  
+  // 로컬 개발 서버(8082 등)로 구동 중인 경우 API 및 리소스 타겟을 5000포트 백엔드로 지정
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    if (window.location.port === '8082' || window.location.port === '19006') {
+      BASE_URL = 'http://localhost:5000/mobile';
+    } else {
+      BASE_URL = window.location.origin + pathname;
+    }
+  } else {
+    BASE_URL = window.location.origin + pathname;
+  }
 }
 
 // 개발 중 서버 URL 확인용 로그
