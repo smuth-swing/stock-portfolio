@@ -32,7 +32,7 @@ export default function SignalScreen() {
   
   const isGitHubPages = Platform.OS === 'web' && typeof window !== 'undefined' && window.location.hostname.includes('github.io');
 
-  // 탐구생활 시트에서 매매우선(모멘텀 있음) 종목 추출
+  // 탐구생활 시트에서 매매우선(모멘텀 또는 매매 전략 있음) 종목 추출
   const getPriorityStocks = () => {
     if (!investigation || !investigation.data) return [];
     
@@ -40,15 +40,18 @@ export default function SignalScreen() {
     const getCol = (name: string) => cols.includes(name) ? name : '';
     const nameCol = getCol('종목명') || getCol('Unnamed: 1');
     const momentumCol = getCol('모멘텀') || getCol('Unnamed: 2');
+    const strategyCol = getCol('매매 전략') || getCol('Unnamed: 6'); // 매매 전략 컬럼 추가
     
-    if (!nameCol || !momentumCol) return [];
+    if (!nameCol) return [];
 
     const prioritySet = new Set<string>();
     investigation.data.forEach((row: any) => {
       const stockName = String(row[nameCol] || '').trim();
-      const hasMomentum = row[momentumCol] && String(row[momentumCol]).trim() !== '';
+      const hasMomentum = momentumCol && row[momentumCol] && String(row[momentumCol]).trim() !== '';
+      const hasStrategy = strategyCol && row[strategyCol] && String(row[strategyCol]).trim() !== ''; // 매매 전략 유무 체크
       
-      if (stockName && stockName !== '종목' && stockName !== 'stock' && !stockName.includes('~~') && hasMomentum) {
+      // 모멘텀 또는 매매 전략 중 하나라도 내용이 있고 취소선(~~)이 없는 경우 매매우선으로 처리
+      if (stockName && stockName !== '종목' && stockName !== 'stock' && !stockName.includes('~~') && (hasMomentum || hasStrategy)) {
         prioritySet.add(stockName);
       }
     });

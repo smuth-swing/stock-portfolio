@@ -163,7 +163,8 @@ export default function InvestigationScreen() {
     .filter((r: any) => getStockName(r));
   
   const items = allItems.filter((item: any) => {
-    if (filter === 'priority' && !getMomentum(item)) return false;
+    // 모멘텀과 매매 전략 둘 다 내용이 없는 경우 매매우선 필터에서 제외
+    if (filter === 'priority' && !getMomentum(item) && !getStrategy(item)) return false;
     if (searchQuery.trim() !== '') {
       const stockName = getStockName(item);
       if (!stockName.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
@@ -330,7 +331,7 @@ export default function InvestigationScreen() {
                     <Text style={styles.stockName}>
                       {getStockName(item)}
                     </Text>
-                    {getMomentum(item) ? (
+                    {(getMomentum(item) || getStrategy(item)) ? (
                       <View style={styles.badge}>
                         <Text style={styles.badgeText}>매매우선</Text>
                       </View>

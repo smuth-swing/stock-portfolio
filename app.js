@@ -1761,19 +1761,23 @@ function filterMomentumStocks() {
     if (!currentData || !isExplorationSheet(currentData.current_sheet)) return;
 
     const momentumCol = currentData.columns.includes('모멘텀') ? '모멘텀' : 'Unnamed: 2';
+    const strategyCol = currentData.columns.includes('매매 전략') ? '매매 전략' : 'Unnamed: 6'; // 매매 전략 컬럼 추가
     const filtered = [];
     const rowMap = [];
 
     currentData.data.forEach((row, idx) => {
         const momentum = String(row[momentumCol] || '').trim();
-        if (momentum !== '') {
+        const strategy = String(row[strategyCol] || '').trim(); // 매매 전략 값 가져오기
+        
+        // 모멘텀 또는 매매 전략 둘 중 하나라도 내용이 있는 경우 매매우선으로 선택
+        if (momentum !== '' || strategy !== '') {
             filtered.push(row);
             rowMap.push(idx);
         }
     });
 
     if (filtered.length === 0) {
-        showToast('매매 우선 데이터(모멘텀)가 있는 종목이 없습니다.', 'info');
+        showToast('매매 우선 데이터(모멘텀 또는 매매 전략)가 있는 종목이 없습니다.', 'info');
         return;
     }
 
@@ -2073,12 +2077,15 @@ function updateInvestigationPriorityCache(data) {
     // 종목명이 있는 컬럼을 찾음 (findStockColumnName 함수 사용)
     const nameCol = findStockColumnName(cols);
     const momentumCol = cols.includes('모멘텀') ? '모멘텀' : 'Unnamed: 2';
+    const strategyCol = cols.includes('매매 전략') ? '매매 전략' : 'Unnamed: 6'; // 매매 전략 컬럼 추가
 
     data.data.forEach(row => {
         const stockName = String(row[nameCol] || '').trim();
         const hasMomentum = row[momentumCol] && String(row[momentumCol]).trim() !== '';
+        const hasStrategy = row[strategyCol] && String(row[strategyCol]).trim() !== ''; // 매매 전략 유무 체크
 
-        if (stockName && stockName !== '종목' && stockName !== 'stock' && !stockName.includes('~~') && hasMomentum) {
+        // 모멘텀 또는 매매 전략 둘 중 하나라도 존재하고, 종목명이 유효하며 취소선(~~)이 없는 경우
+        if (stockName && stockName !== '종목' && stockName !== 'stock' && !stockName.includes('~~') && (hasMomentum || hasStrategy)) {
             investigationPriorityCache.add(stockName);
         }
     });
