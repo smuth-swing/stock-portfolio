@@ -289,11 +289,46 @@ def index():
     """메인 페이지 서빙"""
     return send_from_directory('.', 'index.html')
 
+@app.route('/app.js')
+def serve_root_js():
+    """루트 app.js 서빙"""
+    return send_from_directory('.', 'app.js')
+
+@app.route('/styles.css')
+def serve_root_css():
+    """루트 styles.css 서빙"""
+    return send_from_directory('.', 'styles.css')
+
 @app.route('/mobile')
 @app.route('/mobile/')
 def mobile_index():
     """모바일 PWA 메인 서빙"""
     return send_from_directory('mobile', 'index.html')
+
+@app.route('/mobile/sw.js')
+def serve_mobile_sw():
+    """모바일 sw.js 서빙"""
+    return send_from_directory('mobile', 'sw.js')
+
+@app.route('/mobile/manifest.json')
+def serve_mobile_manifest():
+    """모바일 manifest.json 서빙"""
+    return send_from_directory('mobile', 'manifest.json')
+
+@app.route('/mobile/metadata.json')
+def serve_mobile_metadata():
+    """모바일 metadata.json 서빙"""
+    return send_from_directory('mobile', 'metadata.json')
+
+@app.route('/mobile/favicon.ico')
+def serve_mobile_favicon():
+    """모바일 favicon.ico 서빙"""
+    return send_from_directory('mobile', 'favicon.ico')
+
+@app.route('/mobile/assets/<path:filename>')
+def serve_mobile_assets(filename):
+    """모바일 assets 폴더 정적 파일 서빙"""
+    return send_from_directory('mobile/assets', filename)
 
 
 
