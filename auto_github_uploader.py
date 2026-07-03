@@ -59,8 +59,17 @@ def run_git_upload():
 
     lock_file = os.path.join(PROJECT_DIR, ".git_sync.lock")
     if os.path.exists(lock_file):
-        log.info("로컬 서버가 현재 모바일 동기화를 진행 중입니다. 자동 업로드를 잠시 지연합니다.")
-        return False
+        try:
+            mtime = os.path.getmtime(lock_file)
+            if time.time() - mtime > 300:  # 5분 초과
+                log.warning("오래된 락 파일(.git_sync.lock) 감지 (5분 초과). 강제 삭제 후 진행합니다.")
+                os.remove(lock_file)
+            else:
+                log.info("로컬 서버가 현재 모바일 동기화를 진행 중입니다. 자동 업로드를 잠시 지연합니다.")
+                return False
+        except Exception as e:
+            log.error(f"락 파일 시간 확인 및 삭제 중 오류 발생: {e}")
+            return False
 
     _is_uploading = True
     

@@ -138,6 +138,16 @@ def trigger_export_and_push_sync():
     import time
     lock_file = os.path.join(BASE_DIR, ".git_sync.lock")
     
+    # 오래된 락 파일(5분 초과) 자동 삭제 처리
+    if os.path.exists(lock_file):
+        try:
+            mtime = os.path.getmtime(lock_file)
+            if time.time() - mtime > 300:
+                print("[SYNC-PUSH] ⚠️ 오래된 Git 동기화 락 감지 (5분 초과). 강제 삭제합니다.")
+                os.remove(lock_file)
+        except Exception as e:
+            print(f"[SYNC-PUSH] 오래된 락 파일 제거 중 오류 발생: {e}")
+            
     # 1. 락 획득 시도 (최대 15초 대기)
     for i in range(15):
         if not os.path.exists(lock_file):
