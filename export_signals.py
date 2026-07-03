@@ -48,12 +48,15 @@ def get_stocks_from_json():
             cols = inv_data.get('columns', [])
             nameCol = '종목명' if '종목명' in cols else 'Unnamed: 1'
             momentumCol = '모멘텀' if '모멘텀' in cols else 'Unnamed: 2'
+            strategyCol = '매매 전략' if '매매 전략' in cols else 'Unnamed: 6'
             
             for row in inv_data.get('data', []):
                 name = str(row.get(nameCol, '')).strip()
                 momentum = str(row.get(momentumCol, '')).strip()
-                if name and name not in ['종목', 'stock'] and '~~' not in name and momentum:
-                    stocks.add(name)
+                strategy = str(row.get(strategyCol, '')).strip()
+                if name and name not in ['종목', 'stock'] and '~~' not in name:
+                    if momentum or strategy:
+                        stocks.add(name)
     except Exception as e:
         print(f"탐구생활 파싱 오류: {e}")
         
