@@ -2177,12 +2177,20 @@ function updateJournalTrendChart() {
             return monday;
         };
 
-        // 2. 각 거래 행을 해당 주차로 분류하여 투자금(Unnamed: 5)을 단순 합산
+        // 2. 각 거래 행을 해당 주차로 분류하여 투자금(Unnamed: 5)을 단순 합산 (매도는 차감)
         filteredData.forEach(row => {
             const dateStr = row['Unnamed: 0'];
             const date = new Date(dateStr);
             const val = row['Unnamed: 5'];
-            const numVal = typeof val === 'number' ? val : parseFloat(String(val).replace(/,/g, '')) || 0;
+            let numVal = typeof val === 'number' ? val : parseFloat(String(val).replace(/,/g, '')) || 0;
+
+            // 매매구분(Unnamed: 4)이 '매도'인 경우 마이너스로 처리
+            const tradeType = String(row['Unnamed: 4'] || '').trim();
+            if (tradeType === '매도') {
+                numVal = -Math.abs(numVal);
+            } else {
+                numVal = Math.abs(numVal);
+            }
 
             const monday = getYearWeek(date);
             const mondayKey = monday.toISOString().split('T')[0];
