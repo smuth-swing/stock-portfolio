@@ -2154,41 +2154,18 @@ function updateJournalTrendChart() {
     let filteredWeeksData = []; // 총합용
 
     if (selectedStock === '총합') {
-        // 1. 전체 데이터를 날짜 순으로 정렬 (누적 합산을 구하기 위해 전체 데이터 정렬)
-        const allData = currentData.data
+        const weeklyGroups = {};
+
+        // 1. 매매일지 데이터 중 종목명이 유효하고 최근 6개월 이내인 거래 행 필터링
+        const filteredData = currentData.data
             .filter(row => {
                 const dateStr = row['Unnamed: 0'];
                 const stockName = row['Unnamed: 1'];
-                return dateStr && stockName;
-            })
-            .sort((a, b) => new Date(a['Unnamed: 0']) - new Date(b['Unnamed: 0']));
-
-        const dailyTotal = [];
-        const currentInvestments = {};
-
-        allData.forEach(row => {
-            const dateStr = row['Unnamed: 0'];
-            const date = new Date(dateStr);
-            if (isNaN(date)) return;
-            
-            const stockName = String(row['Unnamed: 1']).trim();
-            const val = row['Unnamed: 5'];
-            const numVal = typeof val === 'number' ? val : parseFloat(String(val).replace(/,/g, '')) || 0;
-            
-            // 그 날짜 시점의 해당 종목 투자금 최신화
-            currentInvestments[stockName] = numVal;
-            
-            // 모든 종목의 투자금 총합 계산
-            const total = Object.values(currentInvestments).reduce((sum, v) => sum + v, 0);
-            
-            const dateKey = dateStr;
-            const existing = dailyTotal.find(d => d.dateKey === dateKey);
-            if (existing) {
-                existing.total = total;
-            } else {
-                dailyTotal.push({ dateKey, date, total });
-            }
-        });
+                if (!dateStr || !stockName || stockName === '종목' || stockName === 'stock') return false;
+                
+                const date = new Date(dateStr);
+                return !isNaN(date) && date >= sixMonthsAgo;
+            });
 
         // 주차(월요일 기준) 계산 도우미 함수
         const getYearWeek = (date) => {
@@ -2200,57 +2177,39 @@ function updateJournalTrendChart() {
             return monday;
         };
 
-        // 첫 거래일부터 마지막 거래일까지 일별 데이터를 이전 상태로 채워넣음 (Forward Fill)
-        const weeklyGroups = {};
-        if (dailyTotal.length > 0) {
-            const start = new Date(dailyTotal[0].date);
-            const end = new Date(dailyTotal[dailyTotal.length - 1].date);
-            
-            const current = new Date(start);
-            let lastKnownTotal = 0;
-            
-            while (current <= end) {
-                const dateKey = current.toISOString().split('T')[0];
-                const match = dailyTotal.find(d => d.dateKey === dateKey);
-                if (match) {
-                    lastKnownTotal = match.total;
-                }
-                
-                const monday = getYearWeek(current);
-                const mondayKey = monday.toISOString().split('T')[0];
-                
-                if (!weeklyGroups[mondayKey]) {
-                    weeklyGroups[mondayKey] = [];
-                }
-                weeklyGroups[mondayKey].push(lastKnownTotal);
-                
-                // 하루 증가
-                current.setDate(current.getDate() + 1);
-            }
-        }
+        // 2. 각 거래 행을 해당 주차로 분류하여 투자금(Unnamed: 5)을 단순 합산
+        filteredData.forEach(row => {
+            const dateStr = row['Unnamed: 0'];
+            const date = new Date(dateStr);
+            const val = row['Unnamed: 5'];
+            const numVal = typeof val === 'number' ? val : parseFloat(String(val).replace(/,/g, '')) || 0;
 
-        // 주 단위 평균 계산
-        const weeklyAverages = [];
-        for (const [mondayKey, totals] of Object.entries(weeklyGroups)) {
-            const avg = totals.reduce((sum, v) => sum + v, 0) / totals.length;
-            weeklyAverages.push({
+            const monday = getYearWeek(date);
+            const mondayKey = monday.toISOString().split('T')[0];
+
+            if (!weeklyGroups[mondayKey]) {
+                weeklyGroups[mondayKey] = 0;
+            }
+            weeklyGroups[mondayKey] += numVal;
+        });
+
+        // 3. 주 단위 데이터를 배열로 변환 및 정렬
+        const weeklyTotals = Object.entries(weeklyGroups).map(([mondayKey, total]) => {
+            return {
                 mondayKey,
                 mondayDate: new Date(mondayKey),
-                avgTotal: avg
-            });
-        }
-        weeklyAverages.sort((a, b) => a.mondayDate - b.mondayDate);
+                total
+            };
+        });
+        weeklyTotals.sort((a, b) => a.mondayDate - b.mondayDate);
+        filteredWeeksData = weeklyTotals;
 
-        // 최근 6개월 데이터만 필터링
-        const filteredWeeks = weeklyAverages.filter(w => w.mondayDate >= sixMonthsAgo);
-        filteredWeeksData = filteredWeeks;
-
-        labels = filteredWeeks.map(w => {
+        labels = weeklyTotals.map(w => {
             const d = w.mondayDate;
             return `${d.getMonth() + 1}/${d.getDate()}`;
         });
         
-        values = filteredWeeks.map(w => w.avgTotal / 100); // 만원 -> 백만원 단위 변환
+        values = weeklyTotals.map(w => w.total / 100); // 만원 -> 백만원 단위 변환
         prices = []; // 총합 그래프에서는 단가가 없으므로 빈 배열
     } else {
         // 해당 종목의 최근 6개월 데이터 필터링
@@ -2333,7 +2292,7 @@ function updateJournalTrendChart() {
     const datasets = [
         {
             type: 'line',
-            label: selectedStock === '총합' ? '주 평균 총 누적 투자금 (백만)' : '투자금액 (백만)',
+            label: selectedStock === '총합' ? '주간 투자금 총액 (백만)' : '투자금액 (백만)',
             data: values,
             borderColor: '#D4AF37',
             backgroundColor: 'rgba(212, 175, 55, 0.1)',
@@ -2437,7 +2396,7 @@ function updateJournalTrendChart() {
                         },
                         label: (context) => {
                             if (context.datasetIndex === 0) {
-                                return `${selectedStock === '총합' ? '주 평균 ' : ''}투자금: ${context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}백만`;
+                                return `${selectedStock === '총합' ? '주간 투자금 총액' : '투자금'}: ${context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}백만`;
                             } else {
                                 if (selectedStock === '총합') return null;
                                 return `평균단가: ${context.parsed.y.toLocaleString()}원`;
