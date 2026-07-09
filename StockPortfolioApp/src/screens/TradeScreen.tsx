@@ -16,6 +16,7 @@ export default function TradeScreen() {
   const [isPinching, setIsPinching] = useState<boolean>(false);
   const pinchStartDistance = useRef<number | null>(null);
   const pinchStartZoom = useRef<number>(60);
+  const chartScrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     if (route.params?.selectedStock) {
@@ -162,24 +163,26 @@ export default function TradeScreen() {
           label: label,
           dataPointText: '',
           dataPointLabelComponent: () => (
-            <View style={{ alignItems: 'center', justifyContent: 'center', width: 60, height: 40 }}>
+            <View style={{ alignItems: 'center', justifyContent: 'center', width: 60, height: 40, zIndex: 999, overflow: 'visible' }}>
               <Text style={{
                 color: '#D4AF37',
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: 'bold',
                 position: 'absolute',
-                bottom: 12,
-                textAlign: 'center'
+                bottom: 30, // 선 및 점 위로 확실하게 올림
+                textAlign: 'center',
+                zIndex: 1000
               }}>
                 {cumulativeM}
               </Text>
               <Text style={{
                 color: '#94A3B8',
-                fontSize: 9,
+                fontSize: 8,
                 fontWeight: 'bold',
                 position: 'absolute',
-                top: 12,
-                textAlign: 'center'
+                bottom: -32, // 선 및 점 아래로 확실하게 내림
+                textAlign: 'center',
+                zIndex: 1000
               }}>
                 {weeklyText}
               </Text>
@@ -249,6 +252,16 @@ export default function TradeScreen() {
 
     return { investmentData, priceData };
   }, [validTrades, selectedStock]);
+
+  // 종목 또는 총합 필터 선택 시 최신 날짜(우측 끝)로 자동 스크롤 이동
+  useEffect(() => {
+    if (chartData.investmentData.length > 0 && chartScrollRef.current) {
+      const timer = setTimeout(() => {
+        chartScrollRef.current?.scrollToEnd({ animated: true });
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedStock, chartData.investmentData.length]);
 
   const handleFitToScreen = () => {
     if (chartData.investmentData.length > 0) {
@@ -367,7 +380,7 @@ export default function TradeScreen() {
               </View>
             </View>
             
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} scrollEnabled={!isPinching}>
+            <ScrollView ref={chartScrollRef} horizontal showsHorizontalScrollIndicator={false} scrollEnabled={!isPinching}>
               <View
                 style={{ paddingTop: 30, paddingBottom: 10 }}
                 onStartShouldSetResponder={(event) => event.nativeEvent.touches.length === 2}
@@ -397,7 +410,7 @@ export default function TradeScreen() {
                   hideDataPoints={false}
                   curved
                   hideYAxisText={true} // 정규화되었으므로 Y축 숫자 대신 직접 포인트의 라벨만 표시
-                  maxValue={120} // 라벨 여백 확보
+                  maxValue={140} // 라벨 여백 확보
                   {...(selectedStock !== '전체' ? {
                     data2: chartData.priceData,
                     thickness2: 2,
