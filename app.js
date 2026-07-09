@@ -2215,14 +2215,37 @@ function updateJournalTrendChart() {
             };
         });
         weeklyTotals.sort((a, b) => a.mondayDate - b.mondayDate);
-        filteredWeeksData = weeklyTotals;
+        
+        // 현재 누적 투자금액 결정 (포트폴리오 맵 캐시 총합 또는 기본값 9,500만원)
+        const currentTotal = Object.values(portfolioMapCache).reduce((a, b) => a + b, 0) || 9500; // 만원 단위
+        
+        // 누적 투자금액 역산
+        const n = weeklyTotals.length;
+        const cumulativeAmounts = new Array(n);
+        
+        if (n > 0) {
+            // 가장 최신 주차의 누적 금액은 현재 금액
+            cumulativeAmounts[n - 1] = currentTotal;
+            
+            // 역방향으로 이전 주차의 누적 금액 역산 (현재 주차 누적 - 현재 주차 변동 = 이전 주차 누적)
+            for (let i = n - 1; i > 0; i--) {
+                cumulativeAmounts[i - 1] = cumulativeAmounts[i] - weeklyTotals[i].total;
+            }
+        }
+
+        filteredWeeksData = weeklyTotals.map((w, idx) => {
+            return {
+                ...w,
+                cumulativeTotal: cumulativeAmounts[idx]
+            };
+        });
 
         labels = weeklyTotals.map(w => {
             const d = w.mondayDate;
             return `${d.getMonth() + 1}/${d.getDate()}`;
         });
         
-        values = weeklyTotals.map(w => w.total / 100); // 만원 -> 백만원 단위 변환
+        values = cumulativeAmounts.map(amount => amount / 100); // 만원 -> 백만원 단위 변환
         prices = []; // 총합 그래프에서는 단가가 없으므로 빈 배열
     } else {
         // 해당 종목의 최근 6개월 데이터 필터링
@@ -2284,7 +2307,16 @@ function updateJournalTrendChart() {
                     ctx.fillStyle = '#D4AF37';
                     
                     if (selectedStock === '총합') {
-                        ctx.fillText(amount.toFixed(1), datapoint.x, datapoint.y - 8);
+                        const weekData = filteredWeeksData[index];
+                        if (weekData) {
+                            const cumVal = amount.toFixed(1);
+                            const weeklyVal = weekData.total / 100;
+                            const sign = weeklyVal > 0 ? '+' : '';
+                            const text = `${cumVal}/${sign}${weeklyVal.toFixed(1)}`;
+                            ctx.fillText(text, datapoint.x, datapoint.y - 8);
+                        } else {
+                            ctx.fillText(amount.toFixed(1), datapoint.x, datapoint.y - 8);
+                        }
                     } else {
                         const price = chart.data.datasets[1].data[index];
                         ctx.fillText(amount.toFixed(1), datapoint.x, datapoint.y - 18);
@@ -2305,7 +2337,7 @@ function updateJournalTrendChart() {
     const datasets = [
         {
             type: 'line',
-            label: selectedStock === '총합' ? '주간 투자금 총액 (백만)' : '투자금액 (백만)',
+            label: selectedStock === '총합' ? '누적 투자금 총액 (백만)' : '투자금액 (백만)',
             data: values,
             borderColor: '#D4AF37',
             backgroundColor: 'rgba(212, 175, 55, 0.1)',
