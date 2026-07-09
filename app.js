@@ -2308,18 +2308,25 @@ function updateJournalTrendChart() {
                     
                     if (selectedStock === '총합') {
                         const weekData = filteredWeeksData[index];
+                        const cumValText = Math.round(amount).toString();
+                        
+                        // 1. 누적 투자금액 (점 상단)
+                        ctx.fillStyle = '#D4AF37';
+                        ctx.fillText(cumValText, datapoint.x, datapoint.y - 8);
+                        
+                        // 2. 주 투자금액 증감 (점 하단)
                         if (weekData) {
-                            const cumVal = amount.toFixed(1);
-                            const weeklyVal = weekData.total / 100;
+                            const weeklyVal = Math.round(weekData.total / 100);
                             const sign = weeklyVal > 0 ? '+' : '';
-                            const text = `${cumVal}/${sign}${weeklyVal.toFixed(1)}`;
-                            ctx.fillText(text, datapoint.x, datapoint.y - 8);
-                        } else {
-                            ctx.fillText(amount.toFixed(1), datapoint.x, datapoint.y - 8);
+                            const weeklyValText = `${sign}${weeklyVal}`;
+                            
+                            ctx.fillStyle = '#94A3B8'; // 증감액은 슬레이트 그레이 색상으로 구분
+                            ctx.fillText(weeklyValText, datapoint.x, datapoint.y + 16);
                         }
                     } else {
                         const price = chart.data.datasets[1].data[index];
-                        ctx.fillText(amount.toFixed(1), datapoint.x, datapoint.y - 18);
+                        const amountText = Math.round(amount).toString();
+                        ctx.fillText(amountText, datapoint.x, datapoint.y - 18);
                         
                         if (price !== undefined && price !== null) {
                             // 거래단가 (아래)
