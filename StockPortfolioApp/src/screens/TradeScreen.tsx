@@ -169,7 +169,7 @@ export default function TradeScreen() {
                 fontSize: 9,
                 fontWeight: 'bold',
                 position: 'absolute',
-                bottom: 12, // 선 및 점 위로 가깝게 올림
+                bottom: 5, // 선 및 점 위로 아주 가깝게 올림
                 textAlign: 'center',
                 zIndex: 1000
               }}>
@@ -180,7 +180,7 @@ export default function TradeScreen() {
                 fontSize: 8,
                 fontWeight: 'bold',
                 position: 'absolute',
-                bottom: -22, // 선 및 점 아래로 가깝게 내림
+                bottom: -13, // 선 및 점 아래로 아주 가깝게 내림
                 textAlign: 'center',
                 zIndex: 1000
               }}>
