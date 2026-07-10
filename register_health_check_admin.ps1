@@ -11,7 +11,7 @@ $taskName = "StockPortfolioHealthCheck"
 $ps1File  = "C:\Users\zerod\.antigravity\주식 포트폴리오 관리\check_and_restart_server.ps1"
 
 Write-Host "=== Server Health Check Scheduler Setup ===" -ForegroundColor Cyan
-Write-Host "  Checks Flask server status every 10 minutes and restarts if down"
+Write-Host "  Checks Flask server status every 1 hour and restarts if down"
 Write-Host ""
 
 # Clean existing task
@@ -24,10 +24,10 @@ $action = New-ScheduledTaskAction `
     -Argument "-ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File `"$ps1File`"" `
     -WorkingDirectory "C:\Users\zerod\.antigravity\주식 포트폴리오 관리"
 
-# Trigger: Run every 10 minutes indefinitely
+# Trigger: Run every 1 hour indefinitely
 $trigger = New-ScheduledTaskTrigger -Once `
     -At (Get-Date).AddSeconds(10) `
-    -RepetitionInterval  (New-TimeSpan -Minutes 10) `
+    -RepetitionInterval  (New-TimeSpan -Hours 1) `
     -RepetitionDuration  (New-TimeSpan -Days 3650)
 
 # Settings (Unbind battery restrictions)
@@ -53,7 +53,7 @@ Register-ScheduledTask `
     -Trigger    $trigger `
     -Settings   $settings `
     -Principal  $principal `
-    -Description "Checks Flask server (port 5000) every 10 minutes and restarts if down" `
+    -Description "Checks Flask server (port 5000) every 1 hour and restarts if down" `
     -Force | Out-Null
 
 Write-Host "[2] Task registration complete"
@@ -66,7 +66,7 @@ if ($task) {
     Write-Host "  Task Name : $($task.TaskName)"
     Write-Host "  State     : $($task.State)"
     Write-Host "  Next Run  : $($info.NextRunTime)"
-    Write-Host "  Interval  : 10 mins"
+    Write-Host "  Interval  : 1 hour"
     Write-Host ""
 } else {
     Write-Host "=== FAILED ===" -ForegroundColor Red
