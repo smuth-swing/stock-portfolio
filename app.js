@@ -2312,7 +2312,7 @@ function updateJournalTrendChart() {
                         
                         // 1. 누적 투자금액 (점 상단)
                         ctx.fillStyle = '#D4AF37';
-                        ctx.fillText(cumValText, datapoint.x, datapoint.y - 8);
+                        ctx.fillText(cumValText, datapoint.x, datapoint.y - 32); // 3글자만큼 위로 올림
                         
                         // 2. 주 투자금액 증감 (점 하단)
                         if (weekData) {
@@ -2321,7 +2321,7 @@ function updateJournalTrendChart() {
                             const weeklyValText = `${sign}${weeklyVal}`;
                             
                             ctx.fillStyle = '#94A3B8'; // 증감액은 슬레이트 그레이 색상으로 구분
-                            ctx.fillText(weeklyValText, datapoint.x, datapoint.y + 16);
+                            ctx.fillText(weeklyValText, datapoint.x, datapoint.y - 8); // 3글자만큼 위로 올림
                         }
                     } else {
                         const price = chart.data.datasets[1].data[index];
