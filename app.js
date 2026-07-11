@@ -590,7 +590,7 @@ async function refreshSignalPrices(forceUpdate = false) {
                     <input type="text" class="target-price-input" data-stock="${stock}" value="${window.targetPricesCache[stock] ? window.targetPricesCache[stock].toLocaleString() : ''}" oninput="this.value = this.value.replace(/[^0-9]/g, '').replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',')" onchange="saveTargetPrice('${stock}', this.value)" style="width:80px; text-align:right; background:rgba(0,0,0,0.2); border:1px solid #444; color:#00F2FE; border-radius:4px; padding:4px;">
                 </td>
                 <td class="col-date">
-                    <input type="date" class="target-date-input" data-stock="${stock}" value="${window.targetDatesCache[stock] || ''}" onchange="saveTargetDate('${stock}', this.value)" style="width:125px; background:rgba(0,0,0,0.2); border:1px solid #444; color:#00F2FE; border-radius:4px; padding:4px;">
+                    <input type="${window.targetDatesCache[stock] ? 'date' : 'text'}" class="target-date-input" data-stock="${stock}" value="${window.targetDatesCache[stock] || ''}" onfocus="this.type='date'" onblur="if(!this.value) this.type='text'" onchange="saveTargetDate('${stock}', this.value)" placeholder="" style="width:125px; background:rgba(0,0,0,0.2); border:1px solid #444; color:#00F2FE; border-radius:4px; padding:4px;">
                 </td>
                 <td class="col-ma5-cur"><div class="spinner" style="display:inline-block;width:14px;height:14px;vertical-align:middle;border-width:2px;"></div></td>
                 <td class="col-ma5-next">-</td>
