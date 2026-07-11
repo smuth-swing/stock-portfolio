@@ -468,11 +468,14 @@ window.setSignalCategory = function(category) {
     
     document.getElementById('btn-sig-portfolio').classList.remove('active');
     document.getElementById('btn-sig-priority').classList.remove('active');
+    document.getElementById('btn-sig-market').classList.remove('active');
     
     if (category === 'portfolio') {
         document.getElementById('btn-sig-portfolio').classList.add('active');
-    } else {
+    } else if (category === 'priority') {
         document.getElementById('btn-sig-priority').classList.add('active');
+    } else if (category === 'market') {
+        document.getElementById('btn-sig-market').classList.add('active');
     }
     
     refreshSignalPrices();
@@ -487,16 +490,62 @@ async function refreshSignalPrices(forceUpdate = false) {
     let stocks = [];
     if (currentSignalCategory === 'portfolio') {
         stocks = Object.keys(portfolioMapCache).filter(name => name && name.trim()).map(name => name.trim());
-    } else {
+    } else if (currentSignalCategory === 'priority') {
         // 매매우선 종목은 탐구생활 시트에서 추출된 캐시 사용
         stocks = [...investigationPriorityCache].filter(name => name && name.trim()).map(name => name.trim());
+    } else if (currentSignalCategory === 'market') {
+        window.foreignDiffsCache = {};
+        // 시장관심종목 (네이버 인기 검색어 매칭 + 외인 변동폭 Top 5)
+        if (IS_GITHUB_PAGES) {
+            try {
+                const ts = new Date().getTime();
+                const res = await fetch(`StockPortfolioApp/public/data/market_interest_stocks.json?t=${ts}`);
+                if (res.ok) {
+                    const result = await res.json();
+                    stocks = result.stocks || [];
+                    window.foreignDiffsCache = result.foreign_diffs || {};
+                }
+            } catch (e) {
+                console.error('시장관심종목 로컬 JSON 로드 실패:', e);
+            }
+        } else {
+            try {
+                // Flask API 호출을 통해 실시간 수집 및 비교
+                const res = await fetch(`${API}/market-interest-stocks`);
+                if (res.ok) {
+                    const result = await res.json();
+                    if (result.success) {
+                        stocks = result.stocks || [];
+                        window.foreignDiffsCache = result.foreign_diffs || {};
+                    }
+                }
+            } catch (e) {
+                console.error('시장관심종목 API 조회 실패:', e);
+                showToast('시장관심종목 실시간 조회 실패. 이전 캐시를 불러옵니다.', 'error');
+                
+                // Fallback: 로컬 JSON 파일에서 읽기
+                try {
+                    const res = await fetch(`data/market_interest_stocks.json`);
+                    if (res.ok) {
+                        const result = await res.json();
+                        stocks = result.stocks || [];
+                        window.foreignDiffsCache = result.foreign_diffs || {};
+                    }
+                } catch (fallbackErr) {}
+            }
+        }
     }
     
     // 중복 제거
     stocks = [...new Set(stocks)];
 
     if (stocks.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">${currentSignalCategory === 'portfolio' ? '포트폴리오' : '매매우선'} 종목이 없습니다.</td></tr>`;
+        let emptyMsg = '종목이 없습니다.';
+        if (currentSignalCategory === 'portfolio') emptyMsg = '등록된 포트폴리오 종목이 없습니다.';
+        else if (currentSignalCategory === 'priority') emptyMsg = '등록된 매매우선 종목이 없습니다.';
+        else if (currentSignalCategory === 'market') emptyMsg = '현재 시장관심 30위 내에 탐구생활 종목이 없습니다.';
+        
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">${emptyMsg}</td></tr>`;
         return;
     }
     
@@ -516,10 +565,19 @@ async function refreshSignalPrices(forceUpdate = false) {
     for (const stock of stocks) {
         // 종목명에서 공백 등을 제거하여 안전한 ID 생성
         const safeId = stock.replace(/[^a-zA-Z0-9가-힣]/g, '');
+        
+        let nameHtml = stock;
+        if (currentSignalCategory === 'market' && window.foreignDiffsCache && window.foreignDiffsCache[stock] !== undefined) {
+            const diffVal = window.foreignDiffsCache[stock];
+            const color = diffVal > 0 ? '#00F2FE' : '#EF4444';
+            const sign = diffVal > 0 ? '+' : '';
+            nameHtml = `${stock}<br><span style="font-size:11px; font-weight:normal; color:${color};">(외인 ${sign}${diffVal.toFixed(2)}%p)</span>`;
+        }
+        
         // 기존 row를 재활용하거나 새로 생성
         html += `
             <tr id="signal-row-${safeId}">
-                <td style="font-weight:bold; color:var(--gold-light);">${stock}</td>
+                <td style="font-weight:bold; color:var(--gold-light);">${nameHtml}</td>
                 <td class="col-price">-</td>
                 <td class="col-target">
                     <input type="text" class="target-price-input" data-stock="${stock}" value="${window.targetPricesCache[stock] ? window.targetPricesCache[stock].toLocaleString() : ''}" oninput="this.value = this.value.replace(/[^0-9]/g, '').replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',')" onchange="saveTargetPrice('${stock}', this.value)" style="width:80px; text-align:right; background:rgba(0,0,0,0.2); border:1px solid #444; color:#00F2FE; border-radius:4px; padding:4px;">
@@ -571,6 +629,12 @@ async function refreshSignalPrices(forceUpdate = false) {
                 
                 if (!data) {
                     const res = await fetch(`${API}/ls/moving-averages?name=${encodeURIComponent(stock)}`);
+                    if (res.status === 400) {
+                        console.warn(`조회 불가능한 종목명: ${stock}`);
+                        row.querySelector('.col-price').innerHTML = '<span style="color:#888;">조회 불가</span>';
+                        row.querySelectorAll('td.col-ma5-cur, td.col-ma5-next, td.col-ma120-week, td.col-rsi').forEach(td => td.innerText = '-');
+                        continue;
+                    }
                     if (!res.ok) throw new Error('API Error');
                     const result = await res.json();
                     
@@ -606,7 +670,14 @@ async function refreshSignalPrices(forceUpdate = false) {
                     }
                     
                     if (isTargetReached) {
-                        row.querySelector('td:first-child').innerHTML = `${stock}<br><span style="color:var(--danger); font-size:11px; font-weight:bold;">🚨 목표가 도달</span>`;
+                        let nameHtml = stock;
+                        if (window.foreignDiffsCache && window.foreignDiffsCache[stock] !== undefined) {
+                            const diffVal = window.foreignDiffsCache[stock];
+                            const color = diffVal > 0 ? '#00F2FE' : '#EF4444';
+                            const sign = diffVal > 0 ? '+' : '';
+                            nameHtml = `${stock}<br><span style="font-size:11px; font-weight:normal; color:${color};">(외인 ${sign}${diffVal.toFixed(2)}%p)</span>`;
+                        }
+                        row.querySelector('td:first-child').innerHTML = `${nameHtml}<br><span style="color:var(--danger); font-size:11px; font-weight:bold;">🚨 목표가 도달</span>`;
                         row.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
                         row.style.borderLeft = '3px solid var(--danger)';
                     }

@@ -1407,6 +1407,231 @@ def ls_moving_averages():
 # ── 신호 데이터 원격 갱신 (모바일 → PC 서버 트리거) ──
 _signal_refresh_lock = threading.Lock()
 
+def get_foreign_ownership_diffs():
+    """탐구생활 모든 종목의 1주일 외국인 지분율 변동 계산 (캐시 활용)"""
+    import json
+    import os
+    import time
+    import urllib.request
+    import re
+    from datetime import datetime
+    
+    cache_path = os.path.join(BASE_DIR, 'StockPortfolioApp', 'public', 'data', 'foreign_ownership_cache.json')
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    
+    # 1. 캐시 확인
+    if os.path.exists(cache_path):
+        try:
+            with open(cache_path, 'r', encoding='utf-8') as f:
+                cache_data = json.load(f)
+                if cache_data.get('date') == today_str:
+                    print("[INFO] Use today's foreign ownership cache")
+                    return cache_data.get('data', {})
+        except Exception as e:
+            print(f"[WARN] Failed to read foreign ownership cache: {e}")
+            
+    # 2. 캐시가 없거나 만료된 경우 갱신
+    print("[INFO] Updating foreign ownership diffs from Naver Finance...")
+    inv_path = os.path.join(BASE_DIR, 'StockPortfolioApp', 'public', 'data', 'investigation.json')
+    inv_stocks = []
+    if os.path.exists(inv_path):
+        try:
+            with open(inv_path, 'r', encoding='utf-8') as f:
+                inv_data = json.load(f)
+                cols = inv_data.get('columns', [])
+                nameCol = '종목명' if '종목명' in cols else 'Unnamed: 1'
+                for row in inv_data.get('data', []):
+                    name = str(row.get(nameCol, '')).strip()
+                    if name and name not in ['종목', 'stock'] and '~~' not in name:
+                        inv_stocks.append(name)
+        except Exception:
+            pass
+            
+    if not inv_stocks:
+        return {}
+        
+    # 종목코드 맵
+    name_to_code = {}
+    try:
+        from ls_api import load_config as _load_config, get_access_token as _get_access_token, get_stock_codes_by_names as _get_stock_codes_by_names
+        cfg = _load_config()
+        token = _get_access_token(cfg.get("app_key", ""), cfg.get("app_secret", ""))
+        if token:
+            name_to_code = _get_stock_codes_by_names(token, inv_stocks)
+    except Exception:
+        pass
+        
+    if not name_to_code:
+        codes_path = os.path.join(BASE_DIR, 'StockPortfolioApp', 'public', 'data', 'stock_codes.json')
+        if os.path.exists(codes_path):
+            try:
+                with open(codes_path, 'r', encoding='utf-8') as f:
+                    name_to_code = json.load(f)
+            except Exception:
+                pass
+
+    diffs = {}
+    url_template = "https://finance.naver.com/item/frgn.naver?code={code}"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    
+    for name in inv_stocks:
+        code = name_to_code.get(name)
+        if not code:
+            continue
+        try:
+            req = urllib.request.Request(url_template.format(code=code), headers=headers)
+            with urllib.request.urlopen(req, timeout=3) as response:
+                html = response.read().decode('euc-kr', errors='replace')
+            rows = re.findall(r'<tr[^>]*>.*?</tr>', html, re.DOTALL)
+            history = []
+            for r in rows:
+                if re.search(r'\d{4}\.\d{2}\.\d{2}', r):
+                    tds = re.findall(r'<td[^>]*>(.*?)</td>', r, re.DOTALL)
+                    tds_clean = [re.sub(r'<[^>]+>', '', t).strip() for t in tds]
+                    if len(tds_clean) >= 9:
+                        ratio_str = tds_clean[8].replace('%', '').strip()
+                        try:
+                            history.append(float(ratio_str))
+                        except ValueError:
+                            pass
+            if len(history) >= 6:
+                diff_p = round(history[0] - history[5], 2)
+                diffs[name] = diff_p
+            time.sleep(0.05)
+        except Exception:
+            pass
+            
+    # 캐시 파일 쓰기
+    try:
+        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+        with open(cache_path, 'w', encoding='utf-8') as f:
+            json.dump({'date': today_str, 'data': diffs}, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[WARN] Failed to write foreign ownership cache: {e}")
+        
+    return diffs
+
+def update_market_interest_stocks_file():
+    """네이버 실시간 인기 검색 종목 및 외인 비중 변동 증가/감소 Top 5를 시장관심종목으로 통합 및 저장"""
+    import urllib.request
+    import re
+    import json
+    
+    # 1. 탐구생활 종목 전체 로드
+    inv_path = os.path.join(BASE_DIR, 'StockPortfolioApp', 'public', 'data', 'investigation.json')
+    inv_stocks = []
+    if os.path.exists(inv_path):
+        try:
+            with open(inv_path, 'r', encoding='utf-8') as f:
+                inv_data = json.load(f)
+                cols = inv_data.get('columns', [])
+                nameCol = '종목명' if '종목명' in cols else 'Unnamed: 1'
+                for row in inv_data.get('data', []):
+                    name = str(row.get(nameCol, '')).strip()
+                    if name and name not in ['종목', 'stock'] and '~~' not in name:
+                        inv_stocks.append(name)
+        except Exception as e:
+            print(f"[ERROR] Failed to read investigation.json in helper: {e}")
+            
+    # 2. 네이버 인기 검색 종목 크롤링 (30개) 및 탐구생활 매칭
+    url = "https://finance.naver.com/sise/lastsearch2.naver"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    popular_stocks = []
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=5) as response:
+            html = response.read().decode('euc-kr', errors='replace')
+        pattern = r'class="tltle"[^>]*>([^<]+)</a>'
+        popular_stocks = [name.strip() for name in re.findall(pattern, html)]
+    except Exception as e:
+        print(f"[ERROR] fetch_naver_popular_stocks in helper failed: {e}")
+        
+    popular_matched = []
+    if inv_stocks and popular_stocks:
+        inv_clean = {name.replace(" ", "").upper(): name for name in inv_stocks}
+        for pop_stock in popular_stocks:
+            pop_clean = pop_stock.replace(" ", "").upper()
+            if pop_clean in inv_clean:
+                popular_matched.append(inv_clean[pop_clean])
+                
+    # 3. 외국인 지분율 변동 계산 및 Top 5 증가/감소 종목 추출
+    diffs = get_foreign_ownership_diffs()
+    
+    # 증가 Top 5
+    sorted_increase = sorted([item for item in diffs.items() if item[1] > 0], key=lambda x: x[1], reverse=True)
+    top_increase = [name for name, val in sorted_increase[:5]]
+    
+    # 감소 Top 5
+    sorted_decrease = sorted([item for item in diffs.items() if item[1] < 0], key=lambda x: x[1])
+    top_decrease = [name for name, val in sorted_decrease[:5]]
+    
+    # 4. 통합 (인기 매칭 종목 + 증가 Top 5 + 감소 Top 5)
+    combined_stocks = []
+    seen = set()
+    
+    for stock in popular_matched:
+        if stock not in seen:
+            combined_stocks.append(stock)
+            seen.add(stock)
+            
+    for stock in top_increase:
+        if stock not in seen:
+            combined_stocks.append(stock)
+            seen.add(stock)
+            
+    for stock in top_decrease:
+        if stock not in seen:
+            combined_stocks.append(stock)
+            seen.add(stock)
+            
+    # 변동폭 딕셔너리 구성
+    foreign_diffs = {name: val for name, val in diffs.items() if name in combined_stocks}
+    
+    # 5. 파일 저장
+    out_dir = os.path.join(BASE_DIR, 'StockPortfolioApp', 'public', 'data')
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, 'market_interest_stocks.json')
+    
+    result_data = {
+        "stocks": combined_stocks,
+        "foreign_diffs": foreign_diffs
+    }
+    
+    try:
+        with open(out_path, 'w', encoding='utf-8') as f:
+            json.dump(result_data, f, ensure_ascii=False, indent=2)
+        print(f"[OK] market_interest_stocks.json updated: {len(combined_stocks)} stocks")
+    except Exception as e:
+        print(f"[ERROR] Failed to write market_interest_stocks.json: {e}")
+        
+    return combined_stocks
+
+@app.route('/api/market-interest-stocks', methods=['GET', 'POST'])
+def get_market_interest_stocks():
+    """실시간 인기 검색어 및 외인 변동폭 기반 시장관심종목 업데이트 및 조회"""
+    try:
+        stocks = update_market_interest_stocks_file()
+        
+        # 갱신된 파일의 데이터 직접 읽기 (foreign_diffs를 포함하여 프론트에 주기 위함)
+        out_path = os.path.join(BASE_DIR, 'StockPortfolioApp', 'public', 'data', 'market_interest_stocks.json')
+        foreign_diffs = {}
+        if os.path.exists(out_path):
+            with open(out_path, 'r', encoding='utf-8') as f:
+                saved_data = json.load(f)
+                foreign_diffs = saved_data.get('foreign_diffs', {})
+                
+        return jsonify({
+            'success': True,
+            'stocks': stocks,
+            'foreign_diffs': foreign_diffs
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/refresh-signals', methods=['GET', 'POST'])
 def refresh_signals():
     """
@@ -1415,9 +1640,10 @@ def refresh_signals():
     
     동작 흐름:
     1. export_signals.py 실행 (LS증권 API로 최신 이평선/RSI 수집)
-    2. StockPortfolioApp/public/data → mobile/data 복사
-    3. Git add + commit + push (GitHub Pages 반영)
-    4. 완료 시 JSON 응답 반환
+    2. 시장관심종목(market_interest_stocks.json) 실시간 갱신
+    3. StockPortfolioApp/public/data → mobile/data 복사
+    4. Git add + commit + push (GitHub Pages 반영)
+    5. 완료 시 JSON 응답 반환
     """
     if not _signal_refresh_lock.acquire(blocking=False):
         return jsonify({
@@ -1442,6 +1668,14 @@ def refresh_signals():
                 'message': f'신호 데이터 수집 실패: {result_sig.stderr[:200]}'
             }), 500
         print("[REFRESH-SIGNALS] ✅ 신호 데이터 수집 완료")
+
+        # 1.5단계: 시장관심종목 데이터 갱신
+        print("[REFRESH-SIGNALS] 1.5. 시장관심종목 데이터 갱신 시작...")
+        try:
+            update_market_interest_stocks_file()
+            print("[REFRESH-SIGNALS] ✅ 시장관심종목 데이터 갱신 완료")
+        except Exception as e_market:
+            print(f"[REFRESH-SIGNALS] ❌ 시장관심종목 갱신 에러 (건너뜀): {e_market}")
 
         # 2단계: mobile/data 로 복사
         print("[REFRESH-SIGNALS] 2. 모바일 데이터 복사 중...")

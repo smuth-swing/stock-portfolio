@@ -5,10 +5,12 @@ import { useDataStore } from '../store/useDataStore';
 
 export default function SignalScreen() {
   const { portfolioMap, investigation, meta, targetPrices } = useDataStore();
-  const [category, setCategory] = useState<'portfolio' | 'priority'>('portfolio');
+  const [category, setCategory] = useState<'portfolio' | 'priority' | 'market'>('portfolio');
   const [signals, setSignals] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [stockCodes, setStockCodes] = useState<Record<string, string>>({});
+  const [loadedStocks, setLoadedStocks] = useState<string[]>([]);
+  const [foreignDiffs, setForeignDiffs] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const loadStockCodes = async () => {
@@ -101,8 +103,53 @@ export default function SignalScreen() {
   const refreshSignals = useCallback(async () => {
     setLoading(true);
     setSignals({});
+    setForeignDiffs({});
     
-    const stocks = category === 'portfolio' ? getPortfolioStocks() : getPriorityStocks();
+    let stocks: string[] = [];
+    let diffMap: Record<string, number> = {};
+    if (category === 'portfolio') {
+      stocks = getPortfolioStocks();
+    } else if (category === 'priority') {
+      stocks = getPriorityStocks();
+    } else if (category === 'market') {
+      if (isGitHubPages) {
+        try {
+          const ts = new Date().getTime();
+          const res = await fetch(`data/market_interest_stocks.json?t=${ts}`);
+          if (res.ok) {
+            const data = await res.json();
+            stocks = data.stocks || [];
+            diffMap = data.foreign_diffs || {};
+          }
+        } catch (e) {
+          console.warn('Failed to load offline market interest stocks:', e);
+        }
+      } else {
+        try {
+          const res = await fetch(`${API_BASE}/api/market-interest-stocks`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success) {
+              stocks = data.stocks || [];
+              diffMap = data.foreign_diffs || {};
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to fetch market interest stocks from API, falling back to local file:', e);
+          try {
+            const res = await fetch(`data/market_interest_stocks.json`);
+            if (res.ok) {
+              const data = await res.json();
+              stocks = data.stocks || [];
+              diffMap = data.foreign_diffs || {};
+            }
+          } catch (fallbackErr) {}
+        }
+      }
+    }
+    
+    setLoadedStocks(stocks);
+    setForeignDiffs(diffMap);
     const newSignals: Record<string, any> = {};
 
     if (isGitHubPages) {
@@ -143,7 +190,7 @@ export default function SignalScreen() {
     }
     
     setLoading(false);
-  }, [category, portfolioMap, investigation, isGitHubPages]);
+  }, [category, portfolioMap, investigation, isGitHubPages, API_BASE]);
 
 
 
@@ -230,6 +277,19 @@ export default function SignalScreen() {
           <View>
             <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
               <Text style={styles.stockName}>{stock}</Text>
+              {foreignDiffs[stock] !== undefined && (
+                <View style={[
+                  styles.foreignBadge,
+                  { backgroundColor: foreignDiffs[stock] > 0 ? 'rgba(0, 242, 254, 0.15)' : 'rgba(239, 68, 68, 0.15)' }
+                ]}>
+                  <Text style={[
+                    styles.foreignBadgeText,
+                    { color: foreignDiffs[stock] > 0 ? '#00F2FE' : '#EF4444' }
+                  ]}>
+                    외인 {foreignDiffs[stock] > 0 ? '+' : ''}{foreignDiffs[stock].toFixed(2)}%p
+                  </Text>
+                </View>
+              )}
               {isTargetReached && targetPrice && (
                 <Text style={styles.targetReachedBadge}>🚨 목표가 도달 ({targetPrice.toLocaleString()}원)</Text>
               )}
@@ -265,8 +325,6 @@ export default function SignalScreen() {
     );
   };
 
-  const stocks = category === 'portfolio' ? getPortfolioStocks() : getPriorityStocks();
-
   return (
     <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.container}>
       <View style={styles.header}>
@@ -295,13 +353,19 @@ export default function SignalScreen() {
         >
           <Text style={[styles.filterBtnText, category === 'priority' && styles.filterBtnTextActive]}>매매우선</Text>
         </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.filterBtn, category === 'market' && styles.filterBtnActive]}
+          onPress={() => setCategory('market')}
+        >
+          <Text style={[styles.filterBtnText, category === 'market' && styles.filterBtnTextActive]}>시장관심종목</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.listContainer}>
-        {stocks.length === 0 ? (
+        {loadedStocks.length === 0 ? (
           <Text style={styles.emptyText}>해당하는 종목이 없습니다.</Text>
         ) : (
-          stocks.map(stock => renderSignalRow(stock))
+          loadedStocks.map(stock => renderSignalRow(stock))
         )}
       </ScrollView>
     </LinearGradient>
@@ -405,5 +469,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  foreignBadge: {
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  foreignBadgeText: {
+    fontSize: 11,
+    fontWeight: 'bold',
   },
 });
