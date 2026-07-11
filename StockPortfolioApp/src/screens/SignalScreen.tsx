@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useDataStore } from '../store/useDataStore';
 
 export default function SignalScreen() {
-  const { portfolioMap, investigation, meta, targetPrices } = useDataStore();
+  const { portfolioMap, investigation, meta, targetPrices, targetDates } = useDataStore();
   const [category, setCategory] = useState<'portfolio' | 'priority' | 'market'>('portfolio');
   const [signals, setSignals] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
@@ -262,6 +262,7 @@ export default function SignalScreen() {
     const rsiText = rsiTexts.length > 0 ? rsiTexts.join(', ') : '-';
 
     const targetPrice = targetPrices?.[stock];
+    const targetDate = targetDates?.[stock];
     let isTargetReached = false;
     if (targetPrice) {
       const high_1w = data.high_1w || current;
@@ -295,9 +296,15 @@ export default function SignalScreen() {
               )}
             </View>
             {targetPrice ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}>
                 <Text style={{ color: '#94A3B8', fontSize: 13 }}>목표가: </Text>
                 <Text style={{ color: '#00F2FE', fontSize: 13, fontWeight: 'bold' }}>{targetPrice.toLocaleString()}원</Text>
+                {targetDate ? (
+                  <>
+                    <Text style={{ color: '#94A3B8', fontSize: 13, marginLeft: 8 }}>시점: </Text>
+                    <Text style={{ color: '#00F2FE', fontSize: 13, fontWeight: 'bold' }}>{targetDate}</Text>
+                  </>
+                ) : null}
               </View>
             ) : null}
           </View>

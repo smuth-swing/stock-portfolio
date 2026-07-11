@@ -545,19 +545,26 @@ async function refreshSignalPrices(forceUpdate = false) {
         else if (currentSignalCategory === 'priority') emptyMsg = '등록된 매매우선 종목이 없습니다.';
         else if (currentSignalCategory === 'market') emptyMsg = '현재 시장관심 30위 내에 탐구생활 종목이 없습니다.';
         
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">${emptyMsg}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">${emptyMsg}</td></tr>`;
         return;
     }
     
-    // 목표가 정보 로드
+    // 목표가 및 시점 정보 로드
     window.targetPricesCache = window.targetPricesCache || {};
+    window.targetDatesCache = window.targetDatesCache || {};
     try {
-        const resTarget = await fetch(`${API}/target-prices`);
+        const [resTarget, resDate] = await Promise.all([
+            fetch(`${API}/target-prices`),
+            fetch(`${API}/target-dates`)
+        ]);
         if (resTarget.ok) {
             window.targetPricesCache = await resTarget.json();
         }
+        if (resDate.ok) {
+            window.targetDatesCache = await resDate.json();
+        }
     } catch(e) {
-        console.warn('목표가 로드 실패', e);
+        console.warn('목표가/시점 로드 실패', e);
     }
     
     // 1. 기본 테이블 생성
@@ -581,6 +588,9 @@ async function refreshSignalPrices(forceUpdate = false) {
                 <td class="col-price">-</td>
                 <td class="col-target">
                     <input type="text" class="target-price-input" data-stock="${stock}" value="${window.targetPricesCache[stock] ? window.targetPricesCache[stock].toLocaleString() : ''}" oninput="this.value = this.value.replace(/[^0-9]/g, '').replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',')" onchange="saveTargetPrice('${stock}', this.value)" style="width:80px; text-align:right; background:rgba(0,0,0,0.2); border:1px solid #444; color:#00F2FE; border-radius:4px; padding:4px;">
+                </td>
+                <td class="col-date">
+                    <input type="date" class="target-date-input" data-stock="${stock}" value="${window.targetDatesCache[stock] || ''}" onchange="saveTargetDate('${stock}', this.value)" style="width:125px; background:rgba(0,0,0,0.2); border:1px solid #444; color:#00F2FE; border-radius:4px; padding:4px;">
                 </td>
                 <td class="col-ma5-cur"><div class="spinner" style="display:inline-block;width:14px;height:14px;vertical-align:middle;border-width:2px;"></div></td>
                 <td class="col-ma5-next">-</td>
@@ -3288,5 +3298,30 @@ window.saveTargetPrice = async function(stock, value) {
         }
     } catch(e) {
         showToast('목표가 저장 오류', 'error');
+    }
+};
+
+window.saveTargetDate = async function(stock, value) {
+    try {
+        if (!value) {
+            delete window.targetDatesCache[stock];
+        } else {
+            window.targetDatesCache[stock] = value;
+        }
+        
+        const resPost = await fetch(`${API}/target-dates`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(window.targetDatesCache)
+        });
+        
+        if (resPost.ok) {
+            showToast(`${stock} 목표 시점 저장 완료`, 'success');
+            refreshSignalPrices(); // 도달 여부 즉시 반영
+        } else {
+            showToast('목표 시점 저장 실패', 'error');
+        }
+    } catch(e) {
+        showToast('목표 시점 저장 오류', 'error');
     }
 };

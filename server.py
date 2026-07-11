@@ -1290,6 +1290,7 @@ def ls_import_trades():
         return jsonify({'error': f'저장 오류: {str(e)}'}), 500
 
 TARGET_PRICES_FILE = os.path.join("StockPortfolioApp", "public", "data", "target_prices.json")
+TARGET_DATES_FILE = os.path.join("StockPortfolioApp", "public", "data", "target_dates.json")
 
 @app.route('/api/target-prices', methods=['GET'])
 def get_target_prices():
@@ -1307,6 +1308,31 @@ def save_target_prices():
         data = request.get_json()
         os.makedirs(os.path.dirname(TARGET_PRICES_FILE), exist_ok=True)
         with open(TARGET_PRICES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        
+        # 파일이 업데이트되었으므로 GitHub 배포 스크립트 실행 (백그라운드)
+        trigger_export()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/target-dates', methods=['GET'])
+def get_target_dates():
+    try:
+        if os.path.exists(TARGET_DATES_FILE):
+            with open(TARGET_DATES_FILE, 'r', encoding='utf-8') as f:
+                return jsonify(json.load(f))
+        return jsonify({})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/target-dates', methods=['POST'])
+def save_target_dates():
+    try:
+        data = request.get_json()
+        os.makedirs(os.path.dirname(TARGET_DATES_FILE), exist_ok=True)
+        with open(TARGET_DATES_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         
         # 파일이 업데이트되었으므로 GitHub 배포 스크립트 실행 (백그라운드)

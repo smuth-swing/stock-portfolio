@@ -46,6 +46,11 @@ interface AppState {
   targetPrices: Record<string, number>;
   setTargetPrice: (stock: string, price: number | null) => Promise<void>;
   loadTargetPrices: () => Promise<void>;
+
+  // 목표 시점 저장소 (로컬)
+  targetDates: Record<string, string>;
+  setTargetDate: (stock: string, date: string | null) => Promise<void>;
+  loadTargetDates: () => Promise<void>;
 }
 
 // ─────────────────────────────────────────────
@@ -127,6 +132,24 @@ export const useDataStore = create<AppState>((set, get) => ({
     try {
       const pStr = await AsyncStorage.getItem('@target_prices');
       if (pStr) set({ targetPrices: JSON.parse(pStr) });
+    } catch (e) {}
+  },
+  targetDates: {},
+  setTargetDate: async (stock: string, date: string | null) => {
+    const { targetDates } = get();
+    const newDates = { ...targetDates };
+    if (date === null) {
+      delete newDates[stock];
+    } else {
+      newDates[stock] = date;
+    }
+    set({ targetDates: newDates });
+    await AsyncStorage.setItem('@target_dates', JSON.stringify(newDates));
+  },
+  loadTargetDates: async () => {
+    try {
+      const dStr = await AsyncStorage.getItem('@target_dates');
+      if (dStr) set({ targetDates: JSON.parse(dStr) });
     } catch (e) {}
   },
 
@@ -312,3 +335,4 @@ export const useDataStore = create<AppState>((set, get) => ({
 // 초기화 시 큐 로드
 useDataStore.getState().loadSyncQueue();
 useDataStore.getState().loadTargetPrices();
+useDataStore.getState().loadTargetDates();
