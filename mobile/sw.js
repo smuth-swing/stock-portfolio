@@ -52,11 +52,6 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // API 요청은 서비스 워커 캐싱을 거치지 않고 네트워크로 즉송되도록 바이패스
-  if (url.pathname.includes('/api/')) {
-    return;
-  }
-
   // 데이터 JSON → 네트워크 우선, 실패 시 캐시 (최신 데이터 우선)
   if (url.pathname.includes('/data/') && url.pathname.endsWith('.json') && request.method === 'GET') {
     event.respondWith(

@@ -165,6 +165,16 @@ export const useDataStore = create<AppState>((set, get) => ({
 
     let anyCacheLoaded = false;
 
+    // targetPrices 및 targetDates 로컬 캐시 로드 추가
+    try {
+      const cachedPrices = await getCachedData('targetPrices');
+      if (cachedPrices) set({ targetPrices: cachedPrices });
+      const cachedDates = await getCachedData('targetDates');
+      if (cachedDates) set({ targetDates: cachedDates });
+    } catch (e) {
+      console.warn('[useDataStore] targetPrices/Dates 캐시 로드 실패:', e);
+    }
+
     // [1단계] 로컬 캐시에서 즉시 로드 (병렬 처리로 속도 최적화)
     console.log('[useDataStore] 💾 1단계: 로컬 캐시 로드 시작');
     const cacheResults = await Promise.all(
@@ -222,7 +232,30 @@ export const useDataStore = create<AppState>((set, get) => ({
       }
     });
 
-    await Promise.all(syncPromises);
+    const extraSyncPromises = [
+      (async () => {
+        try {
+          const result = await fetchJSON('targetPrices');
+          if (result && result.data) {
+            set({ targetPrices: result.data });
+          }
+        } catch (e) {
+          console.warn('[useDataStore] targetPrices 서버 동기화 실패:', e);
+        }
+      })(),
+      (async () => {
+        try {
+          const result = await fetchJSON('targetDates');
+          if (result && result.data) {
+            set({ targetDates: result.data });
+          }
+        } catch (e) {
+          console.warn('[useDataStore] targetDates 서버 동기화 실패:', e);
+        }
+      })()
+    ];
+
+    await Promise.all([...syncPromises, ...extraSyncPromises]);
 
     // 동기화 결과 반영
     if (anyServerLoaded) {

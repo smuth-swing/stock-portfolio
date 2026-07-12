@@ -315,27 +315,44 @@ def mobile_index():
     """모바일 PWA 메인 서빙"""
     return send_from_directory('mobile', 'index.html')
 
+@app.route('/stock-portfolio/mobile')
+@app.route('/stock-portfolio/mobile/')
+def mobile_index_subpath():
+    """모바일 PWA 메인 서브패스 서빙"""
+    return send_from_directory('mobile', 'index.html')
+
 @app.route('/mobile/sw.js')
+@app.route('/stock-portfolio/mobile/sw.js')
 def serve_mobile_sw():
     """모바일 sw.js 서빙"""
     return send_from_directory('mobile', 'sw.js')
 
 @app.route('/mobile/manifest.json')
+@app.route('/stock-portfolio/mobile/manifest.json')
 def serve_mobile_manifest():
     """모바일 manifest.json 서빙"""
     return send_from_directory('mobile', 'manifest.json')
 
 @app.route('/mobile/metadata.json')
+@app.route('/stock-portfolio/mobile/metadata.json')
 def serve_mobile_metadata():
     """모바일 metadata.json 서빙"""
     return send_from_directory('mobile', 'metadata.json')
 
 @app.route('/mobile/favicon.ico')
+@app.route('/stock-portfolio/mobile/favicon.ico')
 def serve_mobile_favicon():
     """모바일 favicon.ico 서빙"""
     return send_from_directory('mobile', 'favicon.ico')
 
+@app.route('/mobile/_expo/<path:filename>')
+@app.route('/stock-portfolio/mobile/_expo/<path:filename>')
+def serve_mobile_expo(filename):
+    """모바일 _expo 폴더 정적 파일 서빙"""
+    return send_from_directory('mobile/_expo', filename)
+
 @app.route('/mobile/assets/<path:filename>')
+@app.route('/stock-portfolio/mobile/assets/<path:filename>')
 def serve_mobile_assets(filename):
     """모바일 assets 폴더 정적 파일 서빙"""
     return send_from_directory('mobile/assets', filename)
@@ -343,6 +360,7 @@ def serve_mobile_assets(filename):
 
 
 @app.route('/mobile/data/<path:filename>', methods=['GET', 'OPTIONS'])
+@app.route('/stock-portfolio/mobile/data/<path:filename>', methods=['GET', 'OPTIONS'])
 def serve_mobile_data(filename):
     if request.method == 'OPTIONS':
         response = make_response()

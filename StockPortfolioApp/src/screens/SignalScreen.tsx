@@ -295,13 +295,17 @@ export default function SignalScreen() {
                 <Text style={styles.targetReachedBadge}>🚨 목표가 도달 ({targetPrice.toLocaleString()}원)</Text>
               )}
             </View>
-            {targetPrice ? (
+            {(targetPrice || targetDate) ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}>
-                <Text style={{ color: '#94A3B8', fontSize: 13 }}>목표가: </Text>
-                <Text style={{ color: '#00F2FE', fontSize: 13, fontWeight: 'bold' }}>{targetPrice.toLocaleString()}원</Text>
+                {targetPrice ? (
+                  <>
+                    <Text style={{ color: '#94A3B8', fontSize: 13 }}>목표가: </Text>
+                    <Text style={{ color: '#00F2FE', fontSize: 13, fontWeight: 'bold' }}>{targetPrice.toLocaleString()}원</Text>
+                  </>
+                ) : null}
                 {targetDate ? (
                   <>
-                    <Text style={{ color: '#94A3B8', fontSize: 13, marginLeft: 8 }}>시점: </Text>
+                    <Text style={{ color: '#94A3B8', fontSize: 13, marginLeft: targetPrice ? 8 : 0 }}>시점: </Text>
                     <Text style={{ color: '#00F2FE', fontSize: 13, fontWeight: 'bold' }}>{targetDate}</Text>
                   </>
                 ) : null}
