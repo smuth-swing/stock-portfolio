@@ -1641,6 +1641,10 @@ def update_market_interest_stocks_file():
             combined_stocks.append(stock)
             seen.add(stock)
             
+    # 외인 지분율 변동폭(diffs) 기준으로 내림차순 정렬 (올라간 거 -> 내려간 거 순)
+    # diffs에 변동률이 없는 종목은 0.0으로 간주하여 정렬
+    combined_stocks.sort(key=lambda x: diffs.get(x, 0.0), reverse=True)
+            
     # 변동폭 딕셔너리 구성
     foreign_diffs = {name: val for name, val in diffs.items() if name in combined_stocks}
     
