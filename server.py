@@ -1605,6 +1605,15 @@ def update_market_interest_stocks_file():
     # 3. 외국인 지분율 변동 계산 및 Top 5 증가/감소 종목 추출
     diffs = get_foreign_ownership_diffs()
     
+    # 현재 탐구생활 종목(inv_stocks)에 존재하는 종목만 필터링 (공백 및 대소문자 무시 매칭 지원)
+    inv_clean = {name.replace(" ", "").upper(): name for name in inv_stocks}
+    filtered_diffs = {}
+    for name, val in diffs.items():
+        name_clean = name.replace(" ", "").upper()
+        if name_clean in inv_clean:
+            filtered_diffs[inv_clean[name_clean]] = val
+    diffs = filtered_diffs
+    
     # 증가 Top 5
     sorted_increase = sorted([item for item in diffs.items() if item[1] > 0], key=lambda x: x[1], reverse=True)
     top_increase = [name for name, val in sorted_increase[:5]]
