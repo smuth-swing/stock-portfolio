@@ -11,11 +11,12 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 // 헬퍼 함수: 컴포넌트 외부에 정의하여 매 렌더링 시 재생성 방지
 // ─────────────────────────────────────────────
 const getStockName = (item: any) => item['종목명'] || item['Unnamed: 1'] || '';
-const getMomentum  = (item: any) => item['모멘텀'] || item['모델명'] || item['Unnamed: 2'] || item['Unnamed: 1'] || '';
-const getReason    = (item: any) => item['매수이유'] || item['Unnamed: 3'] || '';
-const getRisk      = (item: any) => item['리스크'] || item['Unnamed: 4'] || '';
-const getCeo       = (item: any) => item['대표/경영진'] || item['Unnamed: 5'] || '';
-const getStrategy  = (item: any) => item['매매 전략'] || item['Unnamed: 6'] || '';
+const getQuestion  = (item: any) => item['질문'] || item['Unnamed: 2'] || '';
+const getMomentum  = (item: any) => item['모멘텀'] || item['Unnamed: 3'] || '';
+const getReason    = (item: any) => item['매수이유'] || item['Unnamed: 4'] || '';
+const getRisk      = (item: any) => item['리스크'] || item['Unnamed: 5'] || '';
+const getCeo       = (item: any) => item['대표/경영진'] || item['Unnamed: 6'] || '';
+const getStrategy  = (item: any) => item['매매 전략'] || item['Unnamed: 7'] || '';
 
 export default function InvestigationScreen() {
   const { investigation, isLoading, isSyncing, refreshData, syncQueue, addToSyncQueue, markQueueAsSynced, meta } = useDataStore();
@@ -27,6 +28,7 @@ export default function InvestigationScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [inputHeights, setInputHeights] = useState<Record<string, number>>({
+    question: 80,
     reason: 80,
     risk: 80,
     momentum: 80,
@@ -73,13 +75,14 @@ export default function InvestigationScreen() {
   const webHeights = useMemo(() => {
     if (Platform.OS !== 'web') return null;
     return {
+      question: computeWebHeight(editForm.question),
       reason: computeWebHeight(editForm.reason),
       risk: computeWebHeight(editForm.risk),
       momentum: computeWebHeight(editForm.momentum),
       strategy: computeWebHeight(editForm.strategy),
       ceo: computeWebHeight(editForm.ceo),
     };
-  }, [editForm.reason, editForm.risk, editForm.momentum, editForm.strategy, editForm.ceo, computeWebHeight]);
+  }, [editForm.question, editForm.reason, editForm.risk, editForm.momentum, editForm.strategy, editForm.ceo, computeWebHeight]);
 
   // 플랫폼에 따라 적절한 높이를 반환하는 헬퍼
   const getFieldHeight = useCallback((field: string): number => {
@@ -175,6 +178,7 @@ export default function InvestigationScreen() {
   const startEditing = (realIdx: number, item: any) => {
     setEditingIndex(realIdx);
     setEditForm({
+      question: getQuestion(item),
       reason: getReason(item),
       risk: getRisk(item),
       momentum: getMomentum(item),
@@ -199,11 +203,12 @@ export default function InvestigationScreen() {
       // 하위호환성(Unnamed) 및 신규 컬럼명 모두 지원
       const newRowData = { 
         ...rowData, 
-        '매수이유': editForm.reason, 'Unnamed: 3': editForm.reason,
-        '리스크': editForm.risk, 'Unnamed: 4': editForm.risk,
-        '모멘텀': editForm.momentum, 'Unnamed: 2': editForm.momentum, 'Unnamed: 1': editForm.momentum,
-        '매매 전략': editForm.strategy, 'Unnamed: 6': editForm.strategy,
-        '대표/경영진': editForm.ceo, 'Unnamed: 5': editForm.ceo
+        '질문': editForm.question, 'Unnamed: 2': editForm.question,
+        '모멘텀': editForm.momentum, 'Unnamed: 3': editForm.momentum,
+        '매수이유': editForm.reason, 'Unnamed: 4': editForm.reason,
+        '리스크': editForm.risk, 'Unnamed: 5': editForm.risk,
+        '대표/경영진': editForm.ceo, 'Unnamed: 6': editForm.ceo,
+        '매매 전략': editForm.strategy, 'Unnamed: 7': editForm.strategy
       };
       const values = columns.map((col: string) => newRowData[col] !== undefined && newRowData[col] !== null ? newRowData[col] : '');
 
@@ -345,6 +350,15 @@ export default function InvestigationScreen() {
                     {editingIndex === realIdx ? (
                       <View>
                         <View style={styles.section}>
+                          <Text style={styles.sectionTitle}>❓ 질문</Text>
+                          <TextInput 
+                            style={[styles.multilineInput, { height: getFieldHeight('question') }]} 
+                            multiline scrollEnabled={true} value={editForm.question} 
+                            onChangeText={t => setEditForm((prev: any) => ({...prev, question: t}))} 
+                            onContentSizeChange={e => handleContentSizeChange('question', e)}
+                          />
+                        </View>
+                        <View style={styles.section}>
                           <Text style={styles.sectionTitle}>🎯 매수 이유</Text>
                           <TextInput 
                             style={[styles.multilineInput, { height: getFieldHeight('reason') }]} 
@@ -411,6 +425,13 @@ export default function InvestigationScreen() {
                       </View>
                     ) : (
                       <View>
+                        {getQuestion(item) ? (
+                          <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>❓ 질문</Text>
+                            <Text style={styles.sectionText}>{getQuestion(item)}</Text>
+                          </View>
+                        ) : null}
+
                         {getReason(item) ? (
                           <View style={styles.section}>
                             <Text style={styles.sectionTitle}>🎯 매수 이유</Text>

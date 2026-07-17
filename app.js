@@ -779,15 +779,15 @@ async function refreshSignalPrices(forceUpdate = false) {
 
 let portfolioChart = null;
 
-const INVESTIGATION_STICKY_HEADERS = ['번호', '종목명', '모델명', '모델', '매수 이유', '리스크', '대표', '매매 전략'];
+const INVESTIGATION_STICKY_HEADERS = ['번호', '종목명', '질문', '모델명', '모델', '매수 이유', '리스크', '대표', '매매 전략'];
 
 function getInvestigationStickyIndices(columns) {
     const lowerHeaders = columns.map(c => String(mapColumnLabel(c) || '').toLowerCase());
     const index = lowerHeaders.findIndex(c => INVESTIGATION_STICKY_HEADERS.some(key => c.includes(key.toLowerCase())));
     if (index !== -1) {
-        return Array.from({ length: Math.min(7, columns.length - index) }, (_, idx) => index + idx);
+        return Array.from({ length: Math.min(8, columns.length - index) }, (_, idx) => index + idx);
     }
-    return Array.from({ length: Math.min(7, columns.length) }, (_, idx) => idx);
+    return Array.from({ length: Math.min(8, columns.length) }, (_, idx) => idx);
 }
 
 function renderTable(data) {

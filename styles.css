@@ -551,8 +551,8 @@ tr:hover { background: rgba(255,255,255,0.04); }
 /* 스크롤 시 종목명 고정 유지 (일반 테이블용으로 최적화) */
 #data-table { border-collapse: separate; border-spacing: 0; }
 
-/* 탐구생활 시트: 첫 7개 컬럼 고정 (번호 ~ 매매 전략) */
-.sticky-col-1, .sticky-col-2, .sticky-col-3, .sticky-col-4, .sticky-col-5, .sticky-col-6, .sticky-col-7 {
+/* 탐구생활 시트: 첫 8개 컬럼 고정 (번호 ~ 매매 전략) */
+.sticky-col-1, .sticky-col-2, .sticky-col-3, .sticky-col-4, .sticky-col-5, .sticky-col-6, .sticky-col-7, .sticky-col-8 {
     position: sticky;
     z-index: 10;
     background: var(--bg-secondary);
@@ -562,9 +562,10 @@ tr:hover { background: rgba(255,255,255,0.04); }
 .sticky-col-2 { left: 50px; min-width: 80px; }
 .sticky-col-3 { left: 130px; min-width: 100px; }
 .sticky-col-4 { left: 230px; min-width: 120px; }
-.sticky-col-5 { left: 350px; min-width: 70px; }
-.sticky-col-6 { left: 420px; min-width: 70px; }
-.sticky-col-7 { left: 490px; min-width: 100px; }
+.sticky-col-5 { left: 350px; min-width: 100px; }
+.sticky-col-6 { left: 450px; min-width: 100px; }
+.sticky-col-7 { left: 550px; min-width: 100px; }
+.sticky-col-8 { left: 650px; min-width: 100px; }
 /* ===== 상세 표 접기 기능 스타일 ===== */
 .table-panel {
     transition: var(--transition);
