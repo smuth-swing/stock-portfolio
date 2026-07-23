@@ -1,17 +1,46 @@
 {
-  "파크시스템스": {
-    "rsi_day": 50.19,
-    "high_1w": 264000.0,
-    "low_1w": 236000.0,
-    "rsi_week": 48.89,
-    "ma120_week": 229376.66666666666,
-    "rsi_month": 54.15,
-    "current": 260500.0,
-    "ma5_month": 261600.0,
-    "ma5_month_next": 266800.0
+  "테스": {
+    "rsi_day": 45.59,
+    "high_1w": 214500.0,
+    "low_1w": 146900.0,
+    "rsi_week": 60.38,
+    "ma120_week": 44270.916666666664,
+    "rsi_month": 69.86,
+    "current": 154100.0,
+    "ma5_month": 124120.0,
+    "ma5_month_next": 143860.0
   },
-  "로봇 ETF": {
-    "error": "코드 없음"
+  "리가켐바이오": {
+    "rsi_day": 37.86,
+    "high_1w": 111800.0,
+    "low_1w": 90100.0,
+    "rsi_week": 31.65,
+    "ma120_week": 127862.5,
+    "rsi_month": 42.79,
+    "current": 101700.0,
+    "ma5_month": 155620.0,
+    "ma5_month_next": 137560.0
+  },
+  "알지노믹스": {
+    "rsi_day": 35.16,
+    "high_1w": 34400.0,
+    "low_1w": 24650.0,
+    "rsi_week": 33.6,
+    "rsi_month": 50.0,
+    "current": 28400.0,
+    "ma5_month": 63840.0,
+    "ma5_month_next": 49760.0
+  },
+  "티에프이": {
+    "rsi_day": 40.81,
+    "high_1w": 39150.0,
+    "low_1w": 34000.0,
+    "rsi_week": 39.69,
+    "ma120_week": 31991.416666666668,
+    "rsi_month": 51.03,
+    "current": 36000.0,
+    "ma5_month": 49630.0,
+    "ma5_month_next": 45210.0
   },
   "코스텍시스": {
     "rsi_day": 36.63,
@@ -24,8 +53,65 @@
     "ma5_month": 30676.0,
     "ma5_month_next": 30182.0
   },
-  "엠케이켐": {
+  "케이아이엔엑스": {
+    "rsi_day": 68.86,
+    "high_1w": 148900.0,
+    "low_1w": 122400.0,
+    "rsi_week": 66.32,
+    "ma120_week": 90617.5,
+    "rsi_month": 67.19,
+    "current": 148400.0,
+    "ma5_month": 114760.0,
+    "ma5_month_next": 124440.0
+  },
+  "로봇 ETF": {
     "error": "코드 없음"
+  },
+  "두산에너빌러티": {
+    "error": "코드 없음"
+  },
+  "LIG디펜스앤에어로스페이스": {
+    "rsi_day": 48.39,
+    "high_1w": 779000.0,
+    "low_1w": 656000.0,
+    "rsi_week": 50.38,
+    "ma120_week": 418501.6666666667,
+    "rsi_month": 64.08,
+    "current": 736000.0,
+    "ma5_month": 761600.0,
+    "ma5_month_next": 786600.0
+  },
+  "효성티앤씨": {
+    "rsi_day": 56.59,
+    "high_1w": 325000.0,
+    "low_1w": 270000.0,
+    "rsi_week": 47.1,
+    "ma120_week": 289688.3333333333,
+    "rsi_month": 50.74,
+    "current": 322000.0,
+    "ma5_month": 370900.0,
+    "ma5_month_next": 359500.0
+  },
+  "루닛": {
+    "rsi_day": 37.15,
+    "high_1w": 10290.0,
+    "low_1w": 9090.0,
+    "rsi_week": 29.72,
+    "ma120_week": 21372.033333333333,
+    "rsi_month": 37.86,
+    "current": 9840.0,
+    "ma5_month": 15027.0,
+    "ma5_month_next": 13726.0
+  },
+  "달바글로벌": {
+    "rsi_day": 59.77,
+    "high_1w": 250000.0,
+    "low_1w": 200500.0,
+    "rsi_week": 60.72,
+    "rsi_month": 63.39,
+    "current": 240000.0,
+    "ma5_month": 207300.0,
+    "ma5_month_next": 226900.0
   },
   "파두": {
     "rsi_day": 44.95,
@@ -38,66 +124,38 @@
     "ma5_month": 79490.0,
     "ma5_month_next": 85040.0
   },
-  "원익 QnC": {
-    "rsi_day": 40.35,
-    "high_1w": 31050.0,
-    "low_1w": 25750.0,
-    "rsi_week": 43.8,
-    "ma120_week": 25403.083333333332,
-    "rsi_month": 51.63,
-    "current": 27650.0,
-    "ma5_month": 32670.0,
-    "ma5_month_next": 32240.0
+  "비엠티": {
+    "rsi_day": 49.51,
+    "high_1w": 15690.0,
+    "low_1w": 14280.0,
+    "rsi_week": 52.29,
+    "ma120_week": 11449.416666666666,
+    "rsi_month": 58.37,
+    "current": 15230.0,
+    "ma5_month": 15628.0,
+    "ma5_month_next": 15702.0
   },
-  "교촌에프엔비": {
-    "error": "코드 없음"
+  "삼성중공업": {
+    "rsi_day": 50.75,
+    "high_1w": 23650.0,
+    "low_1w": 20350.0,
+    "rsi_week": 42.4,
+    "ma120_week": 18165.166666666668,
+    "rsi_month": 55.36,
+    "current": 23650.0,
+    "ma5_month": 26340.0,
+    "ma5_month_next": 26180.0
   },
-  "오픈엣지테크놀로지": {
-    "rsi_day": 42.04,
-    "high_1w": 10600.0,
-    "low_1w": 9460.0,
-    "rsi_week": 37.56,
-    "ma120_week": 14967.25,
-    "rsi_month": 43.83,
-    "current": 10320.0,
-    "ma5_month": 14602.0,
-    "ma5_month_next": 13774.0
-  },
-  "두산에너빌러티": {
-    "error": "코드 없음"
-  },
-  "프로텍": {
-    "rsi_day": 44.04,
-    "high_1w": 69000.0,
-    "low_1w": 60300.0,
-    "rsi_week": 49.62,
-    "ma120_week": 37245.416666666664,
-    "rsi_month": 61.34,
-    "current": 65200.0,
-    "ma5_month": 71720.0,
-    "ma5_month_next": 74440.0
-  },
-  "한세실업": {
-    "rsi_day": 59.01,
-    "high_1w": 9640.0,
-    "low_1w": 8850.0,
-    "rsi_week": 42.74,
-    "ma120_week": 13466.833333333334,
-    "rsi_month": 39.53,
-    "current": 9560.0,
-    "ma5_month": 9818.0,
-    "ma5_month_next": 9524.0
-  },
-  "삼성전자": {
-    "rsi_day": 45.37,
-    "high_1w": 276000.0,
-    "low_1w": 240000.0,
-    "rsi_week": 55.97,
-    "ma120_week": 110328.33333333333,
-    "rsi_month": 68.35,
-    "current": 270000.0,
-    "ma5_month": 261740.0,
-    "ma5_month_next": 282300.0
+  "엘티씨": {
+    "rsi_day": 46.74,
+    "high_1w": 57800.0,
+    "low_1w": 44600.0,
+    "rsi_week": 54.7,
+    "ma120_week": 18301.083333333332,
+    "rsi_month": 68.74,
+    "current": 46400.0,
+    "ma5_month": 42470.0,
+    "ma5_month_next": 45690.0
   },
   "피에스케이": {
     "rsi_day": 45.88,
@@ -121,27 +179,161 @@
     "ma5_month": 18972.0,
     "ma5_month_next": 19190.0
   },
-  "티앤엘": {
-    "rsi_day": 54.27,
-    "high_1w": 56500.0,
-    "low_1w": 49350.0,
-    "rsi_week": 51.25,
-    "ma120_week": 60968.75,
-    "rsi_month": 49.71,
-    "current": 55600.0,
-    "ma5_month": 55690.0,
-    "ma5_month_next": 56820.0
+  "티엘비": {
+    "rsi_day": 41.36,
+    "high_1w": 43000.0,
+    "low_1w": 30500.0,
+    "rsi_week": 43.03,
+    "ma120_week": 18744.15,
+    "rsi_month": 57.39,
+    "current": 33200.0,
+    "ma5_month": 40593.6,
+    "ma5_month_next": 41245.2
   },
-  "파인엠텍": {
-    "rsi_day": 49.39,
-    "high_1w": 7240.0,
-    "low_1w": 6510.0,
-    "rsi_week": 41.44,
-    "ma120_week": 7957.541666666667,
-    "rsi_month": 44.54,
-    "current": 6860.0,
-    "ma5_month": 8436.0,
-    "ma5_month_next": 7892.0
+  "교촌에프엔비": {
+    "error": "코드 없음"
+  },
+  "태광": {
+    "rsi_day": 43.68,
+    "high_1w": 23000.0,
+    "low_1w": 20200.0,
+    "rsi_week": 39.34,
+    "ma120_week": 22103.5,
+    "rsi_month": 48.93,
+    "current": 23000.0,
+    "ma5_month": 32040.0,
+    "ma5_month_next": 29640.0
+  },
+  "삼성전자": {
+    "rsi_day": 45.37,
+    "high_1w": 276000.0,
+    "low_1w": 240000.0,
+    "rsi_week": 55.97,
+    "ma120_week": 110328.33333333333,
+    "rsi_month": 68.35,
+    "current": 270000.0,
+    "ma5_month": 261740.0,
+    "ma5_month_next": 282300.0
+  },
+  "비씨엔씨": {
+    "rsi_day": 41.18,
+    "high_1w": 11090.0,
+    "low_1w": 9750.0,
+    "rsi_week": 37.2,
+    "ma120_week": 12996.166666666666,
+    "rsi_month": 42.71,
+    "current": 10140.0,
+    "ma5_month": 13406.0,
+    "ma5_month_next": 12942.0
+  },
+  "올릭스": {
+    "rsi_day": 42.18,
+    "high_1w": 141800.0,
+    "low_1w": 101700.0,
+    "rsi_week": 42.09,
+    "ma120_week": 72025.75,
+    "rsi_month": 54.69,
+    "current": 113800.0,
+    "ma5_month": 160420.0,
+    "ma5_month_next": 146160.0
+  },
+  "soop": {
+    "rsi_day": 49.35,
+    "high_1w": 48250.0,
+    "low_1w": 45100.0,
+    "rsi_week": 29.34,
+    "ma120_week": 84308.33333333333,
+    "rsi_month": 34.04,
+    "current": 47750.0,
+    "ma5_month": 52930.0,
+    "ma5_month_next": 50700.0
+  },
+  "코스메카코리아": {
+    "rsi_day": 55.06,
+    "high_1w": 88800.0,
+    "low_1w": 73500.0,
+    "rsi_week": 55.06,
+    "ma120_week": 66287.08333333333,
+    "rsi_month": 58.33,
+    "current": 83400.0,
+    "ma5_month": 76900.0,
+    "ma5_month_next": 77640.0
+  },
+  "에이피알": {
+    "rsi_day": 46.63,
+    "high_1w": 393000.0,
+    "low_1w": 352500.0,
+    "rsi_week": 53.59,
+    "ma120_week": 169918.75,
+    "rsi_month": 74.88,
+    "current": 370000.0,
+    "ma5_month": 382500.0,
+    "ma5_month_next": 389100.0
+  },
+  "대명에너지": {
+    "rsi_day": 60.55,
+    "high_1w": 17410.0,
+    "low_1w": 12640.0,
+    "rsi_week": 46.74,
+    "ma120_week": 17441.416666666668,
+    "rsi_month": 47.11,
+    "current": 16580.0,
+    "ma5_month": 18880.0,
+    "ma5_month_next": 17796.0
+  },
+  "SK하이닉스": {
+    "rsi_day": 43.99,
+    "high_1w": 2006000.0,
+    "low_1w": 1732000.0,
+    "rsi_week": 56.65,
+    "ma120_week": 547377.5,
+    "rsi_month": 68.78,
+    "current": 1919000.0,
+    "ma5_month": 1799000.0,
+    "ma5_month_next": 2021400.0
+  },
+  "디앤디파마텍": {
+    "rsi_day": 40.16,
+    "high_1w": 76300.0,
+    "low_1w": 58600.0,
+    "rsi_week": 43.64,
+    "rsi_month": 56.31,
+    "current": 64000.0,
+    "ma5_month": 77620.0,
+    "ma5_month_next": 76860.0
+  },
+  "이오테크닉스": {
+    "rsi_day": 39.36,
+    "high_1w": 372500.0,
+    "low_1w": 296500.0,
+    "rsi_week": 42.85,
+    "ma120_week": 242574.16666666666,
+    "rsi_month": 55.61,
+    "current": 328500.0,
+    "ma5_month": 423000.0,
+    "ma5_month_next": 411800.0
+  },
+  "넥센타이어": {
+    "rsi_day": 55.42,
+    "high_1w": 7090.0,
+    "low_1w": 6580.0,
+    "rsi_week": 48.78,
+    "ma120_week": 6887.083333333333,
+    "rsi_month": 50.08,
+    "current": 7030.0,
+    "ma5_month": 6994.0,
+    "ma5_month_next": 6970.0
+  },
+  "원익 QnC": {
+    "rsi_day": 40.35,
+    "high_1w": 31050.0,
+    "low_1w": 25750.0,
+    "rsi_week": 43.8,
+    "ma120_week": 25403.083333333332,
+    "rsi_month": 51.63,
+    "current": 27650.0,
+    "ma5_month": 32670.0,
+    "ma5_month_next": 32240.0
   },
   "LS에코에너지": {
     "rsi_day": 52.18,
@@ -154,26 +346,93 @@
     "ma5_month": 60320.0,
     "ma5_month_next": 62820.0
   },
-  "알지노믹스": {
-    "rsi_day": 35.16,
-    "high_1w": 34400.0,
-    "low_1w": 24650.0,
-    "rsi_week": 33.6,
-    "rsi_month": 50.0,
-    "current": 28400.0,
-    "ma5_month": 63840.0,
-    "ma5_month_next": 49760.0
+  "한세실업": {
+    "rsi_day": 59.01,
+    "high_1w": 9640.0,
+    "low_1w": 8850.0,
+    "rsi_week": 42.74,
+    "ma120_week": 13466.833333333334,
+    "rsi_month": 39.53,
+    "current": 9560.0,
+    "ma5_month": 9818.0,
+    "ma5_month_next": 9524.0
   },
-  "soop": {
-    "rsi_day": 49.35,
-    "high_1w": 48250.0,
-    "low_1w": 45100.0,
-    "rsi_week": 29.34,
-    "ma120_week": 84308.33333333333,
-    "rsi_month": 34.04,
-    "current": 47750.0,
-    "ma5_month": 52930.0,
-    "ma5_month_next": 50700.0
+  "티앤엘": {
+    "rsi_day": 54.27,
+    "high_1w": 56500.0,
+    "low_1w": 49350.0,
+    "rsi_week": 51.25,
+    "ma120_week": 60968.75,
+    "rsi_month": 49.71,
+    "current": 55600.0,
+    "ma5_month": 55690.0,
+    "ma5_month_next": 56820.0
+  },
+  "사피엔반도체": {
+    "rsi_day": 41.65,
+    "high_1w": 29700.0,
+    "low_1w": 25850.0,
+    "rsi_week": 40.8,
+    "ma120_week": 24847.916666666668,
+    "rsi_month": 45.14,
+    "current": 27300.0,
+    "ma5_month": 34380.0,
+    "ma5_month_next": 33970.0
+  },
+  "AJ네트웍스": {
+    "rsi_day": 50.52,
+    "high_1w": 4350.0,
+    "low_1w": 4155.0,
+    "rsi_week": 42.57,
+    "ma120_week": 4464.75,
+    "rsi_month": 46.07,
+    "current": 4290.0,
+    "ma5_month": 4623.0,
+    "ma5_month_next": 4469.0
+  },
+  "오픈엣지테크놀로지": {
+    "rsi_day": 42.04,
+    "high_1w": 10600.0,
+    "low_1w": 9460.0,
+    "rsi_week": 37.56,
+    "ma120_week": 14967.25,
+    "rsi_month": 43.83,
+    "current": 10320.0,
+    "ma5_month": 14602.0,
+    "ma5_month_next": 13774.0
+  },
+  "프로텍": {
+    "rsi_day": 44.04,
+    "high_1w": 69000.0,
+    "low_1w": 60300.0,
+    "rsi_week": 49.62,
+    "ma120_week": 37245.416666666664,
+    "rsi_month": 61.34,
+    "current": 65200.0,
+    "ma5_month": 71720.0,
+    "ma5_month_next": 74440.0
+  },
+  "백산": {
+    "rsi_day": 47.38,
+    "high_1w": 10250.0,
+    "low_1w": 9620.0,
+    "rsi_week": 34.49,
+    "ma120_week": 13492.416666666666,
+    "rsi_month": 36.88,
+    "current": 10000.0,
+    "ma5_month": 11064.0,
+    "ma5_month_next": 10532.0
+  },
+  "파크시스템스": {
+    "rsi_day": 50.19,
+    "high_1w": 264000.0,
+    "low_1w": 236000.0,
+    "rsi_week": 48.89,
+    "ma120_week": 229376.66666666666,
+    "rsi_month": 54.15,
+    "current": 260500.0,
+    "ma5_month": 261600.0,
+    "ma5_month_next": 266800.0
   },
   "드림텍": {
     "rsi_day": 46.64,
@@ -196,125 +455,18 @@
     "ma5_month": 18384.0,
     "ma5_month_next": 15132.0
   },
-  "대명에너지": {
-    "rsi_day": 60.55,
-    "high_1w": 17410.0,
-    "low_1w": 12640.0,
-    "rsi_week": 46.74,
-    "ma120_week": 17441.416666666668,
-    "rsi_month": 47.11,
-    "current": 16580.0,
-    "ma5_month": 18880.0,
-    "ma5_month_next": 17796.0
+  "엠케이켐": {
+    "error": "코드 없음"
   },
-  "디앤디파마텍": {
-    "rsi_day": 40.16,
-    "high_1w": 76300.0,
-    "low_1w": 58600.0,
-    "rsi_week": 43.64,
-    "rsi_month": 56.31,
-    "current": 64000.0,
-    "ma5_month": 77620.0,
-    "ma5_month_next": 76860.0
-  },
-  "비씨엔씨": {
-    "rsi_day": 41.18,
-    "high_1w": 11090.0,
-    "low_1w": 9750.0,
-    "rsi_week": 37.2,
-    "ma120_week": 12996.166666666666,
-    "rsi_month": 42.71,
-    "current": 10140.0,
-    "ma5_month": 13406.0,
-    "ma5_month_next": 12942.0
-  },
-  "SK하이닉스": {
-    "rsi_day": 43.99,
-    "high_1w": 2006000.0,
-    "low_1w": 1732000.0,
-    "rsi_week": 56.65,
-    "ma120_week": 547377.5,
-    "rsi_month": 68.78,
-    "current": 1919000.0,
-    "ma5_month": 1799000.0,
-    "ma5_month_next": 2021400.0
-  },
-  "케이아이엔엑스": {
-    "rsi_day": 68.86,
-    "high_1w": 148900.0,
-    "low_1w": 122400.0,
-    "rsi_week": 66.32,
-    "ma120_week": 90617.5,
-    "rsi_month": 67.19,
-    "current": 148400.0,
-    "ma5_month": 114760.0,
-    "ma5_month_next": 124440.0
-  },
-  "백산": {
-    "rsi_day": 47.38,
-    "high_1w": 10250.0,
-    "low_1w": 9620.0,
-    "rsi_week": 34.49,
-    "ma120_week": 13492.416666666666,
-    "rsi_month": 36.88,
-    "current": 10000.0,
-    "ma5_month": 11064.0,
-    "ma5_month_next": 10532.0
-  },
-  "파마리서치": {
-    "rsi_day": 59.01,
-    "high_1w": 364500.0,
-    "low_1w": 321500.0,
-    "rsi_week": 53.11,
-    "ma120_week": 335017.5,
-    "rsi_month": 51.65,
-    "current": 360000.0,
-    "ma5_month": 326100.0,
-    "ma5_month_next": 338300.0
-  },
-  "엘티씨": {
-    "rsi_day": 46.74,
-    "high_1w": 57800.0,
-    "low_1w": 44600.0,
-    "rsi_week": 54.7,
-    "ma120_week": 18301.083333333332,
-    "rsi_month": 68.74,
-    "current": 46400.0,
-    "ma5_month": 42470.0,
-    "ma5_month_next": 45690.0
-  },
-  "코스메카코리아": {
-    "rsi_day": 55.06,
-    "high_1w": 88800.0,
-    "low_1w": 73500.0,
-    "rsi_week": 55.06,
-    "ma120_week": 66287.08333333333,
-    "rsi_month": 58.33,
-    "current": 83400.0,
-    "ma5_month": 76900.0,
-    "ma5_month_next": 77640.0
-  },
-  "루닛": {
-    "rsi_day": 37.15,
-    "high_1w": 10290.0,
-    "low_1w": 9090.0,
-    "rsi_week": 29.72,
-    "ma120_week": 21372.033333333333,
-    "rsi_month": 37.86,
-    "current": 9840.0,
-    "ma5_month": 15027.0,
-    "ma5_month_next": 13726.0
-  },
-  "이오테크닉스": {
-    "rsi_day": 39.36,
-    "high_1w": 372500.0,
-    "low_1w": 296500.0,
-    "rsi_week": 42.85,
-    "ma120_week": 242574.16666666666,
-    "rsi_month": 55.61,
-    "current": 328500.0,
-    "ma5_month": 423000.0,
-    "ma5_month_next": 411800.0
+  "한텍": {
+    "rsi_day": 53.57,
+    "high_1w": 28000.0,
+    "low_1w": 22100.0,
+    "rsi_week": 40.21,
+    "rsi_month": 51.07,
+    "current": 27750.0,
+    "ma5_month": 37200.0,
+    "ma5_month_next": 32970.0
   },
   "덕산네오룩스": {
     "rsi_day": 46.58,
@@ -327,178 +479,26 @@
     "ma5_month": 40670.0,
     "ma5_month_next": 36830.0
   },
-  "올릭스": {
-    "rsi_day": 42.18,
-    "high_1w": 141800.0,
-    "low_1w": 101700.0,
-    "rsi_week": 42.09,
-    "ma120_week": 72025.75,
-    "rsi_month": 54.69,
-    "current": 113800.0,
-    "ma5_month": 160420.0,
-    "ma5_month_next": 146160.0
+  "파마리서치": {
+    "rsi_day": 59.01,
+    "high_1w": 364500.0,
+    "low_1w": 321500.0,
+    "rsi_week": 53.11,
+    "ma120_week": 335017.5,
+    "rsi_month": 51.65,
+    "current": 360000.0,
+    "ma5_month": 326100.0,
+    "ma5_month_next": 338300.0
   },
-  "넥센타이어": {
-    "rsi_day": 55.42,
-    "high_1w": 7090.0,
-    "low_1w": 6580.0,
-    "rsi_week": 48.78,
-    "ma120_week": 6887.083333333333,
-    "rsi_month": 50.08,
-    "current": 7030.0,
-    "ma5_month": 6994.0,
-    "ma5_month_next": 6970.0
-  },
-  "티엘비": {
-    "rsi_day": 41.36,
-    "high_1w": 43000.0,
-    "low_1w": 30500.0,
-    "rsi_week": 43.03,
-    "ma120_week": 18744.15,
-    "rsi_month": 57.39,
-    "current": 33200.0,
-    "ma5_month": 40593.6,
-    "ma5_month_next": 41245.2
-  },
-  "비엠티": {
-    "rsi_day": 49.51,
-    "high_1w": 15690.0,
-    "low_1w": 14280.0,
-    "rsi_week": 52.29,
-    "ma120_week": 11449.416666666666,
-    "rsi_month": 58.37,
-    "current": 15230.0,
-    "ma5_month": 15628.0,
-    "ma5_month_next": 15702.0
-  },
-  "한텍": {
-    "rsi_day": 53.57,
-    "high_1w": 28000.0,
-    "low_1w": 22100.0,
-    "rsi_week": 40.21,
-    "rsi_month": 51.07,
-    "current": 27750.0,
-    "ma5_month": 37200.0,
-    "ma5_month_next": 32970.0
-  },
-  "사피엔반도체": {
-    "rsi_day": 41.65,
-    "high_1w": 29700.0,
-    "low_1w": 25850.0,
-    "rsi_week": 40.8,
-    "ma120_week": 24847.916666666668,
-    "rsi_month": 45.14,
-    "current": 27300.0,
-    "ma5_month": 34380.0,
-    "ma5_month_next": 33970.0
-  },
-  "효성티앤씨": {
-    "rsi_day": 56.59,
-    "high_1w": 325000.0,
-    "low_1w": 270000.0,
-    "rsi_week": 47.1,
-    "ma120_week": 289688.3333333333,
-    "rsi_month": 50.74,
-    "current": 322000.0,
-    "ma5_month": 370900.0,
-    "ma5_month_next": 359500.0
-  },
-  "달바글로벌": {
-    "rsi_day": 59.77,
-    "high_1w": 250000.0,
-    "low_1w": 200500.0,
-    "rsi_week": 60.72,
-    "rsi_month": 63.39,
-    "current": 240000.0,
-    "ma5_month": 207300.0,
-    "ma5_month_next": 226900.0
-  },
-  "리가켐바이오": {
-    "rsi_day": 37.86,
-    "high_1w": 111800.0,
-    "low_1w": 90100.0,
-    "rsi_week": 31.65,
-    "ma120_week": 127862.5,
-    "rsi_month": 42.79,
-    "current": 101700.0,
-    "ma5_month": 155620.0,
-    "ma5_month_next": 137560.0
-  },
-  "테스": {
-    "rsi_day": 45.59,
-    "high_1w": 214500.0,
-    "low_1w": 146900.0,
-    "rsi_week": 60.38,
-    "ma120_week": 44270.916666666664,
-    "rsi_month": 69.86,
-    "current": 154100.0,
-    "ma5_month": 124120.0,
-    "ma5_month_next": 143860.0
-  },
-  "AJ네트웍스": {
-    "rsi_day": 50.52,
-    "high_1w": 4350.0,
-    "low_1w": 4155.0,
-    "rsi_week": 42.57,
-    "ma120_week": 4464.75,
-    "rsi_month": 46.07,
-    "current": 4290.0,
-    "ma5_month": 4623.0,
-    "ma5_month_next": 4469.0
-  },
-  "티에프이": {
-    "rsi_day": 40.81,
-    "high_1w": 39150.0,
-    "low_1w": 34000.0,
-    "rsi_week": 39.69,
-    "ma120_week": 31991.416666666668,
-    "rsi_month": 51.03,
-    "current": 36000.0,
-    "ma5_month": 49630.0,
-    "ma5_month_next": 45210.0
-  },
-  "태광": {
-    "rsi_day": 43.68,
-    "high_1w": 23000.0,
-    "low_1w": 20200.0,
-    "rsi_week": 39.34,
-    "ma120_week": 22103.5,
-    "rsi_month": 48.93,
-    "current": 23000.0,
-    "ma5_month": 32040.0,
-    "ma5_month_next": 29640.0
-  },
-  "삼성중공업": {
-    "rsi_day": 50.75,
-    "high_1w": 23650.0,
-    "low_1w": 20350.0,
-    "rsi_week": 42.4,
-    "ma120_week": 18165.166666666668,
-    "rsi_month": 55.36,
-    "current": 23650.0,
-    "ma5_month": 26340.0,
-    "ma5_month_next": 26180.0
-  },
-  "에이피알": {
-    "rsi_day": 46.63,
-    "high_1w": 393000.0,
-    "low_1w": 352500.0,
-    "rsi_week": 53.59,
-    "ma120_week": 169918.75,
-    "rsi_month": 74.88,
-    "current": 370000.0,
-    "ma5_month": 382500.0,
-    "ma5_month_next": 389100.0
-  },
-  "LIG디펜스앤에어로스페이스": {
-    "rsi_day": 48.39,
-    "high_1w": 779000.0,
-    "low_1w": 656000.0,
-    "rsi_week": 50.38,
-    "ma120_week": 418501.6666666667,
-    "rsi_month": 64.08,
-    "current": 736000.0,
-    "ma5_month": 761600.0,
-    "ma5_month_next": 786600.0
+  "파인엠텍": {
+    "rsi_day": 49.39,
+    "high_1w": 7240.0,
+    "low_1w": 6510.0,
+    "rsi_week": 41.44,
+    "ma120_week": 7957.541666666667,
+    "rsi_month": 44.54,
+    "current": 6860.0,
+    "ma5_month": 8436.0,
+    "ma5_month_next": 7892.0
   }
 }
