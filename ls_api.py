@@ -13,6 +13,35 @@ import time
 import requests
 from pathlib import Path
 from datetime import datetime, timedelta
+import hashlib
+
+# 이동평균선 캐시 디렉토리
+MA_CACHE_DIR = Path(__file__).parent / ".ma_cache"
+MA_CACHE_DIR.mkdir(exist_ok=True)
+
+def _get_ma_cache(stock_code):
+    """당일 캐시된 이동평균선 데이터 반환 (없으면 None)"""
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    cache_file = MA_CACHE_DIR / f"{stock_code}.json"
+    if cache_file.exists():
+        try:
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                cached = json.load(f)
+                if cached.get('date') == today_str:
+                    return cached.get('data')
+        except Exception:
+            pass
+    return None
+
+def _set_ma_cache(stock_code, data):
+    """이동평균선 데이터를 당일 캐시로 저장"""
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    cache_file = MA_CACHE_DIR / f"{stock_code}.json"
+    try:
+        with open(cache_file, 'w', encoding='utf-8') as f:
+            json.dump({'date': today_str, 'data': data}, f, ensure_ascii=False)
+    except Exception:
+        pass
 
 # ── 설정 파일 경로 ─────────────────────────────────────────
 CONFIG_PATH = Path(__file__).parent / "ls_api_config.json"
@@ -144,10 +173,6 @@ def fetch_trade_history(from_date, to_date, stock_code=""):
     if not token:
         raise RuntimeError("LS API 토큰 발급 실패 (설정을 확인하세요).")
 
-    import requests
-    import time
-    from datetime import datetime, timedelta
-
     all_raw = []
     
     start_dt = datetime.strptime(from_date, "%Y%m%d")
@@ -181,8 +206,9 @@ def fetch_trade_history(from_date, to_date, stock_code=""):
         }
 
         success = False
-        for _ in range(3):
-            time.sleep(1.0) # 1초 대기 (서버 과부하 방지)
+        for attempt in range(3):
+            if attempt > 0:
+                time.sleep(1.0)  # 재시도 시에만 대기
             try:
                 resp = requests.post(f"{LS_BASE_URL}/stock/accno", headers=headers, json=body, timeout=15)
                 if resp.status_code == 200:
@@ -353,15 +379,20 @@ def fetch_moving_averages(stock_code):
     stock_code: 단일 종목 코드
     반환값: { "ma5_month": ..., "current": ..., "rsi_day": ..., "rsi_week": ..., "rsi_month": ... }
     """
-    cfg = load_config()
-    token = get_access_token(cfg["app_key"], cfg["app_secret"])
-    if not token:
-        raise RuntimeError("LS API 토큰 발급 실패 (설정을 확인하세요).")
-        
     code = str(stock_code).strip()
     if code.startswith("A"):
         code = code[1:]
     code = code.zfill(6)
+    
+    # 당일 캐시 확인
+    cached = _get_ma_cache(code)
+    if cached is not None:
+        return cached
+
+    cfg = load_config()
+    token = get_access_token(cfg["app_key"], cfg["app_secret"])
+    if not token:
+        raise RuntimeError("LS API 토큰 발급 실패 (설정을 확인하세요).")
         
     headers = {
         "content-type": "application/json; charset=utf-8",
@@ -394,6 +425,8 @@ def fetch_moving_averages(stock_code):
         }
         
         for attempt in range(3):
+            if attempt > 0:
+                time.sleep(2.0)
             try:
                 resp = requests.post(f"{LS_BASE_URL}/stock/chart", headers=headers, json=body, timeout=10)
                 if resp.status_code == 200:
@@ -449,9 +482,12 @@ def fetch_moving_averages(stock_code):
             
             except Exception as e:
                 print(f"t8413 (gubun {gubun}) API 호출 중 오류 발생: {e}")
-                time.sleep(2.0)
                 
         # LS OpenAPI 초당 1건 제한(TR) 우회
-        time.sleep(1.05)
+        time.sleep(0.7)
             
+    # 캐시 저장
+    if result:
+        _set_ma_cache(code, result)
+        
     return result

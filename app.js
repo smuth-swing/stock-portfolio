@@ -24,6 +24,9 @@ let selectedInvestigationRowIndex = null;
 let investigationCurrentRows = [];
 let journalTrendChart = null;
 let editingJournalRowIndex = null; // 수정 중인 매매일지 행 인덱스
+let autoRefreshEnabled = false;
+let currentDisplayRows = [];
+let currentDisplayMap = [];
 
 // ===== 서버 자동 재연결 설정 =====
 let reconnectTimer = null;        // 재연결 타이머
@@ -607,6 +610,17 @@ async function refreshSignalPrices(forceUpdate = false) {
     let retryCount = 0;
     const MAX_RETRIES = 10;
     
+    // localStorage 캐시 프리로드 (루프 내 동기 I/O 최소화)
+    const signalCacheMap = new Map();
+    if (!forceUpdate) {
+        for (const stock of stocks) {
+            const cacheKey = `signalData_${stock}`;
+            try {
+                const stored = localStorage.getItem(cacheKey);
+                if (stored) signalCacheMap.set(stock, JSON.parse(stored));
+            } catch(e) {}
+        }
+    }
     while (pendingStocks.length > 0 && retryCount < MAX_RETRIES) {
         if (retryCount > 0) {
             await new Promise(resolve => setTimeout(resolve, 3000));
@@ -626,15 +640,10 @@ async function refreshSignalPrices(forceUpdate = false) {
                 const todayStr = new Date().toISOString().split('T')[0];
                 
                 if (!forceUpdate) {
-                    try {
-                        const stored = localStorage.getItem(cacheKey);
-                        if (stored) {
-                            const parsed = JSON.parse(stored);
-                            if (parsed.date === todayStr) {
-                                data = parsed.data;
-                            }
-                        }
-                    } catch(e) {}
+                    const cached = signalCacheMap.get(stock);
+                    if (cached && cached.date === todayStr) {
+                        data = cached.data;
+                    }
                 }
                 
                 if (!data) {
@@ -1489,49 +1498,71 @@ function renderTableRows(rows, cols, rowMap = null) {
             // \n을 <br>로 변환하여 줄바꿈 표시
             const cellVal = r[c] !== undefined && r[c] !== null ? String(r[c]) : '';
             const displayVal = cellVal.replace(/\n/g, '<br>').replace(/~~(.*?)~~/g, '<del>$1</del>');
-            return `<td class="${className}">${displayVal}</td>`;
+            const isExploration = currentData && isExplorationSheet(currentData.current_sheet);
+            const editAttrs = isExploration ? `contenteditable="true" data-row-index="${originalIndex}" data-col-key="${c}"` : '';
+            return `<td class="${className}" ${editAttrs}>${displayVal}</td>`;
         }).join('')}
         </tr>
     `;
     }).join('');
 
+    currentDisplayRows = displayRows;
+    currentDisplayMap = map;
+
     if (currentData && isExplorationSheet(currentData.current_sheet)) {
         investigationRowMap = map;
         investigationCurrentRows = rows;
-        const rowsEls = tbody.querySelectorAll('tr');
-        rowsEls.forEach(rowEl => {
-            const originalIndex = parseInt(rowEl.dataset.originalIndex, 10);
-            rowEl.addEventListener('click', () => setSelectedInvestigationRow(originalIndex));
-            rowEl.querySelectorAll('td').forEach((td, colIndex) => {
-                td.contentEditable = true;
-                td.dataset.rowIndex = originalIndex;
-                td.dataset.colKey = cols[colIndex];
-                td.addEventListener('blur', handleInvestigationCellBlur);
-                td.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' && e.shiftKey) {
-                        // Shift+Enter: 줄바꿈 삽입
-                        e.preventDefault();
-                        document.execCommand('insertLineBreak');
-                    } else if (e.key === 'Enter' && !e.shiftKey) {
-                        // Enter만: 저장(blur)
-                        e.preventDefault();
-                        td.blur();
-                    }
-                });
-            });
-        });
+        // 이벤트 위임: tbody에 한 번만 등록 (기존 리스너 제거 후 재등록)
+        tbody.removeEventListener('click', _investigationClickDelegate);
+        tbody.removeEventListener('blur', _investigationBlurDelegate, true);
+        tbody.removeEventListener('keydown', _investigationKeydownDelegate, true);
+        tbody.addEventListener('click', _investigationClickDelegate);
+        tbody.addEventListener('blur', _investigationBlurDelegate, true);
+        tbody.addEventListener('keydown', _investigationKeydownDelegate, true);
     } else if (currentData && currentData.current_sheet === '매매일지') {
-        const rowsEls = tbody.querySelectorAll('tr');
-        rowsEls.forEach(rowEl => {
-            const originalIndex = parseInt(rowEl.dataset.originalIndex, 10);
-            rowEl.style.cursor = 'pointer';
-            rowEl.addEventListener('click', () => {
-                const rowData = displayRows.find((_, i) => map[i] === originalIndex);
-                if (rowData) {
-                    setJournalEditMode(originalIndex, rowData);
-                }
-            });
-        });
+        tbody.removeEventListener('click', _journalClickDelegate);
+        tbody.addEventListener('click', _journalClickDelegate);
+    }
+}
+
+// 이벤트 위임 핸들러 (탐구생활 시트)
+function _investigationClickDelegate(e) {
+    const row = e.target.closest('tr.investigation-row-item');
+    if (row) {
+        const originalIndex = parseInt(row.dataset.originalIndex, 10);
+        setSelectedInvestigationRow(originalIndex);
+    }
+}
+
+function _investigationBlurDelegate(e) {
+    if (e.target.tagName === 'TD' && e.target.contentEditable === 'true') {
+        handleInvestigationCellBlur.call(e.target, e);
+    }
+}
+
+function _investigationKeydownDelegate(e) {
+    if (e.target.tagName === 'TD' && e.target.contentEditable === 'true') {
+        if (e.key === 'Enter' && e.shiftKey) {
+            e.preventDefault();
+            document.execCommand('insertLineBreak');
+        } else if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            e.target.blur();
+        }
+    }
+}
+
+// 이벤트 위임 핸들러 (매매일지 시트)
+function _journalClickDelegate(e) {
+    const row = e.target.closest('tr');
+    if (row && row.dataset.originalIndex !== undefined) {
+        const originalIndex = parseInt(row.dataset.originalIndex, 10);
+        if (typeof setJournalEditMode === 'function') {
+            const rowData = currentDisplayRows.find((_, i) => currentDisplayMap[i] === originalIndex);
+            if (rowData) {
+                setJournalEditMode(originalIndex, rowData);
+            }
+        }
     }
 }
 
@@ -2032,10 +2063,20 @@ function refreshData(isAuto = false) {
 function toggleAutoRefresh(enabled) {
     if (enabled) {
         showToast('자동 업데이트 활성화 (30초)', 'info');
-        autoRefreshTimer = setInterval(() => refreshData(true), REFRESH_INTERVAL);
+        // 재귀적 setTimeout: 이전 요청 완료 후 다음 요청 스케줄링
+        async function scheduleNext() {
+            if (!autoRefreshEnabled) return;
+            await refreshData(true);
+            if (autoRefreshEnabled) {
+                autoRefreshTimer = setTimeout(scheduleNext, REFRESH_INTERVAL);
+            }
+        }
+        autoRefreshEnabled = true;
+        autoRefreshTimer = setTimeout(scheduleNext, REFRESH_INTERVAL);
     } else {
+        autoRefreshEnabled = false;
         if (autoRefreshTimer) {
-            clearInterval(autoRefreshTimer);
+            clearTimeout(autoRefreshTimer);
             autoRefreshTimer = null;
             showToast('자동 업데이트 비활성화', 'info');
         }

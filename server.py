@@ -9,6 +9,8 @@ import sys
 import json
 import re
 from pathlib import Path
+from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # 작업 디렉토리를 스크립트 위치로 고정 (작업 스케줄러 실행 시 System32 참조 방지)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -481,8 +483,9 @@ def list_excel_files():
         'files': sorted(files, key=lambda x: x['name'])
     })
 
-# 파일 파싱 캐시
-EXCEL_CACHE = {}
+# 파일 파싱 캐시 (LRU 방식 - 최대 10개 유지)
+EXCEL_CACHE = OrderedDict()
+EXCEL_CACHE_MAX = 10
 
 @app.route('/api/read-excel')
 def read_excel():
@@ -507,6 +510,7 @@ def read_excel():
         
         cache_key = f"{full_path}_{sheet_name}_{last_modified}"
         if cache_key in EXCEL_CACHE:
+            EXCEL_CACHE.move_to_end(cache_key)
             return jsonify(EXCEL_CACHE[cache_key])
             
         # 파일 잠금(Lock)을 방지하기 위해 메모리로 먼저 읽어오기
@@ -629,9 +633,9 @@ def read_excel():
             'stats': stats
         }
         
-        # 캐시 저장 (메모리 누수 방지를 위해 10개 초과 시에만 정리)
-        if len(EXCEL_CACHE) > 10:
-            EXCEL_CACHE.clear()
+        # LRU 캐시 저장 (가장 오래된 항목부터 제거)
+        while len(EXCEL_CACHE) >= EXCEL_CACHE_MAX:
+            EXCEL_CACHE.popitem(last=False)
         EXCEL_CACHE[cache_key] = response_data
 
         return jsonify(response_data)
@@ -1514,19 +1518,17 @@ def get_foreign_ownership_diffs():
             except Exception:
                 pass
 
-    diffs = {}
     url_template = "https://finance.naver.com/item/frgn.naver?code={code}"
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
     
-    for name in inv_stocks:
-        code = name_to_code.get(name)
-        if not code:
-            continue
+    # 단일 종목 외국인 지분율 크롤링 내부 함수
+    def _fetch_single_foreign_ownership(name_code_pair):
+        name, code = name_code_pair
         try:
             req = urllib.request.Request(url_template.format(code=code), headers=headers)
-            with urllib.request.urlopen(req, timeout=3) as response:
+            with urllib.request.urlopen(req, timeout=5) as response:
                 html = response.read().decode('euc-kr', errors='replace')
             rows = re.findall(r'<tr[^>]*>.*?</tr>', html, re.DOTALL)
             history = []
@@ -1541,11 +1543,20 @@ def get_foreign_ownership_diffs():
                         except ValueError:
                             pass
             if len(history) >= 6:
-                diff_p = round(history[0] - history[5], 2)
-                diffs[name] = diff_p
-            time.sleep(0.05)
+                return (name, round(history[0] - history[5], 2))
         except Exception:
             pass
+        return None
+    
+    pairs = [(name, name_to_code[name]) for name in inv_stocks if name_to_code.get(name)]
+    diffs = {}
+    
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(_fetch_single_foreign_ownership, pair): pair for pair in pairs}
+        for future in as_completed(futures):
+            result = future.result()
+            if result:
+                diffs[result[0]] = result[1]
             
     # 캐시 파일 쓰기
     try:
