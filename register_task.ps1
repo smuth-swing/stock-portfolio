@@ -1,29 +1,22 @@
-# ===================================================
+﻿# ===================================================
 # 주식 포트폴리오 서버 - 작업 스케줄러 등록 스크립트
-# 기존 스타트업 단축키(한글 경로 오류) 대신
-# Windows 작업 스케줄러를 사용하여 확실하게 자동 실행
+# VBS 래퍼를 통해 콘솔 창 없이 완전 숨김 실행
 # ===================================================
 
 $TaskName = "StockPortfolioServer"
-$PythonExe = "C:\Users\zerod\AppData\Local\Programs\Python\Python312\python.exe"
 $ProjectDir = "C:\Users\zerod\.antigravity\주식 포트폴리오 관리"
-$ServerScript = Join-Path $ProjectDir "server.py"
+$VbsFile = Join-Path $ProjectDir "run_server_hidden.vbs"
 $LogFile = Join-Path $ProjectDir "server_log.txt"
 
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host "  주식 포트폴리오 서버 - 작업 스케줄러 등록" -ForegroundColor Cyan
+Write-Host "  (콘솔 창 없이 완전 숨김 실행)" -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Python 존재 확인
-if (-not (Test-Path $PythonExe)) {
-    Write-Host "[오류] Python을 찾을 수 없습니다: $PythonExe" -ForegroundColor Red
-    exit 1
-}
-
-# server.py 존재 확인
-if (-not (Test-Path $ServerScript)) {
-    Write-Host "[오류] server.py를 찾을 수 없습니다: $ServerScript" -ForegroundColor Red
+# VBS 파일 존재 확인
+if (-not (Test-Path $VbsFile)) {
+    Write-Host "[오류] VBS 래퍼를 찾을 수 없습니다: $VbsFile" -ForegroundColor Red
     exit 1
 }
 
@@ -41,16 +34,16 @@ if (Test-Path $oldShortcut) {
     Write-Host "[정보] 기존 스타트업 단축키 삭제됨" -ForegroundColor Yellow
 }
 
-# 작업 액션 정의: python.exe server.py 직접 실행
+# 작업 액션 정의: wscript.exe로 VBS 실행 (창이 전혀 안 뜸)
 $Action = New-ScheduledTaskAction `
-    -Execute $PythonExe `
-    -Argument "`"$ServerScript`"" `
+    -Execute "wscript.exe" `
+    -Argument "`"$VbsFile`"" `
     -WorkingDirectory $ProjectDir
 
 # 트리거: 로그인 시 실행 (현재 사용자)
 $Trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 
-# 실행 조건: 숨김 창으로 실행
+# 실행 조건
 $Settings = New-ScheduledTaskSettingsSet `
     -ExecutionTimeLimit (New-TimeSpan -Hours 0) `
     -RestartCount 3 `
@@ -71,15 +64,14 @@ Register-ScheduledTask `
     -Trigger $Trigger `
     -Settings $Settings `
     -Principal $Principal `
-    -Description "주식 포트폴리오 관리 Flask 서버 (포트 5000)" `
+    -Description "주식 포트폴리오 관리 Flask 서버 (포트 5000) - 숨김 실행" `
     -Force | Out-Null
 
 Write-Host "[완료] 작업 스케줄러 등록 성공!" -ForegroundColor Green
 Write-Host ""
 Write-Host "  작업명  : $TaskName" -ForegroundColor White
-Write-Host "  실행파일: $PythonExe" -ForegroundColor White
-Write-Host "  스크립트: $ServerScript" -ForegroundColor White
-Write-Host "  실행조건: 로그인 시 자동 실행" -ForegroundColor White
+Write-Host "  실행파일: wscript.exe -> $VbsFile" -ForegroundColor White
+Write-Host "  실행조건: 로그인 시 자동 실행 (창 없음)" -ForegroundColor White
 Write-Host ""
 
 # 즉시 서버 시작 여부 확인
@@ -109,4 +101,5 @@ if ($startNow -eq 'y' -or $startNow -eq 'Y') {
 Write-Host ""
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host "  다음 PC 재시작부터 서버가 자동으로 실행됩니다." -ForegroundColor Cyan
+Write-Host "  (PowerShell/CMD 창이 뜨지 않습니다)" -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan

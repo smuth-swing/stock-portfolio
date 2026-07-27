@@ -1,0 +1,14 @@
+﻿[2026-07-27 19:55:02] ===== 전체 태스크 재등록 시작 =====
+[2026-07-27 19:55:02] [1/5] StockPortfolioServer -> wscript.exe
+[2026-07-27 19:55:02] [2/5] StockAutoGitHubUploader -> wscript.exe
+[2026-07-27 19:55:02] [3/5] StockPortfolioHealthCheck -> wscript.exe
+[2026-07-27 19:55:02] [4/5] StockPortfolioRestart -> wscript.exe
+[2026-07-27 19:55:02] [5/5] StockApp_OnResume -> wscript.exe (Logon + Resume Event)
+[2026-07-27 19:55:02] 
+[2026-07-27 19:55:02] ===== 등록 결과 =====
+[2026-07-27 19:55:02] [OK] StockPortfolioServer -> wscript.exe
+[2026-07-27 19:55:02] [OK] StockAutoGitHubUploader -> wscript.exe
+[2026-07-27 19:55:02] [OK] StockPortfolioHealthCheck -> wscript.exe
+[2026-07-27 19:55:02] [OK] StockPortfolioRestart -> wscript.exe
+[2026-07-27 19:55:02] [OK] StockApp_OnResume -> wscript.exe
+[2026-07-27 19:55:02] ===== 완료 =====

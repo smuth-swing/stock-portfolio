@@ -1,4 +1,5 @@
 ﻿# 서버 자동 재시작 스케줄러 등록 (매일 21:10)
+# VBS 래퍼로 완전 숨김 실행
 # 관리자 권한 자동 획득
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
@@ -7,13 +8,12 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 
 $TaskName   = "StockPortfolioRestart"
 $ProjectDir = "C:\Users\zerod\.antigravity\주식 포트폴리오 관리"
-$Script     = Join-Path $ProjectDir "restart_server.ps1"
-$PwshExe    = "powershell.exe"
+$VbsFile    = Join-Path $ProjectDir "run_restart_hidden.vbs"
 
 Write-Host ""
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "  서버 자동 재시작 스케줄러 등록"         -ForegroundColor Cyan
-Write-Host "  매일 오후 09:10 실행"                   -ForegroundColor Cyan
+Write-Host "  매일 오후 09:10 실행 (숨김 모드)"       -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -25,10 +25,10 @@ if ($existing) {
     Write-Host "[삭제] 기존 작업 초기화" -ForegroundColor Yellow
 }
 
-# 작업 정의
+# VBS 래퍼를 통해 숨김 실행 (wscript.exe 사용)
 $Action = New-ScheduledTaskAction `
-    -Execute $PwshExe `
-    -Argument "-ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File `"$Script`"" `
+    -Execute "wscript.exe" `
+    -Argument "`"$VbsFile`"" `
     -WorkingDirectory $ProjectDir
 
 # 매일 21:10 트리거
@@ -50,14 +50,14 @@ Register-ScheduledTask `
     -Trigger $Trigger `
     -Settings $Settings `
     -Principal $Principal `
-    -Description "주식 포트폴리오 서버 매일 21:10 자동 재시작" `
+    -Description "주식 포트폴리오 서버 매일 21:10 자동 재시작 (숨김 실행)" `
     -Force | Out-Null
 
 Write-Host "[완료] 스케줄러 등록 성공!" -ForegroundColor Green
 Write-Host ""
 Write-Host "  작업명  : $TaskName"       -ForegroundColor White
 Write-Host "  실행시각: 매일 오후 21:10" -ForegroundColor White
-Write-Host "  스크립트: $Script"          -ForegroundColor White
+Write-Host "  실행방식: wscript.exe -> VBS (창 없음)" -ForegroundColor White
 Write-Host "  로그파일: $(Join-Path $ProjectDir 'restart_log.txt')" -ForegroundColor White
 Write-Host ""
 
@@ -70,7 +70,7 @@ if ($check) {
 
 Write-Host ""
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host "  등록 완료!"                              -ForegroundColor Cyan
+Write-Host "  등록 완료! (창이 뜨지 않습니다)"        -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host ""
 Read-Host "엔터를 눌러 종료"
