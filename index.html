@@ -108,11 +108,108 @@
                             <span id="stat-excluding-ratio" class="stat-ratio">(0%)</span>
                         </div>
                     </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item cash">
+                        <span class="stat-label">보유 현금</span>
+                        <div class="stat-value-group">
+                            <span id="stat-cash" class="stat-value">0</span>
+                            <span class="stat-unit">백만</span>
+                            <span id="stat-cash-ratio" class="stat-ratio">(0%)</span>
+                        </div>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item total-asset">
+                        <span class="stat-label">전체 자산</span>
+                        <div class="stat-value-group">
+                            <span id="stat-total-asset" class="stat-value">0</span>
+                            <span class="stat-unit">백만</span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 종목군별 요약 정보 (작은 글씨) -->
                 <div id="group-stats" class="group-stats">
                     <!-- 종목군별 합계가 여기에 동적으로 생성됨 -->
+                </div>
+
+                <!-- 현금 입력 패널 (포트폴리오 맵에서만 표시) -->
+                <div id="cash-panel" class="cash-panel" style="display:none;">
+                    <div onclick="toggleCashPanel()" class="cash-panel-header">
+                        <h4>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                            보유 현금 관리
+                        </h4>
+                        <span id="cash-panel-chevron" class="cash-chevron">▼ 펼치기</span>
+                    </div>
+                    <div id="cash-panel-body" style="display:none;">
+                        <!-- 1. 보유 현금 계좌 입력 섹션 -->
+                        <div class="cash-section-title">
+                            <span>계좌별 현금 잔액</span>
+                        </div>
+                        <div id="cash-accounts-list">
+                            <!-- 현금 계좌 목록이 동적으로 생성됨 -->
+                        </div>
+                        <button onclick="addCashAccount()" class="cash-add-btn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            계좌 추가
+                        </button>
+
+                        <!-- 2. 월별 현금 비중 트렌드 차트 섹션 -->
+                        <div class="cash-trend-section">
+                            <div class="cash-trend-header">
+                                <div class="cash-trend-title">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                                    월별 현금 비중 트렌드
+                                </div>
+                                <div class="cash-trend-actions">
+                                    <button type="button" onclick="saveCurrentMonthSnapshot()" class="btn-snapshot-save" title="현재 투자금과 현금 합계를 이번 달 스냅샷으로 저장">
+                                        📸 이번 달 스냅샷 저장
+                                    </button>
+                                    <button type="button" onclick="toggleSnapshotEditor()" class="btn-snapshot-edit">
+                                        ⚙️ 기록 관리
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- 트렌드 차트 컨테이너 -->
+                            <div class="cash-trend-chart-container">
+                                <canvas id="cash-trend-chart"></canvas>
+                            </div>
+
+                            <!-- 월별 스냅샷 편집기 (토글) -->
+                            <div id="snapshot-editor-section" style="display:none;" class="snapshot-editor">
+                                <div class="snapshot-editor-header">
+                                    <span>월별 스냅샷 직접 수정을/추가</span>
+                                    <div class="snapshot-json-actions">
+                                        <button type="button" onclick="exportSnapshotsJSON()" class="btn-ghost-xs">📥 백업 다운로드</button>
+                                        <button type="button" onclick="triggerSnapshotImport()" class="btn-ghost-xs">📤 백업 불러오기</button>
+                                        <input type="file" id="snapshot-file-input" style="display:none" onchange="importSnapshotsJSON(event)" accept=".json">
+                                    </div>
+                                </div>
+                                <div class="snapshot-add-form">
+                                    <input type="month" id="snap-input-month" />
+                                    <input type="number" id="snap-input-investment" placeholder="주식 투자금 (백만)" step="1" min="0" />
+                                    <input type="number" id="snap-input-cash" placeholder="보유 현금 (백만)" step="1" min="0" />
+                                    <button type="button" onclick="addManualSnapshot()" class="btn-primary-sm">추가/저장</button>
+                                </div>
+                                <table class="snapshot-table">
+                                    <thead>
+                                        <tr>
+                                            <th>월</th>
+                                            <th>주식 투자금</th>
+                                            <th>보유 현금</th>
+                                            <th>전체 자산</th>
+                                            <th>현금 비중</th>
+                                            <th>관리</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="snapshot-table-body">
+                                        <!-- 동적 생성 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="chart-container">

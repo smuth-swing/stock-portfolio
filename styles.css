@@ -475,6 +475,359 @@ tr:hover { background: rgba(255,255,255,0.04); }
     border-bottom: 1px solid var(--border-glass);
 }
 
+/* 현금 stat-item 스타일 */
+.stat-item.cash .stat-value {
+    color: #4ade80;
+    text-shadow: 0 0 12px rgba(74, 222, 128, 0.25);
+}
+
+.stat-item.cash .stat-ratio {
+    color: #4ade80;
+    opacity: 0.8;
+}
+
+/* 전체 자산 stat-item 스타일 */
+.stat-item.total-asset .stat-value {
+    color: #f0f0f0;
+    text-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
+}
+
+/* 현금 입력 패널 스타일 */
+.cash-panel {
+    border-bottom: 1px solid var(--border-glass);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.cash-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    padding: 14px 24px;
+}
+
+.cash-panel-header h4 {
+    margin: 0;
+    font-size: 13px;
+    color: #4ade80;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+}
+
+.cash-chevron {
+    font-size: 11px;
+    color: var(--text-muted);
+    transition: color 0.2s;
+}
+
+.cash-panel-header:hover .cash-chevron {
+    color: #4ade80;
+}
+
+#cash-panel-body {
+    padding: 0 24px 16px;
+}
+
+/* 현금 계좌 행 스타일 */
+.cash-account-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    animation: cashRowIn 0.25s ease-out;
+}
+
+@keyframes cashRowIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.cash-account-row input[type="text"] {
+    flex: 1;
+    min-width: 0;
+    max-width: 180px;
+    padding: 7px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-glass);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+.cash-account-row input[type="text"]:focus {
+    outline: none;
+    border-color: #4ade80;
+    box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.15);
+}
+
+.cash-account-row input[type="number"] {
+    width: 110px;
+    padding: 7px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-glass);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    text-align: right;
+    transition: border-color 0.2s;
+}
+
+.cash-account-row input[type="number"]:focus {
+    outline: none;
+    border-color: #4ade80;
+    box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.15);
+}
+
+.cash-account-row .cash-unit-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    min-width: 24px;
+}
+
+.cash-remove-btn {
+    background: none;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 6px;
+    color: #ef4444;
+    cursor: pointer;
+    padding: 5px 8px;
+    font-size: 12px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cash-remove-btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: #ef4444;
+}
+
+/* 계좌 추가 버튼 */
+.cash-add-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    padding: 7px 16px;
+    background: rgba(74, 222, 128, 0.08);
+    border: 1px dashed rgba(74, 222, 128, 0.3);
+    border-radius: 6px;
+    color: #4ade80;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.cash-add-btn:hover {
+    background: rgba(74, 222, 128, 0.15);
+    border-color: #4ade80;
+}
+
+/* 현금 패널 소제목 */
+.cash-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin: 12px 0 8px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* 월별 현금 비중 트렌드 섹션 스타일 */
+.cash-trend-section {
+    margin-top: 24px;
+    padding-top: 18px;
+    border-top: 1px dashed var(--border-glass);
+}
+
+.cash-trend-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.cash-trend-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #4ade80;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cash-trend-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.btn-snapshot-save {
+    background: rgba(74, 222, 128, 0.15);
+    border: 1px solid rgba(74, 222, 128, 0.4);
+    color: #4ade80;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-snapshot-save:hover {
+    background: rgba(74, 222, 128, 0.3);
+    border-color: #4ade80;
+    box-shadow: 0 0 10px rgba(74, 222, 128, 0.2);
+}
+
+.btn-snapshot-edit {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-glass);
+    color: var(--text-secondary);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-snapshot-edit:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.cash-trend-chart-container {
+    position: relative;
+    width: 100%;
+    height: 260px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    border: 1px solid var(--border-glass);
+    padding: 10px;
+    margin-bottom: 14px;
+}
+
+/* 스냅샷 편집 패널 */
+.snapshot-editor {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border-glass);
+    border-radius: 8px;
+    padding: 14px;
+    margin-top: 10px;
+}
+
+.snapshot-editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.snapshot-json-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.btn-ghost-xs {
+    background: none;
+    border: 1px solid var(--border-glass);
+    color: var(--text-muted);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-ghost-xs:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+}
+
+.btn-primary-sm {
+    background: var(--gold-primary);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary-sm:hover {
+    background: var(--gold-light);
+}
+
+.snapshot-add-form {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.snapshot-add-form input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-glass);
+    border-radius: 6px;
+    color: var(--text-primary);
+    padding: 6px 10px;
+    font-size: 12px;
+    font-family: inherit;
+}
+
+.snapshot-add-form input[type="month"] {
+    width: 140px;
+}
+
+.snapshot-add-form input[type="number"] {
+    width: 140px;
+}
+
+.snapshot-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.snapshot-table th, .snapshot-table td {
+    padding: 8px 10px;
+    text-align: right;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.snapshot-table th {
+    color: var(--text-muted);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-glass);
+}
+
+.snapshot-table th:first-child, .snapshot-table td:first-child {
+    text-align: left;
+}
+
+.snapshot-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
 .group-badge {
     display: flex;
     align-items: center;

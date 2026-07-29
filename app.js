@@ -19,6 +19,27 @@ let autoRefreshTimer = null;
 const REFRESH_INTERVAL = 30000; // 30초
 let portfolioMapCache = {}; // { 종목명: 기본투자금(만원) }
 let investigationPriorityCache = new Set(); // 탐구생활 시트 기반 매매우선 종목 캐시
+
+// 현금 계좌 데이터: [{ name: '계좌명', amount: 금액(백만 단위) }, ...]
+let cashAccounts = [];
+try {
+    const savedCash = localStorage.getItem('cashAccounts');
+    if (savedCash) cashAccounts = JSON.parse(savedCash);
+} catch (e) {
+    console.warn('현금 계좌 데이터 복원 실패:', e);
+    cashAccounts = [];
+}
+
+// 월별 현금 & 투자금 스냅샷 데이터: [{ month: 'YYYY-MM', investment: 백만, cash: 백만, totalAsset: 백만, ratio: % }, ...]
+let monthlyCashSnapshots = [];
+try {
+    const savedSnapshots = localStorage.getItem('monthlyCashSnapshots');
+    if (savedSnapshots) monthlyCashSnapshots = JSON.parse(savedSnapshots);
+} catch (e) {
+    console.warn('월별 현금 스냅샷 복원 실패:', e);
+    monthlyCashSnapshots = [];
+}
+let cashTrendChart = null; // 월별 현금 비중 트렌드 Chart.js 인스턴스
 let investigationRowMap = [];
 let selectedInvestigationRowIndex = null;
 let investigationCurrentRows = [];
@@ -836,6 +857,10 @@ function renderChart(data) {
     const journalPanel = document.getElementById('journal-panel');
     const tablePanel = document.getElementById('table-panel');
 
+    // 현금 패널은 기본적으로 숨기고, 포트폴리오 맵에서만 표시
+    const cashPanel = document.getElementById('cash-panel');
+    if (cashPanel) cashPanel.style.display = 'none';
+
     if (data.current_sheet === '매매일지') {
         if (chartPanel) chartPanel.classList.add('hidden');
         if (journalPanel) journalPanel.classList.remove('hidden');
@@ -919,6 +944,9 @@ function renderChart(data) {
     if (data.current_sheet === '포트폴리오 맵') {
         if (tablePanel) tablePanel.classList.add('hidden');
         controls.innerHTML = '<span class="badge">전체 투자 현황 (합산)</span>';
+        // 현금 패널 표시
+        const cashPanel = document.getElementById('cash-panel');
+        if (cashPanel) cashPanel.style.display = 'block';
         updateChart(data, null);
         return;
     }
@@ -1270,7 +1298,21 @@ function updateChart(data, columnName) {
             document.getElementById('stat-operating-ratio').textContent = `(${(totalOpAmount / totalInvestment * 100).toFixed(1)}%)`;
             document.getElementById('stat-excluding-ratio').textContent = `(${(totalExAmount / totalInvestment * 100).toFixed(1)}%)`;
         }
+
+        // 현금 및 전체 자산 Summary 업데이트
+        const totalCash = getTotalCash(); // 백만 단위
+        const totalAsset = totalInvestment + totalCash; // 백만 단위
+        document.getElementById('stat-cash').textContent = totalCash.toLocaleString();
+        document.getElementById('stat-total-asset').textContent = totalAsset.toLocaleString();
+        if (totalAsset > 0) {
+            document.getElementById('stat-cash-ratio').textContent = `(${(totalCash / totalAsset * 100).toFixed(1)}%)`;
+        } else {
+            document.getElementById('stat-cash-ratio').textContent = '(0%)';
+        }
+
         document.querySelector('.summary-stats').classList.remove('hidden');
+        // 현금 계좌 목록 렌더링
+        renderCashAccounts();
 
         const avgValue = values.length > 0 ? totalInvestment / values.length : 0;
 
@@ -2186,6 +2228,529 @@ async function fetchPortfolioMapData() {
     } catch (e) {
         console.error('Failed to fetch portfolio map for cache:', e);
     }
+}
+
+// ===== 현금 관리 유틸리티 =====
+
+/**
+ * 현금 패널 열기/닫기 토글
+ */
+function toggleCashPanel() {
+    const body = document.getElementById('cash-panel-body');
+    const chevron = document.getElementById('cash-panel-chevron');
+    if (body.style.display === 'none') {
+        body.style.display = 'block';
+        chevron.textContent = '▲ 접기';
+        renderCashAccounts();
+        updateCashTrendChart();
+        renderSnapshotTable();
+    } else {
+        body.style.display = 'none';
+        chevron.textContent = '▼ 펼치기';
+    }
+}
+
+/**
+ * 현금 합계 반환 (백만 단위)
+ */
+function getTotalCash() {
+    return cashAccounts.reduce((sum, acc) => sum + (parseFloat(acc.amount) || 0), 0);
+}
+
+/**
+ * 현금 계좌 목록 렌더링
+ */
+function renderCashAccounts() {
+    const container = document.getElementById('cash-accounts-list');
+    if (!container) return;
+
+    container.innerHTML = '';
+    cashAccounts.forEach((acc, idx) => {
+        const row = document.createElement('div');
+        row.className = 'cash-account-row';
+        row.innerHTML = `
+            <input type="text" value="${acc.name || ''}" placeholder="계좌명 (예: 증권사A)" 
+                   onchange="updateCashAccount(${idx}, 'name', this.value)" />
+            <input type="number" value="${acc.amount || ''}" placeholder="0" step="1" min="0"
+                   onchange="updateCashAccount(${idx}, 'amount', this.value)"
+                   oninput="updateCashAccount(${idx}, 'amount', this.value)" />
+            <span class="cash-unit-label">백만</span>
+            <button class="cash-remove-btn" onclick="removeCashAccount(${idx})" title="삭제">
+                ✕
+            </button>
+        `;
+        container.appendChild(row);
+    });
+}
+
+/**
+ * 새 현금 계좌 추가
+ */
+function addCashAccount() {
+    cashAccounts.push({ name: '', amount: 0 });
+    saveCashAccounts();
+    renderCashAccounts();
+}
+
+/**
+ * 현금 계좌 값 업데이트 (계좌명 또는 금액)
+ */
+function updateCashAccount(index, field, value) {
+    if (index < 0 || index >= cashAccounts.length) return;
+    if (field === 'amount') {
+        cashAccounts[index].amount = parseFloat(value) || 0;
+    } else {
+        cashAccounts[index][field] = value;
+    }
+    saveCashAccounts();
+    updateCashSummary();
+}
+
+/**
+ * 특정 현금 계좌 삭제
+ */
+function removeCashAccount(index) {
+    if (index < 0 || index >= cashAccounts.length) return;
+    cashAccounts.splice(index, 1);
+    saveCashAccounts();
+    renderCashAccounts();
+    updateCashSummary();
+}
+
+/**
+ * localStorage에 현금 데이터 저장
+ */
+function saveCashAccounts() {
+    try {
+        localStorage.setItem('cashAccounts', JSON.stringify(cashAccounts));
+    } catch (e) {
+        console.warn('현금 계좌 저장 실패:', e);
+    }
+}
+
+/**
+ * Summary 바의 현금/전체자산 영역만 즉시 업데이트
+ */
+function updateCashSummary() {
+    const totalCash = getTotalCash();
+    const statTotal = document.getElementById('stat-total');
+    const totalInvestment = statTotal ? parseFloat(statTotal.textContent.replace(/,/g, '')) || 0 : 0;
+    const totalAsset = totalInvestment + totalCash;
+
+    const statCash = document.getElementById('stat-cash');
+    const statCashRatio = document.getElementById('stat-cash-ratio');
+    const statTotalAsset = document.getElementById('stat-total-asset');
+
+    if (statCash) statCash.textContent = totalCash.toLocaleString();
+    if (statTotalAsset) statTotalAsset.textContent = totalAsset.toLocaleString();
+    if (statCashRatio) {
+        statCashRatio.textContent = totalAsset > 0
+            ? `(${(totalCash / totalAsset * 100).toFixed(1)}%)`
+            : '(0%)';
+    }
+
+    // 트렌드 차트 및 스냅샷 업데이트
+    updateCashTrendChart();
+}
+
+/**
+ * 월별 현금 & 투자금 스냅샷 저장 (현재 달 기준)
+ */
+function saveCurrentMonthSnapshot() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const currentMonthKey = `${year}-${month}`;
+
+    const statTotal = document.getElementById('stat-total');
+    const investment = statTotal ? parseFloat(statTotal.textContent.replace(/,/g, '')) || 0 : 0;
+    const cash = getTotalCash();
+    const totalAsset = investment + cash;
+    const ratio = totalAsset > 0 ? parseFloat((cash / totalAsset * 100).toFixed(1)) : 0;
+
+    // 기존 기록 탐색
+    const existingIdx = monthlyCashSnapshots.findIndex(item => item.month === currentMonthKey);
+    const newSnapshot = {
+        month: currentMonthKey,
+        investment: investment,
+        cash: cash,
+        totalAsset: totalAsset,
+        ratio: ratio
+    };
+
+    if (existingIdx !== -1) {
+        monthlyCashSnapshots[existingIdx] = newSnapshot;
+    } else {
+        monthlyCashSnapshots.push(newSnapshot);
+    }
+
+    // 월 오름차순 정렬
+    monthlyCashSnapshots.sort((a, b) => a.month.localeCompare(b.month));
+
+    saveSnapshotsToStorage();
+    updateCashTrendChart();
+    renderSnapshotTable();
+
+    alert(`[${currentMonthKey}] 스냅샷이 저장되었습니다.\n• 주식 투자금: ${investment.toLocaleString()}백만\n• 보유 현금: ${cash.toLocaleString()}백만\n• 현금 비중: ${ratio}%`);
+}
+
+/**
+ * 월별 스냅샷 localStorage 저장
+ */
+function saveSnapshotsToStorage() {
+    try {
+        localStorage.setItem('monthlyCashSnapshots', JSON.stringify(monthlyCashSnapshots));
+    } catch (e) {
+        console.warn('월별 현금 스냅샷 저장 실패:', e);
+    }
+}
+
+/**
+ * 월별 현금 비중 트렌드 Chart.js 그려주기
+ */
+function updateCashTrendChart() {
+    const canvas = document.getElementById('cash-trend-chart');
+    if (!canvas) return;
+
+    if (typeof Chart === 'undefined') {
+        console.warn('Chart.js가 아직 로드되지 않았습니다.');
+        return;
+    }
+
+    // 기존 차트 파괴
+    if (cashTrendChart) {
+        cashTrendChart.destroy();
+        cashTrendChart = null;
+    }
+
+    if (!monthlyCashSnapshots || monthlyCashSnapshots.length === 0) {
+        // 데이터가 없으면 빈 안내 차트 표시
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = '13px sans-serif';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.textAlign = 'center';
+        ctx.fillText('저장된 월별 현금 비중 데이터가 없습니다. [📸 이번 달 스냅샷 저장]을 눌러보세요.', canvas.width / 2, canvas.height / 2);
+        return;
+    }
+
+    // 데이터 정렬 (월 오름차순)
+    const sortedData = [...monthlyCashSnapshots].sort((a, b) => a.month.localeCompare(b.month));
+
+    const labels = sortedData.map(d => d.month);
+    const ratioData = sortedData.map(d => d.ratio);
+    const cashData = sortedData.map(d => d.cash);
+
+    // 각 포인트 및 막대 위에 수치 텍스트(% 및 백만원)를 직접 출력하는 커스텀 플러그인
+    const cashTrendDataLabelsPlugin = {
+        id: 'cashTrendDataLabelsPlugin',
+        afterDatasetsDraw(chart) {
+            const { ctx } = chart;
+            ctx.save();
+
+            chart.data.datasets.forEach((dataset, datasetIndex) => {
+                const meta = chart.getDatasetMeta(datasetIndex);
+                if (!meta.hidden) {
+                    meta.data.forEach((element, index) => {
+                        const val = dataset.data[index];
+                        if (val !== null && val !== undefined) {
+                            const pos = element.tooltipPosition ? element.tooltipPosition() : { x: element.x, y: element.y };
+                            ctx.font = 'bold 11px "JetBrains Mono", sans-serif';
+                            ctx.textAlign = 'center';
+
+                            if (dataset.type === 'line') {
+                                // 현금 비중 (%) - 선 포인트 상단에 초록색 텍스트
+                                const text = `${val}%`;
+                                ctx.fillStyle = '#4ade80';
+                                ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                                ctx.shadowBlur = 4;
+                                ctx.fillText(text, pos.x, pos.y - 12);
+                            } else if (dataset.type === 'bar') {
+                                // 보유 현금액 (백만원) - 막대 상단에 골드 텍스트
+                                const text = `${Number(val).toLocaleString()}백만`;
+                                ctx.fillStyle = 'rgba(234, 179, 8, 1)';
+                                ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+                                ctx.shadowBlur = 4;
+                                ctx.fillText(text, pos.x, pos.y - 8);
+                            }
+                        }
+                    });
+                }
+            });
+            ctx.restore();
+        }
+    };
+
+    const ctx = canvas.getContext('2d');
+    cashTrendChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    type: 'line',
+                    label: '현금 비중 (%)',
+                    data: ratioData,
+                    borderColor: '#4ade80',
+                    backgroundColor: 'rgba(74, 222, 128, 0.15)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.25,
+                    pointRadius: 6,
+                    pointHoverRadius: 9,
+                    pointBackgroundColor: '#4ade80',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    yAxisID: 'yRatio',
+                    order: 1
+                },
+                {
+                    type: 'bar',
+                    label: '보유 현금액 (백만)',
+                    data: cashData,
+                    backgroundColor: 'rgba(212, 175, 55, 0.55)',
+                    borderColor: 'rgba(212, 175, 55, 0.9)',
+                    borderWidth: 1.5,
+                    borderRadius: 6,
+                    barThickness: 28,
+                    maxBarThickness: 40,
+                    yAxisID: 'yAmount',
+                    order: 2
+                }
+            ]
+        },
+        plugins: [cashTrendDataLabelsPlugin],
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        color: 'rgba(255, 255, 255, 0.85)',
+                        font: { size: 12, family: "'JetBrains Mono', monospace", weight: '600' },
+                        boxWidth: 14,
+                        padding: 15
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    titleColor: '#4ade80',
+                    titleFont: { size: 13, weight: 'bold' },
+                    bodyColor: '#f1f5f9',
+                    bodyFont: { size: 12 },
+                    borderColor: 'rgba(255, 255, 255, 0.15)',
+                    borderWidth: 1,
+                    padding: 12,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) label += ': ';
+                            if (context.dataset.yAxisID === 'yRatio') {
+                                label += context.parsed.y + '%';
+                            } else {
+                                label += context.parsed.y.toLocaleString() + ' 백만원';
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: 'rgba(255, 255, 255, 0.85)', font: { size: 11, weight: '600' } }
+                },
+                yRatio: {
+                    type: 'linear',
+                    position: 'left',
+                    min: 0,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: '현금 비중 (%)',
+                        color: '#4ade80',
+                        font: { size: 11, weight: 'bold' }
+                    },
+                    ticks: {
+                        color: '#4ade80',
+                        callback: v => v + '%'
+                    },
+                    grid: { color: 'rgba(74, 222, 128, 0.12)' }
+                },
+                yAmount: {
+                    type: 'linear',
+                    position: 'right',
+                    min: 0,
+                    title: {
+                        display: true,
+                        text: '보유 현금액 (백만원)',
+                        color: 'rgba(212, 175, 55, 0.95)',
+                        font: { size: 11, weight: 'bold' }
+                    },
+                    ticks: {
+                        color: 'rgba(212, 175, 55, 0.95)',
+                        callback: v => v.toLocaleString()
+                    },
+                    grid: { drawOnChartArea: false }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * 스냅샷 수동 편집 영역 토글
+ */
+function toggleSnapshotEditor() {
+    const sec = document.getElementById('snapshot-editor-section');
+    if (!sec) return;
+    if (sec.style.display === 'none') {
+        sec.style.display = 'block';
+        renderSnapshotTable();
+        // 기본달 지정
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const monthInput = document.getElementById('snap-input-month');
+        if (monthInput && !monthInput.value) monthInput.value = `${year}-${month}`;
+    } else {
+        sec.style.display = 'none';
+    }
+}
+
+/**
+ * 스냅샷 관리 테이블 렌더링
+ */
+function renderSnapshotTable() {
+    const tbody = document.getElementById('snapshot-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    const sortedData = [...monthlyCashSnapshots].sort((a, b) => a.month.localeCompare(b.month));
+
+    if (sortedData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:16px;">기록된 스냅샷이 없습니다.</td></tr>`;
+        return;
+    }
+
+    sortedData.forEach((snap, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="font-weight:600; color:var(--gold-light);">${snap.month}</td>
+            <td>${(snap.investment || 0).toLocaleString()} 백만</td>
+            <td style="color:#4ade80;">${(snap.cash || 0).toLocaleString()} 백만</td>
+            <td>${(snap.totalAsset || 0).toLocaleString()} 백만</td>
+            <td style="font-weight:700; color:#4ade80;">${snap.ratio}%</td>
+            <td>
+                <button type="button" onclick="deleteSnapshot('${snap.month}')" class="cash-remove-btn" title="삭제" style="display:inline-block; padding:3px 6px;">✕</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+/**
+ * 수동으로 스냅샷 추가/수정
+ */
+function addManualSnapshot() {
+    const monthInput = document.getElementById('snap-input-month');
+    const invInput = document.getElementById('snap-input-investment');
+    const cashInput = document.getElementById('snap-input-cash');
+
+    const month = monthInput ? monthInput.value.trim() : '';
+    const investment = invInput ? parseFloat(invInput.value) || 0 : 0;
+    const cash = cashInput ? parseFloat(cashInput.value) || 0 : 0;
+
+    if (!month) {
+        alert('연월(YYYY-MM)을 선택해주세요.');
+        return;
+    }
+
+    const totalAsset = investment + cash;
+    const ratio = totalAsset > 0 ? parseFloat((cash / totalAsset * 100).toFixed(1)) : 0;
+
+    const existingIdx = monthlyCashSnapshots.findIndex(item => item.month === month);
+    const newSnapshot = { month, investment, cash, totalAsset, ratio };
+
+    if (existingIdx !== -1) {
+        monthlyCashSnapshots[existingIdx] = newSnapshot;
+    } else {
+        monthlyCashSnapshots.push(newSnapshot);
+    }
+
+    monthlyCashSnapshots.sort((a, b) => a.month.localeCompare(b.month));
+    saveSnapshotsToStorage();
+    updateCashTrendChart();
+    renderSnapshotTable();
+
+    if (invInput) invInput.value = '';
+    if (cashInput) cashInput.value = '';
+}
+
+/**
+ * 특정 월 스냅샷 삭제
+ */
+function deleteSnapshot(monthKey) {
+    if (!confirm(`[${monthKey}] 월별 스냅샷 기록을 삭제하시겠습니까?`)) return;
+    monthlyCashSnapshots = monthlyCashSnapshots.filter(item => item.month !== monthKey);
+    saveSnapshotsToStorage();
+    updateCashTrendChart();
+    renderSnapshotTable();
+}
+
+/**
+ * 스냅샷 데이터 JSON 백업 다운로드
+ */
+function exportSnapshotsJSON() {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(monthlyCashSnapshots, null, 2));
+    const dlAnchor = document.createElement('a');
+    dlAnchor.setAttribute("href", dataStr);
+    dlAnchor.setAttribute("download", `cash_snapshots_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(dlAnchor);
+    dlAnchor.click();
+    dlAnchor.remove();
+}
+
+/**
+ * 백업 JSON 파일 트리거
+ */
+function triggerSnapshotImport() {
+    const fileInput = document.getElementById('snapshot-file-input');
+    if (fileInput) fileInput.click();
+}
+
+/**
+ * 백업 JSON 파일 가져오기
+ */
+function importSnapshotsJSON(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const imported = JSON.parse(e.target.result);
+            if (Array.isArray(imported)) {
+                monthlyCashSnapshots = imported;
+                monthlyCashSnapshots.sort((a, b) => a.month.localeCompare(b.month));
+                saveSnapshotsToStorage();
+                updateCashTrendChart();
+                renderSnapshotTable();
+                alert(`${imported.length}개의 스냅샷을 성공적으로 불러왔습니다.`);
+            } else {
+                alert('올바른 스냅샷 JSON 형식이 아닙니다.');
+            }
+        } catch (err) {
+            alert('JSON 파일 읽기 중 오류 발생: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
 }
 
 // ===== 탐구생활 매매우선 연동 유틸리티 =====
