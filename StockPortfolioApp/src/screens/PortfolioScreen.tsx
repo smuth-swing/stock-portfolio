@@ -15,6 +15,7 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useDataStore } from '../store/useDataStore';
 import { PieChart } from 'react-native-gifted-charts';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Polyline, Circle } from 'react-native-svg';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_PADDING = 48;
@@ -46,7 +47,24 @@ export default function PortfolioScreen() {
           const parsed = JSON.parse(rawData);
           if (Array.isArray(parsed) && parsed.length > 0) {
             parsed.sort((a, b) => a.month.localeCompare(b.month));
-            setSnapshots(parsed);
+            // Normalize loaded snapshots: ensure numeric fields and ratio is percentage
+            const normalized = parsed.map(item => {
+              const investment = Number(item.investment) || 0;
+              const cash = Number(item.cash) || 0;
+              const totalAsset = Number(item.totalAsset) || (investment + cash);
+              // legacy data might have ratio as fraction (0.12) or percent (12.0)
+              let ratioRaw = parseFloat(item.ratio);
+              if (!isFinite(ratioRaw)) ratioRaw = totalAsset > 0 ? (cash / totalAsset * 100) : 0;
+              const ratio = ratioRaw > 1 ? ratioRaw : ratioRaw * 100;
+              return {
+                ...item,
+                investment,
+                cash,
+                totalAsset,
+                ratio: parseFloat(ratio.toFixed(1))
+              };
+            });
+            setSnapshots(normalized);
             return;
           }
         }
@@ -318,6 +336,16 @@ export default function PortfolioScreen() {
     const VALUE_W = 42;       // 현금액 표시 너비
     const BAR_AREA = CHART_PAGE_WIDTH - LABEL_W - PCT_W - VALUE_W - 32;
 
+    // Prepare ratio values for SVG line plotting
+    const ratioValues = list.map(s => {
+      const r = typeof s.ratio === 'number' ? s.ratio : parseFloat(s.ratio);
+      return isFinite(r) ? r : 0;
+    });
+    const maxRatio = Math.max(...ratioValues, 1);
+    const svgHeight = 80;
+    const pointGap = BAR_AREA / Math.max(list.length - 1, 1);
+    const svgPoints = ratioValues.map((r, i) => `${i * pointGap},${svgHeight - (r / maxRatio) * svgHeight}`).join(' ');
+
     return (
       <View style={[styles.chartPage, { paddingHorizontal: 0, flex: 1 }]}>
         <Text style={[styles.cardTitle, { paddingHorizontal: 24, marginBottom: 16 }]}>월별 현금 비중 트렌드</Text>
@@ -332,6 +360,27 @@ export default function PortfolioScreen() {
             <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#D4AF37' }} />
             <Text style={{ color: '#D4AF37', fontSize: 11, fontWeight: 'bold' }}>보유 현금액(M)</Text>
           </View>
+        </View>
+
+        {/* 간단한 선 그래프 (SVG) */}
+        <View style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
+          <Svg width={BAR_AREA} height={svgHeight}>
+            <Polyline
+              points={svgPoints}
+              fill="none"
+              stroke="#22C55E"
+              strokeWidth={3}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {ratioValues.map((r, i) => {
+              const cx = i * pointGap;
+              const cy = svgHeight - (r / maxRatio) * svgHeight;
+              return (
+                <Circle key={`pt-${i}`} cx={cx} cy={cy} r={4} fill="#22C55E" stroke="#ffffff" strokeWidth={1} />
+              );
+            })}
+          </Svg>
         </View>
 
         <View style={{ flex: 1 }}>
