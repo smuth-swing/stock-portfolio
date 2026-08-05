@@ -142,17 +142,44 @@
                         <span id="cash-panel-chevron" class="cash-chevron">▼ 펼치기</span>
                     </div>
                     <div id="cash-panel-body" style="display:none;">
-                        <!-- 1. 보유 현금 계좌 입력 섹션 -->
-                        <div class="cash-section-title">
-                            <span>계좌별 현금 잔액</span>
+                        <!-- 1. 보유 현금 & 투자금 계좌 입력 섹션 (2-column) -->
+                        <div class="cash-invest-columns">
+                            <!-- 왼쪽: 계좌별 현금 잔액 -->
+                            <div class="cash-invest-col">
+                                <div class="cash-section-title">
+                                    <span>💵 계좌별 현금 잔액</span>
+                                </div>
+                                <div id="cash-accounts-list">
+                                    <!-- 현금 계좌 목록이 동적으로 생성됨 -->
+                                </div>
+                                <button onclick="addCashAccount()" class="cash-add-btn">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    계좌 추가
+                                </button>
+                                <div class="cash-invest-total">
+                                    합계: <span id="cash-total-display">0</span> 백만
+                                </div>
+                            </div>
+
+                            <!-- 오른쪽: 계좌별 투자금액 -->
+                            <div class="cash-invest-col">
+                                <div class="cash-section-title invest-title">
+                                    <span>📊 계좌별 투자금액</span>
+                                    <span class="invest-hint">(미입력 시 포트폴리오 맵 기준)</span>
+                                </div>
+                                <div id="invest-accounts-list">
+                                    <!-- 투자금 계좌 목록이 동적으로 생성됨 -->
+                                </div>
+                                <button onclick="addInvestAccount()" class="cash-add-btn invest-add-btn">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    계좌 추가
+                                </button>
+                                <div class="cash-invest-total invest-total-color">
+                                    합계: <span id="invest-total-display">0</span> 백만
+                                    <span id="invest-source-label" class="invest-source-label">(포트폴리오 맵 기준)</span>
+                                </div>
+                            </div>
                         </div>
-                        <div id="cash-accounts-list">
-                            <!-- 현금 계좌 목록이 동적으로 생성됨 -->
-                        </div>
-                        <button onclick="addCashAccount()" class="cash-add-btn">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                            계좌 추가
-                        </button>
 
                         <!-- 2. 월별 현금 비중 트렌드 차트 섹션 -->
                         <div class="cash-trend-section">

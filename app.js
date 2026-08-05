@@ -30,6 +30,16 @@ try {
     cashAccounts = [];
 }
 
+// 투자금 계좌 데이터: [{ name: '계좌명', amount: 금액(백만 단위) }, ...]
+let investAccounts = [];
+try {
+    const savedInvest = localStorage.getItem('investAccounts');
+    if (savedInvest) investAccounts = JSON.parse(savedInvest);
+} catch (e) {
+    console.warn('투자금 계좌 데이터 복원 실패:', e);
+    investAccounts = [];
+}
+
 // 월별 현금 & 투자금 스냅샷 데이터: [{ month: 'YYYY-MM', investment: 백만, cash: 백만, totalAsset: 백만, ratio: % }, ...]
 let monthlyCashSnapshots = [];
 try {
@@ -1301,7 +1311,8 @@ function updateChart(data, columnName) {
 
         // 현금 및 전체 자산 Summary 업데이트
         const totalCash = getTotalCash(); // 백만 단위
-        const totalAsset = totalInvestment + totalCash; // 백만 단위
+        const effectiveInvestment = getEffectiveInvestment(); // 계좌 입력이 있으면 그것, 미입력이면 totalInvestment
+        const totalAsset = effectiveInvestment + totalCash; // 백만 단위
         document.getElementById('stat-cash').textContent = totalCash.toLocaleString();
         document.getElementById('stat-total-asset').textContent = totalAsset.toLocaleString();
         if (totalAsset > 0) {
@@ -1311,8 +1322,9 @@ function updateChart(data, columnName) {
         }
 
         document.querySelector('.summary-stats').classList.remove('hidden');
-        // 현금 계좌 목록 렌더링
+        // 현금 계좌 및 투자금 계좌 목록 렌더링
         renderCashAccounts();
+        renderInvestAccounts();
 
         const avgValue = values.length > 0 ? totalInvestment / values.length : 0;
 
@@ -2282,6 +2294,8 @@ function renderCashAccounts() {
         `;
         container.appendChild(row);
     });
+
+    updateInvestSummaryDisplay();
 }
 
 /**
@@ -2329,14 +2343,134 @@ function saveCashAccounts() {
     }
 }
 
+// ===== 투자금 계좌 관리 함수 =====
+
+/**
+ * 투자금 계좌 합계 반환 (백만 단위)
+ */
+function getTotalInvestAccounts() {
+    return investAccounts.reduce((sum, acc) => sum + (parseFloat(acc.amount) || 0), 0);
+}
+
+/**
+ * 유효 투자금 반환 (백만 단위)
+ * - 투자금 계좌가 입력되어 있으면 그 합계를 사용
+ * - 미입력이면 포트폴리오 맵의 투자금(stat-total)을 사용
+ */
+function getEffectiveInvestment() {
+    const investTotal = getTotalInvestAccounts();
+    if (investTotal > 0) return investTotal;
+    const statTotal = document.getElementById('stat-total');
+    return statTotal ? parseFloat(statTotal.textContent.replace(/,/g, '')) || 0 : 0;
+}
+
+/**
+ * 투자금 계좌 목록 렌더링
+ */
+function renderInvestAccounts() {
+    const container = document.getElementById('invest-accounts-list');
+    if (!container) return;
+
+    container.innerHTML = '';
+    investAccounts.forEach((acc, idx) => {
+        const row = document.createElement('div');
+        row.className = 'invest-account-row';
+        row.innerHTML = `
+            <input type="text" value="${acc.name || ''}" placeholder="계좌명 (예: 증권사A)" 
+                   onchange="updateInvestAccount(${idx}, 'name', this.value)" />
+            <input type="number" value="${acc.amount || ''}" placeholder="0" step="1" min="0"
+                   onchange="updateInvestAccount(${idx}, 'amount', this.value)"
+                   oninput="updateInvestAccount(${idx}, 'amount', this.value)" />
+            <span class="cash-unit-label">백만</span>
+            <button class="cash-remove-btn" onclick="removeInvestAccount(${idx})" title="삭제">
+                ✕
+            </button>
+        `;
+        container.appendChild(row);
+    });
+
+    updateInvestSummaryDisplay();
+}
+
+/**
+ * 새 투자금 계좌 추가
+ */
+function addInvestAccount() {
+    investAccounts.push({ name: '', amount: 0 });
+    saveInvestAccounts();
+    renderInvestAccounts();
+}
+
+/**
+ * 투자금 계좌 값 업데이트 (계좌명 또는 금액)
+ */
+function updateInvestAccount(index, field, value) {
+    if (index < 0 || index >= investAccounts.length) return;
+    if (field === 'amount') {
+        investAccounts[index].amount = parseFloat(value) || 0;
+    } else {
+        investAccounts[index][field] = value;
+    }
+    saveInvestAccounts();
+    updateInvestSummaryDisplay();
+    updateCashSummary();
+}
+
+/**
+ * 특정 투자금 계좌 삭제
+ */
+function removeInvestAccount(index) {
+    if (index < 0 || index >= investAccounts.length) return;
+    investAccounts.splice(index, 1);
+    saveInvestAccounts();
+    renderInvestAccounts();
+    updateCashSummary();
+}
+
+/**
+ * localStorage에 투자금 데이터 저장
+ */
+function saveInvestAccounts() {
+    try {
+        localStorage.setItem('investAccounts', JSON.stringify(investAccounts));
+    } catch (e) {
+        console.warn('투자금 계좌 저장 실패:', e);
+    }
+}
+
+/**
+ * 투자금 합계 및 현금 합계 표시 업데이트
+ */
+function updateInvestSummaryDisplay() {
+    // 현금 합계 표시
+    const cashTotalDisplay = document.getElementById('cash-total-display');
+    if (cashTotalDisplay) cashTotalDisplay.textContent = getTotalCash().toLocaleString();
+
+    // 투자금 합계 표시
+    const investTotalDisplay = document.getElementById('invest-total-display');
+    const investSourceLabel = document.getElementById('invest-source-label');
+    const investAccountTotal = getTotalInvestAccounts();
+
+    if (investTotalDisplay) {
+        if (investAccountTotal > 0) {
+            investTotalDisplay.textContent = investAccountTotal.toLocaleString();
+            if (investSourceLabel) investSourceLabel.textContent = '(계좌 입력 기준)';
+        } else {
+            const statTotal = document.getElementById('stat-total');
+            const mapTotal = statTotal ? parseFloat(statTotal.textContent.replace(/,/g, '')) || 0 : 0;
+            investTotalDisplay.textContent = mapTotal.toLocaleString();
+            if (investSourceLabel) investSourceLabel.textContent = '(포트폴리오 맵 기준)';
+        }
+    }
+}
+
 /**
  * Summary 바의 현금/전체자산 영역만 즉시 업데이트
  */
 function updateCashSummary() {
     const totalCash = getTotalCash();
-    const statTotal = document.getElementById('stat-total');
-    const totalInvestment = statTotal ? parseFloat(statTotal.textContent.replace(/,/g, '')) || 0 : 0;
-    const totalAsset = totalInvestment + totalCash;
+    const effectiveInvestment = getEffectiveInvestment();
+    const totalAsset = effectiveInvestment + totalCash;
 
     const statCash = document.getElementById('stat-cash');
     const statCashRatio = document.getElementById('stat-cash-ratio');
@@ -2350,6 +2484,7 @@ function updateCashSummary() {
             : '(0%)';
     }
 
+    updateInvestSummaryDisplay();
     // 트렌드 차트 및 스냅샷 업데이트
     updateCashTrendChart();
 }
@@ -2363,8 +2498,7 @@ function saveCurrentMonthSnapshot() {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const currentMonthKey = `${year}-${month}`;
 
-    const statTotal = document.getElementById('stat-total');
-    const investment = statTotal ? parseFloat(statTotal.textContent.replace(/,/g, '')) || 0 : 0;
+    const investment = getEffectiveInvestment();
     const cash = getTotalCash();
     const totalAsset = investment + cash;
     const ratio = totalAsset > 0 ? parseFloat((cash / totalAsset * 100).toFixed(1)) : 0;

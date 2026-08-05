@@ -86,8 +86,11 @@ const applyQueueToData = (dataKey: string, dataObj: any, queue: any[]) => {
   queue.forEach(edit => {
     if (edit.sheet === '탐구생활' && dataKey === 'investigation') {
       const idx = edit.rowIndex;
-      if (newData.data[idx]) {
+      if (!newData.data[idx]) {
+        newData.data[idx] = {};
+      } else {
         newData.data[idx] = { ...newData.data[idx] };
+      }
         edit.values.forEach((val: any, i: number) => {
            const colName = columns[i];
            if (colName) {
