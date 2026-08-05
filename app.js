@@ -1379,7 +1379,8 @@ function updateChart(data, columnName) {
                     const prefix = g.strategy === '운영' ? '운용:' : '편출:';
 
                     ctx.fillText(prefix, centerX, bottom + 70); // 전략 (운용/편출)
-                    ctx.fillText(`${g.amount.toLocaleString()}백만`, centerX, bottom + 82); // 금액
+                    const ratio = totalInvestment > 0 ? (g.amount / totalInvestment * 100).toFixed(1) : '0.0';
+                    ctx.fillText(`${g.amount.toLocaleString()}백만 (${ratio}%)`, centerX, bottom + 82); // 금액 + 비중
                 });
                 ctx.restore();
             }
