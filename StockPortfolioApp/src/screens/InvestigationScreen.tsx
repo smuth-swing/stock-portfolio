@@ -163,9 +163,10 @@ export default function InvestigationScreen() {
   const allData = investigation?.data || [];
   const allItems = allData
     .map((r: any, idx: number) => ({ ...r, _realIndex: idx }))
-    .filter((r: any) => getStockName(r));
+    .filter((r: any) => r._realIndex === editingIndex || getStockName(r));
   
   const items = allItems.filter((item: any) => {
+    if (item._realIndex === editingIndex) return true; // 수정 중인 종목은 무조건 포함
     // 모멘텀과 매매 전략 둘 다 내용이 없는 경우 매매우선 필터에서 제외
     if (filter === 'priority' && !getMomentum(item) && !getStrategy(item)) return false;
     if (searchQuery.trim() !== '') {
@@ -255,7 +256,8 @@ export default function InvestigationScreen() {
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-    // 3. 신규 빈 행 생성
+    // 3. 신규 행 생성
+    const defaultStockName = '신규 종목';
     const newRowData: any = {};
     columns.forEach((col: string) => {
       newRowData[col] = '';
@@ -263,8 +265,8 @@ export default function InvestigationScreen() {
     newRowData[numCol] = nextNum;
     if (numCol !== 'Unnamed: 0') newRowData['Unnamed: 0'] = nextNum;
     
-    newRowData['종목명'] = '';
-    newRowData['Unnamed: 1'] = '';
+    newRowData['종목명'] = defaultStockName;
+    newRowData['Unnamed: 1'] = defaultStockName;
 
     // 날짜 컬럼 설정
     const dateCol = columns.find((c: string) => c.includes('날짜') || c.includes('일자'));
@@ -287,7 +289,7 @@ export default function InvestigationScreen() {
       file: filePath,
       sheet: sheetName,
       rowIndex: newRealIndex,
-      stockName: '',
+      stockName: defaultStockName,
       values,
       timestamp: new Date().toISOString()
     };
@@ -300,7 +302,7 @@ export default function InvestigationScreen() {
     setExpandedId(idStr);
     setEditingIndex(newRealIndex);
     setEditForm({
-      stockName: '',
+      stockName: defaultStockName,
       question: '',
       reason: '',
       risk: '',
@@ -407,8 +409,8 @@ export default function InvestigationScreen() {
         {items.length > 0 ? (
           items.map((item: any, index: number) => {
             const id = item['Unnamed: 0'] || String(index);
-            const isExpanded = expandedId === id;
             const realIdx = item._realIndex;
+            const isExpanded = expandedId === id || editingIndex === realIdx;
             
             return (
               <TouchableOpacity 
