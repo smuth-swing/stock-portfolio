@@ -178,6 +178,7 @@ export default function InvestigationScreen() {
   const startEditing = (realIdx: number, item: any) => {
     setEditingIndex(realIdx);
     setEditForm({
+      stockName: getStockName(item),
       question: getQuestion(item),
       reason: getReason(item),
       risk: getRisk(item),
@@ -203,6 +204,7 @@ export default function InvestigationScreen() {
       // 하위호환성(Unnamed) 및 신규 컬럼명 모두 지원
       const newRowData = { 
         ...rowData, 
+        '종목명': editForm.stockName, 'Unnamed: 1': editForm.stockName,
         '질문': editForm.question, 'Unnamed: 2': editForm.question,
         '모멘텀': editForm.momentum, 'Unnamed: 3': editForm.momentum,
         '매수이유': editForm.reason, 'Unnamed: 4': editForm.reason,
@@ -232,6 +234,83 @@ export default function InvestigationScreen() {
       setIsSaving(false);
       setEditingIndex(null);
     }
+  };
+
+  const handleCreateNewStock = async () => {
+    if (!investigation || !investigation.data) return;
+
+    const allData = investigation.data;
+    const columns = investigation.columns || [];
+
+    // 1. 마지막 번호 찾기 (컬럼 0 기준)
+    const numCol = columns[0] || 'Unnamed: 0';
+    let maxNum = 0;
+    allData.forEach((row: any) => {
+      const num = parseInt(row[numCol] || row['Unnamed: 0'] || 0, 10);
+      if (!isNaN(num) && num > maxNum) maxNum = num;
+    });
+    const nextNum = maxNum + 1;
+
+    // 2. 오늘 날짜 (YYYY-MM-DD)
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    // 3. 신규 빈 행 생성
+    const newRowData: any = {};
+    columns.forEach((col: string) => {
+      newRowData[col] = '';
+    });
+    newRowData[numCol] = nextNum;
+    if (numCol !== 'Unnamed: 0') newRowData['Unnamed: 0'] = nextNum;
+    
+    newRowData['종목명'] = '';
+    newRowData['Unnamed: 1'] = '';
+
+    // 날짜 컬럼 설정
+    const dateCol = columns.find((c: string) => c.includes('날짜') || c.includes('일자'));
+    if (dateCol && dateCol !== numCol) {
+      newRowData[dateCol] = todayStr;
+    }
+
+    const newRealIndex = allData.length;
+
+    // 4. Zustand 스토어 데이터 업데이트
+    const updatedData = [...allData, newRowData];
+    useDataStore.setState({ investigation: { ...investigation, data: updatedData } });
+
+    // 5. 오프라인 동기화 큐에 추가
+    const filePath = investigation._filePath || investigation.file_name || '';
+    const sheetName = investigation.current_sheet || '탐구생활';
+    const values = columns.map((col: string) => newRowData[col] !== undefined && newRowData[col] !== null ? newRowData[col] : '');
+
+    const newTask = {
+      file: filePath,
+      sheet: sheetName,
+      rowIndex: newRealIndex,
+      stockName: '',
+      values,
+      timestamp: new Date().toISOString()
+    };
+    await addToSyncQueue(newTask);
+
+    // 6. UI 초기화: 필터 '전체', 검색어 초기화, 신규 행 펼치기 및 수정 모드 진입
+    setFilter('all');
+    setSearchQuery('');
+    const idStr = String(newRowData['Unnamed: 0'] || nextNum);
+    setExpandedId(idStr);
+    setEditingIndex(newRealIndex);
+    setEditForm({
+      stockName: '',
+      question: '',
+      reason: '',
+      risk: '',
+      momentum: '',
+      strategy: '',
+      ceo: ''
+    });
+
+    setToastMessage(`✨ 새 종목(번호: ${nextNum})이 생성되었습니다. 종목명과 내용을 입력해주세요.`);
+    setTimeout(() => setToastMessage(null), 3500);
   };
 
   const handleSync = () => {
@@ -279,17 +358,26 @@ export default function InvestigationScreen() {
               <Text style={[styles.filterBtnText, filter === 'priority' && styles.filterBtnTextActive]}>매매우선</Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity 
-            style={styles.refreshBtn} 
-            onPress={() => {
-              refreshDataRef.current();
-            }}
-            disabled={isLoading || isSyncing}
-          >
-            <Text style={styles.refreshBtnText}>
-              {(isLoading || isSyncing) ? '⏳ 갱신 중' : '🔄 정보 갱신'}
-            </Text>
-          </TouchableOpacity>
+
+          <View style={styles.headerRightActions}>
+            <TouchableOpacity 
+              style={styles.addStockBtn} 
+              onPress={handleCreateNewStock}
+            >
+              <Text style={styles.addStockBtnText}>➕ 신규 종목</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.refreshBtn} 
+              onPress={() => {
+                refreshDataRef.current();
+              }}
+              disabled={isLoading || isSyncing}
+            >
+              <Text style={styles.refreshBtnText}>
+                {(isLoading || isSyncing) ? '⏳ 갱신 중' : '🔄 갱신'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={styles.searchContainer}>
           <TextInput
@@ -333,9 +421,19 @@ export default function InvestigationScreen() {
               >
                 <View style={styles.cardHeader}>
                   <View style={styles.titleRow}>
-                    <Text style={styles.stockName}>
-                      {getStockName(item)}
-                    </Text>
+                    {editingIndex === realIdx ? (
+                      <TextInput
+                        style={styles.editInput}
+                        value={editForm.stockName !== undefined ? editForm.stockName : getStockName(item)}
+                        onChangeText={t => setEditForm((prev: any) => ({ ...prev, stockName: t }))}
+                        placeholder="종목명 입력"
+                        placeholderTextColor="#94A3B8"
+                      />
+                    ) : (
+                      <Text style={styles.stockName}>
+                        {getStockName(item) || '(종목명 없음)'}
+                      </Text>
+                    )}
                     {(getMomentum(item) || getStrategy(item)) ? (
                       <View style={styles.badge}>
                         <Text style={styles.badgeText}>매매우선</Text>
@@ -503,6 +601,16 @@ const styles = StyleSheet.create({
   filterBtnActive: { backgroundColor: 'rgba(0, 242, 254, 0.2)' },
   filterBtnText: { color: '#64748B', fontSize: 13, fontWeight: '700' },
   filterBtnTextActive: { color: '#00F2FE' },
+  headerRightActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  addStockBtn: {
+    backgroundColor: 'rgba(0, 242, 254, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 254, 0.4)',
+  },
+  addStockBtnText: { color: '#00F2FE', fontSize: 13, fontWeight: 'bold' },
   refreshBtn: {
     backgroundColor: 'rgba(0, 242, 254, 0.1)',
     paddingHorizontal: 12,

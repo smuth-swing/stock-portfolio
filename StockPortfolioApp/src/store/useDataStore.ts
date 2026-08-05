@@ -98,7 +98,6 @@ const applyQueueToData = (dataKey: string, dataObj: any, queue: any[]) => {
            }
         });
       }
-    }
   });
   return newData;
 };
