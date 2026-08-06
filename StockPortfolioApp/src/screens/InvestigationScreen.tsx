@@ -218,7 +218,7 @@ export default function InvestigationScreen() {
       const editTask = { 
         file: filePath, 
         sheet: sheetName, 
-        rowIndex: realIndex,
+        rowIndex: rowData._excelRowIndex !== undefined ? rowData._excelRowIndex : realIndex,
         stockName: newRowData['종목명'] || newRowData['Unnamed: 1'] || '',
         values,
         timestamp: new Date().toISOString()
@@ -268,7 +268,9 @@ export default function InvestigationScreen() {
     }
 
     const newRealIndex = allData.length;
-    const updatedData = [...allData, newRowData];
+    // 신규 행을 배열 맨 앞에 추가 (_excelRowIndex로 실제 엑셀 행 위치 보존)
+    newRowData._excelRowIndex = allData.length;
+    const updatedData = [newRowData, ...allData];
     
     // 모든 상태를 한 번에 업데이트 (React 18 자동 배치)
     useDataStore.setState({ investigation: { ...investigation, data: updatedData } });
@@ -277,7 +279,7 @@ export default function InvestigationScreen() {
     setFilter('all');
     setSearchQuery('');
     setExpandedId(idStr);
-    setEditingIndex(newRealIndex);
+    setEditingIndex(0); // 맨 위(인덱스 0)
     setEditForm({
       stockName: defaultStockName,
       question: '',
