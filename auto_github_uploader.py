@@ -146,8 +146,8 @@ def run_git_upload():
             log.info("   변경사항 없음, 커밋 건너뜀")
             return True
 
-        # 5단계: git push
-        log.info("5. GitHub push 중...")
+        # 5단계: git push (main)
+        log.info("5. GitHub push (main) 중...")
         env = os.environ.copy()
         env["GCM_INTERACTIVE"] = "never"
         env["GIT_TERMINAL_PROMPT"] = "0"
@@ -158,13 +158,68 @@ def run_git_upload():
             timeout=120,
             env=env
         )
-        if result.returncode == 0:
-            log.info("=== GitHub 업로드 성공! ===")
-            log.info("   주소: https://smuth-swing.github.io/stock-portfolio")
-            return True
-        else:
-            log.error(f"   GitHub push 실패: {result.stderr[:300]}")
+        if result.returncode != 0:
+            log.error(f"   GitHub push (main) 실패: {result.stderr[:300]}")
             return False
+
+        # 6단계: gh-pages 브랜치 업데이트 (Pages 배포용)
+        log.info("6. gh-pages 브랜치 업데이트 중...")
+        try:
+            # gh-pages 브랜치로 전환
+            checkout_result = run_no_window(
+                ["git", "checkout", "gh-pages"],
+                cwd=PROJECT_DIR,
+                timeout=30,
+                env=env
+            )
+            if checkout_result.returncode != 0:
+                # gh-pages 브랜치가 없으면 생성
+                log.info("   gh-pages 브랜치 생성 중...")
+                run_no_window(
+                    ["git", "checkout", "-b", "gh-pages"],
+                    cwd=PROJECT_DIR,
+                    timeout=30,
+                    env=env
+                )
+            
+            # main 브랜치 병합
+            merge_result = run_no_window(
+                ["git", "merge", "main", "--no-edit"],
+                cwd=PROJECT_DIR,
+                timeout=30,
+                env=env
+            )
+            
+            # gh-pages 푸시
+            push_result = run_no_window(
+                ["git", "push", "origin", "gh-pages"],
+                cwd=PROJECT_DIR,
+                timeout=120,
+                env=env
+            )
+            if push_result.returncode == 0:
+                log.info("   gh-pages 브랜치 업데이트 완료")
+            else:
+                log.warning(f"   gh-pages push 실패 (무시): {push_result.stderr[:200]}")
+            
+            # main 브랜치로 복귀
+            run_no_window(
+                ["git", "checkout", "main"],
+                cwd=PROJECT_DIR,
+                timeout=30,
+                env=env
+            )
+        except Exception as e:
+            log.warning(f"   gh-pages 업데이트 중 예외 (무시): {e}")
+            # main으로 복귀 시도
+            try:
+                run_no_window(["git", "checkout", "main"], cwd=PROJECT_DIR, timeout=30)
+            except:
+                pass
+
+        log.info("=== GitHub 업로드 성공! ===")
+        log.info("   주소: https://smuth-swing.github.io/stock-portfolio")
+        return True
 
     except Exception as e:
         log.error(f"   예외 발생: {e}")
