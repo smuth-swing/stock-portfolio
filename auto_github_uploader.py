@@ -10,6 +10,8 @@ auto_github_uploader.py -- 엑셀 파일 변경 감지 시 GitHub 자동 업로�
 import os
 import time
 import subprocess
+import shutil
+import glob
 import logging
 import logging.handlers
 from datetime import datetime
@@ -24,6 +26,13 @@ PYTHON_EXE  = r"C:\Users\zerod\AppData\Local\Programs\Python\Python312\python.ex
 LOG_FILE    = os.path.join(PROJECT_DIR, "upload_log.txt")
 EXPORT_SCRIPT = os.path.join(PROJECT_DIR, "export_to_json.py")
 
+# Expo 웹 빌드 관련 경로
+APP_DIR = os.path.join(PROJECT_DIR, "StockPortfolioApp")
+SRC_DIR = os.path.join(APP_DIR, "src")
+MOBILE_DIR = os.path.join(PROJECT_DIR, "mobile")
+MOBILE_JS_DIR = os.path.join(MOBILE_DIR, "_expo", "static", "js", "web")
+DIST_DIR = os.path.join(APP_DIR, "dist")
+
 # ==================== 로그 설정 ====================
 # RotatingFileHandler로 로그 파일 크기 제한 (500KB, 백업 2개)
 log = logging.getLogger(__name__)
@@ -35,7 +44,118 @@ _handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s
 log.addHandler(_handler)
 
 last_mtime = 0
+last_src_mtime = 0  # 소스 코드 최종 변경 시각 추적
 _is_uploading = False  # 동시 실행 방지 락
+
+
+def get_latest_src_mtime():
+    """StockPortfolioApp/src/ 내 모든 소스 파일의 최신 수정 시각 반환"""
+    latest = 0
+    if not os.path.exists(SRC_DIR):
+        return 0
+    for root, dirs, files in os.walk(SRC_DIR):
+        for f in files:
+            if f.endswith(('.tsx', '.ts', '.js', '.jsx', '.css')):
+                try:
+                    mtime = os.path.getmtime(os.path.join(root, f))
+                    if mtime > latest:
+                        latest = mtime
+                except Exception:
+                    pass
+    return latest
+
+
+def get_latest_build_mtime():
+    """mobile/_expo/static/js/web/ 내 빌드된 JS 파일의 최신 수정 시각 반환"""
+    latest = 0
+    if not os.path.exists(MOBILE_JS_DIR):
+        return 0
+    for f in os.listdir(MOBILE_JS_DIR):
+        if f.startswith('index-') and f.endswith('.js'):
+            try:
+                mtime = os.path.getmtime(os.path.join(MOBILE_JS_DIR, f))
+                if mtime > latest:
+                    latest = mtime
+            except Exception:
+                pass
+    return latest
+
+
+def needs_mobile_rebuild():
+    """소스 파일이 빌드 결과보다 최신이면 재빌드 필요"""
+    src_mtime = get_latest_src_mtime()
+    build_mtime = get_latest_build_mtime()
+    if src_mtime == 0:
+        return False
+    if build_mtime == 0:
+        return True
+    return src_mtime > build_mtime
+
+
+def build_expo_web():
+    """Expo 웹 export 실행 후 결과를 mobile/ 디렉터리로 복사"""
+    log.info("   📦 Expo 웹 빌드(npx expo export --platform web) 시작...")
+    try:
+        result = subprocess.run(
+            ['npx', 'expo', 'export', '--platform', 'web'],
+            cwd=APP_DIR,
+            shell=True,
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            timeout=300,
+            creationflags=CREATE_NO_WINDOW,
+        )
+        if result.returncode != 0:
+            log.error(f"   Expo 웹 빌드 실패 (exit={result.returncode}): {result.stderr[:500]}")
+            return False
+    except subprocess.TimeoutExpired:
+        log.error("   Expo 웹 빌드 시간 초과 (300초)")
+        return False
+    except Exception as e:
+        log.error(f"   Expo 웹 빌드 예외: {e}")
+        return False
+
+    log.info("   ✅ Expo 웹 빌드 완료")
+
+    # dist/ → mobile/ 복사
+    if not os.path.exists(DIST_DIR):
+        log.error(f"   dist 디렉터리 없음: {DIST_DIR}")
+        return False
+
+    try:
+        # 1) 기존 _expo 디렉터리 삭제 후 새로 복사
+        mobile_expo = os.path.join(MOBILE_DIR, '_expo')
+        if os.path.exists(mobile_expo):
+            shutil.rmtree(mobile_expo)
+            log.info("   기존 mobile/_expo 삭제 완료")
+
+        dist_expo = os.path.join(DIST_DIR, '_expo')
+        if os.path.exists(dist_expo):
+            shutil.copytree(dist_expo, mobile_expo)
+            log.info("   dist/_expo → mobile/_expo 복사 완료")
+        else:
+            log.warning("   dist/_expo 없음 — 빌드 결과 확인 필요")
+
+        # 2) index.html 복사
+        dist_index = os.path.join(DIST_DIR, 'index.html')
+        if os.path.exists(dist_index):
+            shutil.copy2(dist_index, os.path.join(MOBILE_DIR, 'index.html'))
+            log.info("   dist/index.html → mobile/index.html 복사 완료")
+
+        # 3) public/assets → mobile/assets (있다면)
+        public_dir = os.path.join(APP_DIR, 'public')
+        for fname in ['manifest.json', 'sw.js', 'favicon.ico']:
+            src_file = os.path.join(public_dir, fname)
+            dst_file = os.path.join(MOBILE_DIR, fname)
+            if os.path.exists(src_file):
+                shutil.copy2(src_file, dst_file)
+
+        log.info("   ✅ Expo 웹 빌드 결과 → mobile/ 복사 완료")
+        return True
+    except Exception as e:
+        log.error(f"   dist → mobile 복사 중 예외: {e}")
+        return False
 
 
 def run_no_window(cmd, **kwargs):
@@ -112,6 +232,13 @@ def run_git_upload():
                 log.info("   신호 데이터 내보내기 완료")
         except subprocess.TimeoutExpired:
             log.error("   신호 데이터 내보내기 시간 초과 오류 (300초), 하지만 업로드는 계속 진행합니다.")
+
+        # 1.8단계: 모바일 앱 Expo 웹 빌드 (소스 코드 변경 시 자동 재빌드)
+        if needs_mobile_rebuild():
+            log.info("1.8. 모바일 앱 소스 변경 감지 → Expo 웹 빌드 실행")
+            build_expo_web()
+        else:
+            log.info("1.8. 모바일 앱 빌드 최신 상태 (건너뜀)")
 
         # 2단계: 모바일 데이터 복사
         log.info("2. 모바일 데이터 복사 중...")
@@ -271,16 +398,36 @@ def check_schedule():
             last_scheduled_date = today_str
             run_git_upload()
 
+def check_source_changes():
+    """StockPortfolioApp/src/ 소스 코드 변경 감지 → 자동 빌드 + 배포"""
+    global last_src_mtime
+    try:
+        current_mtime = get_latest_src_mtime()
+        if current_mtime == 0:
+            return
+
+        if last_src_mtime == 0:
+            last_src_mtime = current_mtime
+        elif current_mtime > last_src_mtime:
+            log.info("📝 소스 코드 변경 감지! 5초 후 Expo 빌드 + GitHub 배포 시작...")
+            last_src_mtime = current_mtime
+            time.sleep(5)  # 파일 저장 완료 대기
+            run_git_upload()
+    except Exception as e:
+        log.error(f"소스 코드 감시 오류: {e}")
+
 
 if __name__ == "__main__":
     log.info("=" * 50)
     log.info("auto_github_uploader 시작됨")
     log.info(f"감시 파일: {WATCH_FILE}")
+    log.info(f"소스 감시: {SRC_DIR}")
     log.info("=" * 50)
 
     while True:
         try:
             check_file()
+            check_source_changes()
             check_schedule()
         except Exception as e:
             log.error(f"메인 루프 예외 발생: {e}")

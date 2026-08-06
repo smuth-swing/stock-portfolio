@@ -370,17 +370,6 @@ export default function InvestigationScreen() {
             >
               <Text style={styles.addStockBtnText}>➕ 신규 종목</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.refreshBtn} 
-              onPress={() => {
-                refreshDataRef.current();
-              }}
-              disabled={isLoading || isSyncing}
-            >
-              <Text style={styles.refreshBtnText}>
-                {(isLoading || isSyncing) ? '⏳ 갱신 중' : '🔄 갱신'}
-              </Text>
-            </TouchableOpacity>
           </View>
         </View>
         <View style={styles.searchContainer}>
@@ -615,15 +604,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0, 242, 254, 0.4)',
   },
   addStockBtnText: { color: '#00F2FE', fontSize: 13, fontWeight: 'bold' },
-  refreshBtn: {
-    backgroundColor: 'rgba(0, 242, 254, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 242, 254, 0.3)',
-  },
-  refreshBtnText: { color: '#00F2FE', fontSize: 13, fontWeight: 'bold' },
   searchContainer: { marginBottom: 16 },
   searchInput: {
     backgroundColor: 'rgba(255,255,255,0.05)',
