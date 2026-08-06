@@ -1628,17 +1628,29 @@ function renderInvestigationPanel(data) {
     investigationRowMap = data.data.map((_, idx) => idx);
     investigationCurrentRows = data.data;
 
+    // 모바일: 좌측 목록 보이도록 초기화
+    if (window.innerWidth <= 768) {
+        const leftPanel = document.querySelector('.investigation-left-panel');
+        const rightPanel = document.querySelector('.investigation-right-panel');
+        if (leftPanel) leftPanel.classList.remove('hidden-on-mobile');
+        if (rightPanel) rightPanel.classList.remove('visible-on-mobile');
+    }
+
     // 종목명 datalist 업데이트
     updateInvestigationStockList(data);
     // 좌측 카드 목록 렌더링
     renderInvestigationCards(data.data, data.columns);
 
-    // 첫 번째 항목 자동 선택
+    // 첫 번째 항목 선택 (편집 폼은 렌더링하되, 모바일에서는 목록 화면 유지)
     if (data.data.length > 0) {
         if (selectedInvestigationRowIndex === null || selectedInvestigationRowIndex >= data.data.length) {
             selectedInvestigationRowIndex = 0;
         }
-        setSelectedInvestigationRow(selectedInvestigationRowIndex);
+        // 카드 하이라이트 + 편집 폼 렌더링 (모바일 전환은 하지 않음)
+        document.querySelectorAll('#investigation-card-list .investigation-card').forEach(el => {
+            el.classList.toggle('selected', parseInt(el.dataset.originalIndex, 10) === selectedInvestigationRowIndex);
+        });
+        renderInvestigationEditForm(selectedInvestigationRowIndex);
     }
 }
 
@@ -1943,7 +1955,18 @@ function resetInvestigationSearch() {
     if (!currentData || !isExplorationSheet(currentData.current_sheet)) return;
     document.getElementById('investigation-stock-search').value = '';
     renderInvestigationCards(currentData.data, currentData.columns);
-    setSelectedInvestigationRow(0);
+    // 모바일: 목록 화면으로 돌아가기 (편집 화면이 아닌)
+    if (window.innerWidth <= 768) {
+        goBackToInvestigationList();
+        // 카드 하이라이트만 업데이트 (편집 폼은 렌더링하지 않음)
+        document.querySelectorAll('#investigation-card-list .investigation-card').forEach(el => {
+            el.classList.toggle('selected', parseInt(el.dataset.originalIndex, 10) === 0);
+        });
+        selectedInvestigationRowIndex = 0;
+        renderInvestigationEditForm(0); // 편집 폼 내용은 업데이트 (백그라운드)
+    } else {
+        setSelectedInvestigationRow(0);
+    }
 }
 
 /**
