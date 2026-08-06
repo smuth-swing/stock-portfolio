@@ -280,22 +280,7 @@ export default function InvestigationScreen() {
     const updatedData = [...allData, newRowData];
     useDataStore.setState({ investigation: { ...investigation, data: updatedData } });
 
-    // 5. 오프라인 동기화 큐에 추가
-    const filePath = investigation._filePath || investigation.file_name || '';
-    const sheetName = investigation.current_sheet || '탐구생활';
-    const values = columns.map((col: string) => newRowData[col] !== undefined && newRowData[col] !== null ? newRowData[col] : '');
-
-    const newTask = {
-      file: filePath,
-      sheet: sheetName,
-      rowIndex: newRealIndex,
-      stockName: defaultStockName,
-      values,
-      timestamp: new Date().toISOString()
-    };
-    await addToSyncQueue(newTask);
-
-    // 6. UI 초기화: 필터 '전체', 검색어 초기화, 신규 행 펼치기 및 수정 모드 진입
+    // 5. UI 초기화를 await 이전에 먼저 실행 (React 18 배치 처리로 한 번에 렌더링)
     setFilter('all');
     setSearchQuery('');
     const idStr = String(newRowData['Unnamed: 0'] || nextNum);
@@ -313,6 +298,21 @@ export default function InvestigationScreen() {
 
     setToastMessage(`✨ 새 종목(번호: ${nextNum})이 생성되었습니다. 종목명과 내용을 입력해주세요.`);
     setTimeout(() => setToastMessage(null), 3500);
+
+    // 6. 오프라인 동기화 큐에 추가 (await 이후이지만 UI는 이미 업데이트됨)
+    const filePath = investigation._filePath || investigation.file_name || '';
+    const sheetName = investigation.current_sheet || '탐구생활';
+    const values = columns.map((col: string) => newRowData[col] !== undefined && newRowData[col] !== null ? newRowData[col] : '');
+
+    const newTask = {
+      file: filePath,
+      sheet: sheetName,
+      rowIndex: newRealIndex,
+      stockName: defaultStockName,
+      values,
+      timestamp: new Date().toISOString()
+    };
+    await addToSyncQueue(newTask);
   };
 
   const handleSync = () => {
