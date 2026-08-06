@@ -190,8 +190,19 @@ export default function InvestigationScreen() {
   };
 
   const cancelEditing = () => {
+    // 신규 종목이고 내용이 하나도 없으면 자동 삭제
+    if (editingIndex !== null && investigation?.data) {
+      const item = investigation.data[editingIndex];
+      const isNewStock = getStockName(item) === '신규 종목' || editForm.stockName === '신규 종목';
+      const isEmpty = !editForm.question && !editForm.reason && !editForm.risk && !editForm.momentum && !editForm.strategy && !editForm.ceo;
+      if (isNewStock && isEmpty) {
+        const updatedData = investigation.data.filter((_: any, i: number) => i !== editingIndex);
+        useDataStore.setState({ investigation: { ...investigation, data: updatedData } });
+      }
+    }
     setEditingIndex(null);
     setEditForm({});
+    setExpandedId(null);
   };
 
   const saveEditing = async (realIndex: number, rowData: any) => {
