@@ -276,30 +276,32 @@ export default function InvestigationScreen() {
 
     const newRealIndex = allData.length;
 
-    // 4. Zustand 스토어 데이터 업데이트
+    // 4. Zustand 스토어 데이터 업데이트 (먼저 실행)
     const updatedData = [...allData, newRowData];
     useDataStore.setState({ investigation: { ...investigation, data: updatedData } });
 
-    // 5. UI 초기화를 await 이전에 먼저 실행 (React 18 배치 처리로 한 번에 렌더링)
-    setFilter('all');
-    setSearchQuery('');
+    // 5. UI 상태 업데이트를 setTimeout으로 감싸서 Zustand 리렌더 이후에 실행
+    //    (React 18 배치 처리와 Zustand useSyncExternalStore 간 타이밍 이슈 방지)
     const idStr = String(newRowData['Unnamed: 0'] || nextNum);
-    setExpandedId(idStr);
-    setEditingIndex(newRealIndex);
-    setEditForm({
-      stockName: defaultStockName,
-      question: '',
-      reason: '',
-      risk: '',
-      momentum: '',
-      strategy: '',
-      ceo: ''
-    });
+    setTimeout(() => {
+      setFilter('all');
+      setSearchQuery('');
+      setExpandedId(idStr);
+      setEditingIndex(newRealIndex);
+      setEditForm({
+        stockName: defaultStockName,
+        question: '',
+        reason: '',
+        risk: '',
+        momentum: '',
+        strategy: '',
+        ceo: ''
+      });
+      setToastMessage(`✨ 새 종목(번호: ${nextNum})이 생성되었습니다. 종목명과 내용을 입력해주세요.`);
+      setTimeout(() => setToastMessage(null), 3500);
+    }, 50);
 
-    setToastMessage(`✨ 새 종목(번호: ${nextNum})이 생성되었습니다. 종목명과 내용을 입력해주세요.`);
-    setTimeout(() => setToastMessage(null), 3500);
-
-    // 6. 오프라인 동기화 큐에 추가 (await 이후이지만 UI는 이미 업데이트됨)
+    // 6. 오프라인 동기화 큐에 추가 (백그라운드)
     const filePath = investigation._filePath || investigation.file_name || '';
     const sheetName = investigation.current_sheet || '탐구생활';
     const values = columns.map((col: string) => newRowData[col] !== undefined && newRowData[col] !== null ? newRowData[col] : '');
@@ -312,7 +314,7 @@ export default function InvestigationScreen() {
       values,
       timestamp: new Date().toISOString()
     };
-    await addToSyncQueue(newTask);
+    addToSyncQueue(newTask); // await 제거: UI 블로킹 방지
   };
 
   const handleSync = () => {
