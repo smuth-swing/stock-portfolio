@@ -1887,6 +1887,30 @@ function setSelectedInvestigationRow(rowIndex) {
 
     // 우측 편집 폼 렌더링
     renderInvestigationEditForm(rowIndex);
+
+    // 모바일: 편집 화면으로 전환
+    switchToMobileEditView();
+}
+
+/**
+ * 모바일 화면(≤768px)에서 우측 편집 폼을 전체 화면으로 전환
+ */
+function switchToMobileEditView() {
+    if (window.innerWidth > 768) return;
+    const leftPanel = document.querySelector('.investigation-left-panel');
+    const rightPanel = document.querySelector('.investigation-right-panel');
+    if (leftPanel) leftPanel.classList.add('hidden-on-mobile');
+    if (rightPanel) rightPanel.classList.add('visible-on-mobile');
+}
+
+/**
+ * 모바일 화면에서 좌측 종목 목록으로 돌아가기
+ */
+function goBackToInvestigationList() {
+    const leftPanel = document.querySelector('.investigation-left-panel');
+    const rightPanel = document.querySelector('.investigation-right-panel');
+    if (leftPanel) leftPanel.classList.remove('hidden-on-mobile');
+    if (rightPanel) rightPanel.classList.remove('visible-on-mobile');
 }
 
 async function searchInvestigationStock() {

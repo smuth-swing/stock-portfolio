@@ -770,6 +770,125 @@ tr:hover { background: rgba(255,255,255,0.04); }
         flex-direction: column;
         gap: 12px;
     }
+
+    /* ===== 모바일: 탐구생활 분할 뷰 → 세로 스택 ===== */
+    .investigation-split-view {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+        position: relative;
+        overflow: visible;
+    }
+
+    /* 좌측 패널: 기본 전체 너비, 편집 모드에서는 숨김 */
+    .investigation-left-panel {
+        width: 100%;
+        flex-shrink: 0;
+        border-right: none;
+        border-bottom: 1px solid var(--border-glass);
+        max-height: none;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .investigation-left-panel.hidden-on-mobile {
+        display: none;
+    }
+
+    /* 우측 패널: 기본 숨김, 편집 모드에서 전체 너비 */
+    .investigation-right-panel {
+        flex: none;
+        width: 100%;
+        min-height: 100vh;
+        display: none;
+    }
+
+    .investigation-right-panel.visible-on-mobile {
+        display: flex;
+    }
+
+    /* 모바일 뒤로가기 버튼 */
+    .mobile-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border-glass);
+        color: var(--text-secondary);
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .mobile-back-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text-primary);
+    }
+
+    .mobile-back-btn svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    /* 모바일: 편집 폼 패딩 조정 */
+    .investigation-edit-form {
+        padding: 14px;
+    }
+
+    .investigation-edit-header {
+        padding: 12px 14px;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    /* 모바일: 카드 리스트 간격 조정 */
+    .investigation-card-list {
+        padding: 6px;
+        gap: 4px;
+    }
+
+    .investigation-card {
+        padding: 10px 12px;
+    }
+
+    /* 모바일: 검색 영역 */
+    .investigation-search-area {
+        padding: 10px;
+        gap: 6px;
+    }
+
+    .investigation-search-btns .btn-secondary,
+    .investigation-search-btns .btn-ghost-sm {
+        padding: 6px 8px;
+        font-size: 11px;
+    }
+
+    /* 모바일: 편집 필드 */
+    .inv-field-textarea,
+    .inv-field-editable {
+        font-size: 13px;
+        padding: 8px 10px;
+        min-height: 56px;
+    }
+
+    .inv-field-editable.single-line {
+        height: 38px;
+        min-height: unset;
+    }
+
+    /* 모바일: 힌트 배지 숨김 (공간 절약) */
+    .investigation-hint-badge {
+        display: none;
+    }
+}
+
+/* 데스크톱에서는 뒤로가기 버튼 숨김 */
+@media (min-width: 769px) {
+    .mobile-back-btn {
+        display: none;
+    }
 }
 
 /* 월별 현금 비중 트렌드 섹션 스타일 */
