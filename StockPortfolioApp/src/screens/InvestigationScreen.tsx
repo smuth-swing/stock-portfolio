@@ -237,13 +237,12 @@ export default function InvestigationScreen() {
     }
   };
 
-  const handleCreateNewStock = async () => {
+  const handleCreateNewStock = () => {
     if (!investigation || !investigation.data) return;
 
     const allData = investigation.data;
     const columns = investigation.columns || [];
 
-    // 1. 마지막 번호 찾기 (컬럼 0 기준)
     const numCol = columns[0] || 'Unnamed: 0';
     let maxNum = 0;
     allData.forEach((row: any) => {
@@ -252,69 +251,57 @@ export default function InvestigationScreen() {
     });
     const nextNum = maxNum + 1;
 
-    // 2. 오늘 날짜 (YYYY-MM-DD)
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-    // 3. 신규 행 생성
     const defaultStockName = '신규 종목';
     const newRowData: any = {};
-    columns.forEach((col: string) => {
-      newRowData[col] = '';
-    });
+    columns.forEach((col: string) => { newRowData[col] = ''; });
     newRowData[numCol] = nextNum;
     if (numCol !== 'Unnamed: 0') newRowData['Unnamed: 0'] = nextNum;
-    
     newRowData['종목명'] = defaultStockName;
     newRowData['Unnamed: 1'] = defaultStockName;
 
-    // 날짜 컬럼 설정
     const dateCol = columns.find((c: string) => c.includes('날짜') || c.includes('일자'));
     if (dateCol && dateCol !== numCol) {
       newRowData[dateCol] = todayStr;
     }
 
     const newRealIndex = allData.length;
-
-    // 4. Zustand 스토어 데이터 업데이트 (먼저 실행)
     const updatedData = [...allData, newRowData];
+    
+    // 모든 상태를 한 번에 업데이트 (React 18 자동 배치)
     useDataStore.setState({ investigation: { ...investigation, data: updatedData } });
-
-    // 5. UI 상태 업데이트를 setTimeout으로 감싸서 Zustand 리렌더 이후에 실행
-    //    (React 18 배치 처리와 Zustand useSyncExternalStore 간 타이밍 이슈 방지)
+    
     const idStr = String(newRowData['Unnamed: 0'] || nextNum);
-    setTimeout(() => {
-      setFilter('all');
-      setSearchQuery('');
-      setExpandedId(idStr);
-      setEditingIndex(newRealIndex);
-      setEditForm({
-        stockName: defaultStockName,
-        question: '',
-        reason: '',
-        risk: '',
-        momentum: '',
-        strategy: '',
-        ceo: ''
-      });
-      setToastMessage(`✨ 새 종목(번호: ${nextNum})이 생성되었습니다. 종목명과 내용을 입력해주세요.`);
-      setTimeout(() => setToastMessage(null), 3500);
-    }, 50);
+    setFilter('all');
+    setSearchQuery('');
+    setExpandedId(idStr);
+    setEditingIndex(newRealIndex);
+    setEditForm({
+      stockName: defaultStockName,
+      question: '',
+      reason: '',
+      risk: '',
+      momentum: '',
+      strategy: '',
+      ceo: ''
+    });
+    setToastMessage(`✨ 새 종목(번호: ${nextNum})이 생성되었습니다. 종목명과 내용을 입력해주세요.`);
+    setTimeout(() => setToastMessage(null), 3500);
 
-    // 6. 오프라인 동기화 큐에 추가 (백그라운드)
+    // 오프라인 동기화 (백그라운드)
     const filePath = investigation._filePath || investigation.file_name || '';
     const sheetName = investigation.current_sheet || '탐구생활';
     const values = columns.map((col: string) => newRowData[col] !== undefined && newRowData[col] !== null ? newRowData[col] : '');
-
-    const newTask = {
+    addToSyncQueue({
       file: filePath,
       sheet: sheetName,
       rowIndex: newRealIndex,
       stockName: defaultStockName,
       values,
       timestamp: new Date().toISOString()
-    };
-    addToSyncQueue(newTask); // await 제거: UI 블로킹 방지
+    });
   };
 
   const handleSync = () => {
