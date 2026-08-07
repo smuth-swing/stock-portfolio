@@ -2003,6 +2003,40 @@ function filterMomentumStocks() {
     showToast(`${filtered.length}개의 매매 우선 종목을 찾았습니다.`, 'success');
 }
 
+function filterTargetStocks() {
+    if (!currentData || !isExplorationSheet(currentData.current_sheet)) return;
+
+    const targetPriceCol = currentData.columns.find(c => String(c).includes('목표가')) || null;
+    const targetDateCol = currentData.columns.find(c => String(c).includes('목표일')) || null;
+    if (!targetPriceCol && !targetDateCol) {
+        showToast('목표일 또는 목표가 컬럼이 없어 필터를 적용할 수 없습니다.', 'info');
+        return;
+    }
+
+    const filtered = [];
+    const rowMap = [];
+
+    currentData.data.forEach((row, idx) => {
+        const targetPrice = targetPriceCol ? String(row[targetPriceCol] || '').trim() : '';
+        const targetDate = targetDateCol ? String(row[targetDateCol] || '').trim() : '';
+        if (targetPrice !== '' || targetDate !== '') {
+            filtered.push(row);
+            rowMap.push(idx);
+        }
+    });
+
+    if (filtered.length === 0) {
+        showToast('목표일 또는 목표가가 입력된 항목이 없습니다.', 'info');
+        return;
+    }
+
+    renderInvestigationCards(filtered, currentData.columns, rowMap);
+    if (rowMap.length > 0) {
+        setSelectedInvestigationRow(rowMap[0]);
+    }
+    showToast(`${filtered.length}개의 목표 종목을 표시합니다.`, 'success');
+}
+
 /**
  * 탐구생활 신규 종목 추가 준비
  * 마지막 번호를 자동으로 계산하여 입력창을 초기화하고 새 행을 생성합니다.

@@ -17,6 +17,13 @@ const getReason    = (item: any) => item['매수이유'] || item['Unnamed: 4'] |
 const getRisk      = (item: any) => item['리스크'] || item['Unnamed: 5'] || '';
 const getCeo       = (item: any) => item['대표/경영진'] || item['Unnamed: 6'] || '';
 const getStrategy  = (item: any) => item['매매 전략'] || item['Unnamed: 7'] || '';
+const getTargetDate = (item: any) => item['목표일'] || item['targetDate'] || '';
+const getTargetPrice = (item: any) => {
+  const raw = item['목표가'] || item['targetPrice'] || item['Unnamed: 8'] || item['Unnamed: 9'] || item['Unnamed: 10'] || '';
+  if (raw === null || raw === undefined || raw === '') return '';
+  const normalized = String(raw).replace(/,/g, '').trim();
+  return /^\\\d+\b$/.test(normalized) ? Number(normalized) : normalized;
+};
 
 export default function InvestigationScreen() {
   const { investigation, isLoading, isSyncing, refreshData, syncQueue, addToSyncQueue, markQueueAsSynced, meta } = useDataStore();
@@ -34,25 +41,9 @@ export default function InvestigationScreen() {
     momentum: 80,
     strategy: 80,
     ceo: 80,
+    targetDate: 80,
+    targetPrice: 80,
   });
-
-  // 웹 전용: 텍스트 줄 수 기반으로 높이 계산 (onContentSizeChange 무한 루프 방지)
-  const LINE_HEIGHT = 22;
-  const INPUT_PADDING = 60; // 상하 패딩 합계 + 추가 하단 여유 공간 (더 넉넉하게)
-  const MIN_HEIGHT = 100;
-
-  const computeWebHeight = useCallback((text: string | undefined): number => {
-    if (!text) return MIN_HEIGHT;
-    const explicitLines = text.split('\n');
-    let totalEstimatedLines = 0;
-    explicitLines.forEach(line => {
-      // 한 줄이 길어서 모바일 화면에서 자동 줄바꿈되는 경우(Word Wrap)까지 계산
-      // 모바일 폭을 고려하여 약 22글자마다 한 줄이 늘어난다고 넉넉하게 산정
-      const wrappedLines = Math.ceil(line.length / 22) || 1;
-      totalEstimatedLines += wrappedLines;
-    });
-    return Math.max(MIN_HEIGHT, totalEstimatedLines * LINE_HEIGHT + INPUT_PADDING);
-  }, []);
 
   // 네이티브 전용: onContentSizeChange 이벤트 기반 높이 조절
   const handleContentSizeChange = useCallback((field: string, event: any) => {
@@ -81,8 +72,10 @@ export default function InvestigationScreen() {
       momentum: computeWebHeight(editForm.momentum),
       strategy: computeWebHeight(editForm.strategy),
       ceo: computeWebHeight(editForm.ceo),
+      targetDate: computeWebHeight(editForm.targetDate),
+      targetPrice: computeWebHeight(editForm.targetPrice),
     };
-  }, [editForm.question, editForm.reason, editForm.risk, editForm.momentum, editForm.strategy, editForm.ceo, computeWebHeight]);
+  }, [editForm.question, editForm.reason, editForm.risk, editForm.momentum, editForm.strategy, editForm.ceo, editForm.targetDate, editForm.targetPrice, computeWebHeight]);
 
   // 플랫폼에 따라 적절한 높이를 반환하는 헬퍼
   const getFieldHeight = useCallback((field: string): number => {
@@ -185,7 +178,9 @@ export default function InvestigationScreen() {
       risk: getRisk(item),
       momentum: getMomentum(item),
       strategy: getStrategy(item),
-      ceo: getCeo(item)
+      ceo: getCeo(item),
+      targetDate: getTargetDate(item),
+      targetPrice: String(getTargetPrice(item) || '')
     });
   };
 
@@ -194,7 +189,7 @@ export default function InvestigationScreen() {
     if (editingIndex !== null && investigation?.data) {
       const item = investigation.data[editingIndex];
       const isNewStock = getStockName(item) === '신규 종목' || editForm.stockName === '신규 종목';
-      const isEmpty = !editForm.question && !editForm.reason && !editForm.risk && !editForm.momentum && !editForm.strategy && !editForm.ceo;
+      const isEmpty = !editForm.question && !editForm.reason && !editForm.risk && !editForm.momentum && !editForm.strategy && !editForm.ceo && !editForm.targetDate && !editForm.targetPrice;
       if (isNewStock && isEmpty) {
         const updatedData = investigation.data.filter((_: any, i: number) => i !== editingIndex);
         useDataStore.setState({ investigation: { ...investigation, data: updatedData } });
@@ -222,10 +217,11 @@ export default function InvestigationScreen() {
         '매수이유': editForm.reason, 'Unnamed: 4': editForm.reason,
         '리스크': editForm.risk, 'Unnamed: 5': editForm.risk,
         '대표/경영진': editForm.ceo, 'Unnamed: 6': editForm.ceo,
-        '매매 전략': editForm.strategy, 'Unnamed: 7': editForm.strategy
+        '매매 전략': editForm.strategy, 'Unnamed: 7': editForm.strategy,
+        '목표일': editForm.targetDate, 'Unnamed: 8': editForm.targetDate,
+        '목표가': editForm.targetPrice, 'Unnamed: 9': editForm.targetPrice,
       };
       const values = columns.map((col: string) => newRowData[col] !== undefined && newRowData[col] !== null ? newRowData[col] : '');
-
       const editTask = { 
         file: filePath, 
         sheet: sheetName, 
@@ -298,7 +294,9 @@ export default function InvestigationScreen() {
       risk: '',
       momentum: '',
       strategy: '',
-      ceo: ''
+      ceo: '',
+      targetDate: '',
+      targetPrice: ''
     });
     setToastMessage(`✨ 새 종목(번호: ${nextNum})이 생성되었습니다. 종목명과 내용을 입력해주세요.`);
     setTimeout(() => setToastMessage(null), 3500);
@@ -486,6 +484,27 @@ export default function InvestigationScreen() {
                           />
                         </View>
                         <View style={styles.section}>
+                          <Text style={styles.sectionTitle}>🎯 목표 시점</Text>
+                          <TextInput 
+                            style={[styles.singleLineInput, { height: getFieldHeight('targetDate') }]} 
+                            value={editForm.targetDate} 
+                            onChangeText={t => setEditForm((prev: any) => ({...prev, targetDate: t}))} 
+                            placeholder="YYYY-MM-DD"
+                            placeholderTextColor="#94A3B8"
+                          />
+                        </View>
+                        <View style={styles.section}>
+                          <Text style={styles.sectionTitle}>💰 목표가</Text>
+                          <TextInput 
+                            style={[styles.singleLineInput, { height: getFieldHeight('targetPrice') }]} 
+                            value={editForm.targetPrice} 
+                            onChangeText={t => setEditForm((prev: any) => ({...prev, targetPrice: t.replace(/[^0-9]/g, '')}))} 
+                            keyboardType="numeric"
+                            placeholder="숫자만 입력"
+                            placeholderTextColor="#94A3B8"
+                          />
+                        </View>
+                        <View style={styles.section}>
                           <Text style={styles.sectionTitle}>👤 대표 / 경영진</Text>
                           <TextInput 
                             style={[styles.multilineInput, { height: getFieldHeight('ceo') }]} 
@@ -551,6 +570,18 @@ export default function InvestigationScreen() {
                           </View>
                         ) : null}
 
+                        {getTargetDate(item) ? (
+                          <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>🎯 목표 시점</Text>
+                            <Text style={styles.sectionText}>{getTargetDate(item)}</Text>
+                          </View>
+                        ) : null}
+                        {getTargetPrice(item) ? (
+                          <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>💰 목표가</Text>
+                            <Text style={styles.sectionText}>{String(getTargetPrice(item)).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}원</Text>
+                          </View>
+                        ) : null}
                         {getCeo(item) ? (
                           <View style={styles.section}>
                             <Text style={styles.sectionTitle}>👤 대표 / 경영진</Text>
@@ -650,6 +681,15 @@ const styles = StyleSheet.create({
     paddingTop: 12, paddingHorizontal: 12, paddingBottom: 32,
     color: '#FFFFFF', fontSize: 15, lineHeight: 22,
     textAlignVertical: 'top',
+  },
+  singleLineInput: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    color: '#FFFFFF',
+    fontSize: 15,
+    lineHeight: 22,
   },
   actionButtons: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 10 },
   actionBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
