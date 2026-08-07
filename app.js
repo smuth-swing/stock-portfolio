@@ -1657,12 +1657,17 @@ function renderInvestigationPanel(data) {
 function mapColumnLabel(columnName) {
     if (columnName === 'Unnamed: 0') return '번호';
     if (columnName === 'Unnamed: 1') return '종목명';
-    if (columnName === 'Unnamed: 2') return '모멘텀(시점)';
+    if (columnName === 'Unnamed: 2') return '질문';
+    if (columnName === '질문') return '질문';
+    if (columnName === 'Unnamed: 3') return '모멘텀(시점)';
     if (columnName === '모멘텀') return '모멘텀(시점)';
-    if (columnName === 'Unnamed: 3') return '매수 이유';
-    if (columnName === 'Unnamed: 4') return '리스크';
-    if (columnName === 'Unnamed: 5') return '대표';
-    if (columnName === 'Unnamed: 6') return '매매전략';
+    if (columnName === 'Unnamed: 4') return '매수 이유';
+    if (columnName === 'Unnamed: 5') return '리스크';
+    if (columnName === 'Unnamed: 6') return '대표 / 경영진';
+    if (columnName === 'Unnamed: 7') return '매매 전략';
+    if (columnName === 'Unnamed: 8') return '목표일';
+    if (columnName === 'Unnamed: 9') return '목표가';
+    if (columnName === 'Unnamed: 10') return '목표가';
     return columnName;
 }
 
@@ -1676,10 +1681,13 @@ function renderInvestigationCards(rows, cols, rowMap = null) {
     investigationRowMap = map;
     investigationCurrentRows = rows;
 
-    // 종목명 및 모멘텀 컬럼 찾기
+    // 종목명 및 모멘텀/목표 컬럼 찾기
     const numCol = cols[0];  // 번호
     const nameCol = findStockColumnName(cols); // 종목명
     const momentumCol = currentData.columns.includes('모멘텀') ? '모멘텀' : 'Unnamed: 2';
+    // 목표가 컬럼 찾기 (명명된 컬럼 또는 Unnamed fallback)
+    const tpCol = currentData.columns.find(c => String(c).includes('목표가') || c === 'Unnamed: 9' || c === 'Unnamed: 10') || null;
+    const tdCol = currentData.columns.find(c => String(c).includes('목표일') || c === 'Unnamed: 8') || null;
 
     container.innerHTML = rows.map((row, index) => {
         const originalIndex = map[index];
@@ -1691,6 +1699,23 @@ function renderInvestigationCards(rows, cols, rowMap = null) {
 
         // 모멘텀 데이터 존재 여부 확인
         const hasMomentum = row[momentumCol] && String(row[momentumCol]).trim() !== '';
+        // 목표가/목표일 존재 여부
+        const targetPrice = tpCol ? String(row[tpCol] || '').trim() : '';
+        const targetDate = tdCol ? String(row[tdCol] || '').trim() : '';
+        const hasTarget = targetPrice !== '' || targetDate !== '';
+        
+        // 목표가 천단위 콤마 포맷
+        let targetBadge = '';
+        if (hasTarget) {
+            const parts = [];
+            if (targetDate) parts.push(`📅 ${targetDate}`);
+            if (targetPrice) {
+                const priceNum = parseInt(targetPrice.replace(/,/g, ''), 10);
+                if (!isNaN(priceNum)) parts.push(`💰 ${priceNum.toLocaleString()}원`);
+                else parts.push(`💰 ${targetPrice}`);
+            }
+            targetBadge = `<div class="investigation-target-badge">${parts.join(' ')}</div>`;
+        }
 
         return `
             <div class="investigation-card${isActive ? ' selected' : ''}${isCancelled ? ' cancelled' : ''}" data-original-index="${originalIndex}">
@@ -1698,6 +1723,7 @@ function renderInvestigationCards(rows, cols, rowMap = null) {
                     <div class="investigation-card-title ${hasMomentum ? 'has-momentum' : ''}">${displayTitle}</div>
                     <div class="investigation-card-subtitle">${numVal}</div>
                 </div>
+                ${targetBadge}
             </div>
         `;
     }).join('');
@@ -1729,7 +1755,16 @@ function renderInvestigationEditForm(rowIndex) {
         const rawValue = row[col] !== undefined && row[col] !== null ? String(row[col]) : '';
         // ~~텍스트~~를 <del>텍스트</del>로 변환하여 시각화
         const displayValue = rawValue.replace(/\n/g, '<br>').replace(/~~(.*?)~~/g, '<del>$1</del>');
-        const isSingleLine = (idx === 0 || col === nameCol); // 번호 또는 종목명 컬럼
+        // 한 줄 입력 필드: 번호, 종목명, 목표일, 목표가
+        const isSingleLine = (
+            idx === 0 || 
+            col === nameCol || 
+            String(col).includes('목표일') || 
+            String(col).includes('목표가') ||
+            col === 'Unnamed: 8' ||
+            col === 'Unnamed: 9' ||
+            col === 'Unnamed: 10'
+        );
 
         return `
             <div class="inv-field-group">
@@ -2006,8 +2041,18 @@ function filterMomentumStocks() {
 function filterTargetStocks() {
     if (!currentData || !isExplorationSheet(currentData.current_sheet)) return;
 
-    const targetPriceCol = currentData.columns.find(c => String(c).includes('목표가')) || null;
-    const targetDateCol = currentData.columns.find(c => String(c).includes('목표일')) || null;
+    // 목표가/목표일 컬럼 찾기: 실제 컬럼명 또는 Unnamed fallback
+    let targetPriceCol = currentData.columns.find(c => String(c).includes('목표가')) || null;
+    let targetDateCol = currentData.columns.find(c => String(c).includes('목표일')) || null;
+    
+    // Unnamed fallback: 컬럼명으로 못 찾으면 Unnamed: 8(목표일), Unnamed: 9(목표가) 사용
+    if (!targetPriceCol) {
+        targetPriceCol = currentData.columns.find(c => c === 'Unnamed: 9' || c === 'Unnamed: 10') || null;
+    }
+    if (!targetDateCol) {
+        targetDateCol = currentData.columns.find(c => c === 'Unnamed: 8') || null;
+    }
+    
     if (!targetPriceCol && !targetDateCol) {
         showToast('목표일 또는 목표가 컬럼이 없어 필터를 적용할 수 없습니다.', 'info');
         return;

@@ -245,6 +245,19 @@ tr:hover { background: rgba(255,255,255,0.04); }
     color: #94a3b8;
 }
 
+.investigation-target-badge {
+    margin-top: 6px;
+    padding: 3px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.25);
+    border-radius: 6px;
+    display: inline-block;
+    white-space: nowrap;
+}
+
 /* 취소선 적용된 카드 스타일 */
 .investigation-card.cancelled {
     opacity: 0.55;
