@@ -22,7 +22,31 @@ const getTargetPrice = (item: any) => {
   const raw = item['목표가'] || item['targetPrice'] || item['Unnamed: 8'] || item['Unnamed: 9'] || item['Unnamed: 10'] || '';
   if (raw === null || raw === undefined || raw === '') return '';
   const normalized = String(raw).replace(/,/g, '').trim();
-  return /^\\\d+\b$/.test(normalized) ? Number(normalized) : normalized;
+  return /^[0-9]+$/.test(normalized) ? Number(normalized) : normalized;
+};
+
+// ─────────────────────────────────────────────
+// 웹/네이티브 공통 상수 및 유틸
+// ─────────────────────────────────────────────
+const MIN_HEIGHT = 80;
+const LINE_HEIGHT = 22;
+const INPUT_PADDING = 32;
+
+/**
+ * 웹 환경에서 텍스트 높이를 추정
+ * - 줄바꿈 기준으로 라인 수 파악
+ * - 넉넉하게 36자마다 줄바꿈으로 간주
+ */
+const computeWebHeight = (text: string | undefined | null): number => {
+  const content = String(text || '');
+  if (content.length === 0) return MIN_HEIGHT;
+  const lines = content.split('\n');
+  let totalLines = 0;
+  lines.forEach(line => {
+    const wrappedLines = Math.ceil((line.length || 1) / 36);
+    totalLines += Math.max(1, wrappedLines);
+  });
+  return Math.max(MIN_HEIGHT, totalLines * LINE_HEIGHT + INPUT_PADDING);
 };
 
 export default function InvestigationScreen() {
