@@ -32,3 +32,4 @@ StockPortfolioApp/node_modules/
 # 기타
 out_names.txt
 updateChart.txt
+.git_sync.lock
