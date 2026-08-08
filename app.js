@@ -49,6 +49,19 @@ try {
     console.warn('월별 현금 스냅샷 복원 실패:', e);
     monthlyCashSnapshots = [];
 }
+
+// 페이지 로드 후 기존 스냅샷을 서버에 자동 동기화 (모바일과 데이터 공유)
+setTimeout(() => {
+    if (monthlyCashSnapshots.length > 0) {
+        const pcIp = localStorage.getItem('pc_ip') || '192.168.0.2';
+        fetch(`http://${pcIp}:5000/api/cash-snapshots`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(monthlyCashSnapshots)
+        }).then(r => r.ok && console.log('📤 기존 현금 스냅샷 서버 동기화 완료'))
+          .catch(() => {});
+    }
+}, 2000);
 let cashTrendChart = null; // 월별 현금 비중 트렌드 Chart.js 인스턴스
 let investigationRowMap = [];
 let selectedInvestigationRowIndex = null;
