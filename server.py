@@ -1366,29 +1366,89 @@ def save_target_dates():
         return jsonify({'error': str(e)}), 500
 
 # ────────────────────────────────────────────────
-# 월별 현금 스냅샷 (PC ↔ 모바일 공유)
+# 월별 현금 스냅샷 (Excel "현금비중" 시트 기반)
 # ────────────────────────────────────────────────
 @app.route('/api/cash-snapshots', methods=['GET'])
 def get_cash_snapshots():
+    """Excel '현금비중' 시트에서 스냅샷 데이터 읽기"""
     try:
-        if os.path.exists(CASH_SNAPSHOTS_FILE):
-            with open(CASH_SNAPSHOTS_FILE, 'r', encoding='utf-8') as f:
-                return jsonify(json.load(f))
-        return jsonify([])
+        import io, openpyxl
+        full_path = os.path.join(ONEDRIVE_PATH, EXCEL_FILE)
+        if not os.path.isfile(full_path):
+            return jsonify([])
+
+        with open(full_path, 'rb') as f:
+            file_data = f.read()
+
+        wb = openpyxl.load_workbook(io.BytesIO(file_data), data_only=True)
+        if '현금비중' not in wb.sheetnames:
+            return jsonify([])
+
+        ws = wb['현금비중']
+        data = []
+        for r in range(2, ws.max_row + 1):
+            month = ws.cell(r, 1).value
+            if not month:
+                continue
+            investment = ws.cell(r, 2).value or 0
+            cash = ws.cell(r, 3).value or 0
+            totalAsset = ws.cell(r, 4).value or 0
+            ratio = ws.cell(r, 5).value or 0
+            data.append({
+                'month': str(month).strip(),
+                'investment': float(investment),
+                'cash': float(cash),
+                'totalAsset': float(totalAsset),
+                'ratio': float(ratio)
+            })
+        wb.close()
+        data.sort(key=lambda x: x['month'])
+        return jsonify(data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/cash-snapshots', methods=['POST'])
 def save_cash_snapshots():
+    """Excel '현금비중' 시트에 스냅샷 데이터 저장 (전체 덮어쓰기)"""
     try:
+        import openpyxl
+        full_path = os.path.join(ONEDRIVE_PATH, EXCEL_FILE)
+        if not os.path.isfile(full_path):
+            return jsonify({'error': '엑셀 파일을 찾을 수 없습니다.'}), 404
+
         data = request.get_json()
-        os.makedirs(os.path.dirname(CASH_SNAPSHOTS_FILE), exist_ok=True)
-        with open(CASH_SNAPSHOTS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        
+        if not isinstance(data, list):
+            return jsonify({'error': '배열 데이터가 필요합니다.'}), 400
+
+        wb = openpyxl.load_workbook(full_path)
+        if '현금비중' not in wb.sheetnames:
+            ws = wb.create_sheet('현금비중')
+        else:
+            ws = wb['현금비중']
+
+        # 헤더 확인/설정
+        headers = ['월', '투자금(백만)', '현금(백만)', '총자산(백만)', '현금비중(%)']
+        for i, h in enumerate(headers, 1):
+            ws.cell(1, i, h)
+
+        # 기존 데이터 삭제 (2행부터)
+        for r in range(ws.max_row, 1, -1):
+            ws.delete_rows(r)
+
+        # 새 데이터 쓰기
+        for idx, item in enumerate(data):
+            row = idx + 2
+            ws.cell(row, 1, str(item.get('month', '')))
+            ws.cell(row, 2, float(item.get('investment', 0)))
+            ws.cell(row, 3, float(item.get('cash', 0)))
+            ws.cell(row, 4, float(item.get('totalAsset', 0)))
+            ws.cell(row, 5, float(item.get('ratio', 0)))
+
+        wb.save(full_path)
+        wb.close()
+
         trigger_export()
-        
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'count': len(data)})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
