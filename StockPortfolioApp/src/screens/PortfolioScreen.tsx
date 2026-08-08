@@ -9,6 +9,7 @@ import {
   Modal,
   ActivityIndicator 
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useDataStore } from '../store/useDataStore';
@@ -31,6 +32,24 @@ export default function PortfolioScreen() {
   const [currentPage, setCurrentPage] = useState(0);
   const [showFullChart, setShowFullChart] = useState(false);
   const navigation = useNavigation<BottomTabNavigationProp<any>>();
+  const [snapshots, setSnapshots] = useState<{ month: string; investment: number; cash: number; totalAsset: number; ratio: number }[]>([]);
+
+  // AsyncStorage에서 월별 현금 스냅샷 로드
+  useEffect(() => {
+    const loadSnapshots = async () => {
+      try {
+        const raw = await AsyncStorage.getItem('monthlyCashSnapshots');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            parsed.sort((a: any, b: any) => a.month.localeCompare(b.month));
+            setSnapshots(parsed);
+          }
+        }
+      } catch (e) {}
+    };
+    loadSnapshots();
+  }, []);
 
   // PC 버전과 동일한 데이터 파싱 로직
   const { sectorData, stockItems, totalInvestment, avgValue, stockCount } = useMemo(() => {
@@ -118,6 +137,17 @@ export default function PortfolioScreen() {
       stockCount: stocks.length,
     };
   }, [portfolioMap]);
+
+  // 스냅샷이 없으면 현재 투자금 기준 기본값 생성
+  const activeSnapshots = useMemo(() => {
+    if (snapshots.length > 0) return snapshots;
+    if (totalInvestment > 0) {
+      const now = new Date();
+      const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      return [{ month: monthStr, investment: totalInvestment, cash: 0, totalAsset: totalInvestment, ratio: 0 }];
+    }
+    return [];
+  }, [snapshots, totalInvestment]);
 
   // useCallback으로 안정화하여 ScrollView 불필요한 리렌더 방지
   const onScroll = useCallback((event: any) => {
@@ -256,6 +286,99 @@ export default function PortfolioScreen() {
 
 
 
+
+  // ─── 월별 현금 비중 트렌드 페이지 ───
+  const renderCashTrendChart = () => {
+    const list = activeSnapshots;
+    if (list.length === 0) {
+      return (
+        <View style={[styles.chartPage, { paddingHorizontal: 24, flex: 1, justifyContent: 'center' }]}>
+          <Text style={styles.cardTitle}>월별 현금 비중 트렌드</Text>
+          <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 20 }}>
+            PC에서 [📸 이번 달 스냅샷 저장] 버튼으로 데이터를 추가해주세요.
+          </Text>
+        </View>
+      );
+    }
+
+    const maxCash = Math.max(...list.map((s: any) => s.cash), 10);
+    const maxRatio = Math.max(...list.map((s: any) => s.ratio), 100);
+    const BAR_H = 18;
+    const GAP = 6;
+    const MONTH_W = 60;
+    const RATIO_W = 44;
+    const AMOUNT_W = 40;
+    const BAR_W = CHART_PAGE_WIDTH - MONTH_W - RATIO_W - AMOUNT_W - 40;
+
+    return (
+      <View style={[styles.chartPage, { paddingHorizontal: 0, flex: 1 }]}>
+        <Text style={[styles.cardTitle, { paddingHorizontal: 24, marginBottom: 12 }]}>월별 현금 비중 트렌드</Text>
+
+        {/* 범례 */}
+        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 14, marginBottom: 14 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#22C55E' }} />
+            <Text style={{ color: '#22C55E', fontSize: 11, fontWeight: 'bold' }}>현금 비중(%)</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#D4AF37' }} />
+            <Text style={{ color: '#D4AF37', fontSize: 11, fontWeight: 'bold' }}>보유 현금액(M)</Text>
+          </View>
+        </View>
+
+        <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 40 }}>
+          {list.map((item: any, idx: number) => {
+            const barWidth = Math.max((item.cash / maxCash) * BAR_W, 6);
+            const ratioBarWidth = Math.max((item.ratio / maxRatio) * BAR_W, 4);
+            return (
+              <View key={`cash-${idx}`} style={{ marginBottom: GAP }}>
+                {/* 상단: 월 + 현금비중 % */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', height: BAR_H }}>
+                  <Text style={{ width: MONTH_W, color: '#E2E8F0', fontSize: 10, fontWeight: 'bold', textAlign: 'center' }}>
+                    {item.month}
+                  </Text>
+                  <View style={{
+                    width: RATIO_W, backgroundColor: 'rgba(34,197,94,0.15)',
+                    borderColor: 'rgba(34,197,94,0.5)', borderWidth: 1, borderRadius: 4,
+                    paddingVertical: 1, alignItems: 'center', marginRight: 6
+                  }}>
+                    <Text style={{ color: '#22C55E', fontSize: 9, fontWeight: '800' }}>{item.ratio}%</Text>
+                  </View>
+                  <View style={{ width: BAR_W, height: BAR_H, position: 'relative', justifyContent: 'center' }}>
+                    {/* 비중 퍼센트 라인 (초록색 얇은 막대) */}
+                    <View style={{
+                      position: 'absolute', left: 0, height: 6,
+                      width: ratioBarWidth, backgroundColor: 'rgba(34,197,94,0.3)',
+                      borderRadius: 3
+                    }} />
+                  </View>
+                  <Text style={{ width: AMOUNT_W, color: '#D4AF37', fontSize: 10, fontWeight: 'bold', textAlign: 'right' }}>
+                    {item.cash}M
+                  </Text>
+                </View>
+                {/* 하단: 현금액 막대 (금색) */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', height: 4, marginTop: 2 }}>
+                  <View style={{ width: MONTH_W + RATIO_W + 6 }} />
+                  <View style={{ width: BAR_W, height: 4, position: 'relative' }}>
+                    <View style={{
+                      position: 'absolute', left: 0, top: 0, width: BAR_W, height: 4,
+                      backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 2
+                    }} />
+                    <View style={{
+                      position: 'absolute', left: 0, top: 0, width: barWidth, height: 4,
+                      backgroundColor: 'rgba(212,175,55,0.7)', borderRadius: 2
+                    }} />
+                  </View>
+                  <View style={{ width: AMOUNT_W }} />
+                </View>
+              </View>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
+  };
+
   // ─── 종목별 투자 현황 페이지 ───
   const renderStockBarChart = () => {
     return (
@@ -329,14 +452,16 @@ export default function PortfolioScreen() {
               style={styles.pager}
               contentContainerStyle={{ flexGrow: 1 }}
             >
-                {renderPieChart()}
+              {renderPieChart()}
               {renderStockBarChart()}
+              {renderCashTrendChart()}
             </ScrollView>
             
-            {/* 페이지 인디케이터 점(Dots) 2개 */}
+            {/* 페이지 인디케이터 점(Dots) 3개 */}
             <View style={styles.indicatorContainer}>
               <View style={[styles.indicatorDot, currentPage === 0 && styles.indicatorDotActive]} />
               <View style={[styles.indicatorDot, currentPage === 1 && styles.indicatorDotActive]} />
+              <View style={[styles.indicatorDot, currentPage === 2 && styles.indicatorDotActive]} />
             </View>
           </View>
         ) : (
