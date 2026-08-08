@@ -17,6 +17,7 @@ interface AppState {
   portfolioMap: any;
   investigation: any;
   performance: any;
+  cashSnapshots: any[] | null;    // 월별 현금비중 스냅샷 배열 (Excel 기반)
   meta: any;
 
   // 상태 플래그
@@ -110,6 +111,7 @@ export const useDataStore = create<AppState>((set, get) => ({
   portfolioMap: null,
   investigation: null,
   performance: null,
+  cashSnapshots: null,
   meta: null,
   isLoading: false,
   isSyncing: false,
@@ -196,6 +198,17 @@ export const useDataStore = create<AppState>((set, get) => ({
         set((state: any) => ({ ...state, [s]: applyQueueToData(s, cached, state.syncQueue) }));
         anyCacheLoaded = true;
       }
+    }
+
+    // cashSnapshots 캐시 별도 로드 (일반 배열 형식이므로 별도 처리)
+    try {
+      const cachedCash = await getCachedData('cashSnapshots' as any);
+      if (Array.isArray(cachedCash) && cachedCash.length > 0) {
+        set({ cashSnapshots: cachedCash });
+        anyCacheLoaded = true;
+      }
+    } catch (e) {
+      console.warn('[useDataStore] cashSnapshots 캐시 로드 실패:', e);
     }
 
     // 로컬 캐시 로드 완료 → 로딩 해제
