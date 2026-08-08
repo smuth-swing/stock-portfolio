@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, TextInput, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, TextInput, LayoutAnimation, Platform, UIManager, Modal } from 'react-native';
 import { useDataStore } from '../store/useDataStore';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -69,7 +69,38 @@ export default function InvestigationScreen() {
     targetPrice: 80,
   });
 
-  // 네이티브 전용: onContentSizeChange 이벤트 기반 높이 조절
+  // ── 날짜 선택기 (목표일) ──
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [datePickerValue, setDatePickerValue] = useState({ year: 2026, month: 8, day: 8 });
+
+  // 월별 일수 계산
+  const getDaysInMonth = useCallback((year: number, month: number) => {
+    return new Date(year, month, 0).getDate();
+  }, []);
+
+  // 날짜 선택기 열기: 현재 editForm.targetDate 기준으로 초기화
+  const openDatePicker = useCallback(() => {
+    const current = editForm.targetDate || '';
+    const match = String(current).match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      setDatePickerValue({ year: parseInt(match[1]), month: parseInt(match[2]), day: parseInt(match[3]) });
+    } else {
+      const today = new Date();
+      setDatePickerValue({ year: today.getFullYear(), month: today.getMonth() + 1, day: today.getDate() });
+    }
+    setShowDatePicker(true);
+  }, [editForm.targetDate]);
+
+  // 날짜 선택 완료
+  const confirmDatePicker = useCallback(() => {
+    const { year, month, day } = datePickerValue;
+    const mm = String(month).padStart(2, '0');
+    const dd = String(day).padStart(2, '0');
+    setEditForm((prev: any) => ({ ...prev, targetDate: `${year}-${mm}-${dd}` }));
+    setShowDatePicker(false);
+  }, [datePickerValue]);
+
+  // ── 네이티브 전용: onContentSizeChange ──
   const handleContentSizeChange = useCallback((field: string, event: any) => {
     if (Platform.OS === 'web') return; // 웹은 computeWebHeight 사용
     if (!event?.nativeEvent?.contentSize) return;
@@ -509,13 +540,18 @@ export default function InvestigationScreen() {
                         </View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>🎯 목표 시점</Text>
-                          <TextInput 
-                            style={[styles.singleLineInput, { height: getFieldHeight('targetDate') }]} 
-                            value={editForm.targetDate} 
-                            onChangeText={t => setEditForm((prev: any) => ({...prev, targetDate: t}))} 
-                            placeholder="YYYY-MM-DD"
-                            placeholderTextColor="#94A3B8"
-                          />
+                          <View style={styles.dateInputRow}>
+                            <TextInput 
+                              style={[styles.singleLineInput, { height: getFieldHeight('targetDate'), flex: 1 }]} 
+                              value={editForm.targetDate} 
+                              onChangeText={t => setEditForm((prev: any) => ({...prev, targetDate: t}))} 
+                              placeholder="YYYY-MM-DD"
+                              placeholderTextColor="#94A3B8"
+                            />
+                            <TouchableOpacity style={styles.calendarBtn} onPress={openDatePicker}>
+                              <Text style={styles.calendarBtnText}>📅</Text>
+                            </TouchableOpacity>
+                          </View>
                         </View>
                         <View style={styles.section}>
                           <Text style={styles.sectionTitle}>💰 목표가</Text>
@@ -634,6 +670,81 @@ export default function InvestigationScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* ── 목표일 달력 Modal ── */}
+      <Modal visible={showDatePicker} transparent animationType="fade" onRequestClose={() => setShowDatePicker(false)}>
+        <View style={styles.datePickerOverlay}>
+          <View style={styles.datePickerContainer}>
+            <Text style={styles.datePickerTitle}>📅 목표일 선택</Text>
+
+            <View style={styles.datePickerRow}>
+              {/* 연도 선택 */}
+              <View style={styles.datePickerColumn}>
+                <Text style={styles.datePickerLabel}>연도</Text>
+                <ScrollView style={styles.datePickerScroll} showsVerticalScrollIndicator={false}>
+                  {Array.from({ length: 11 }, (_, i) => 2022 + i).map(y => (
+                    <TouchableOpacity
+                      key={y}
+                      style={[styles.datePickerItem, datePickerValue.year === y && styles.datePickerItemActive]}
+                      onPress={() => {
+                        const maxDay = getDaysInMonth(y, datePickerValue.month);
+                        setDatePickerValue(prev => ({ ...prev, year: y, day: Math.min(prev.day, maxDay) }));
+                      }}
+                    >
+                      <Text style={[styles.datePickerItemText, datePickerValue.year === y && styles.datePickerItemTextActive]}>{y}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* 월 선택 */}
+              <View style={styles.datePickerColumn}>
+                <Text style={styles.datePickerLabel}>월</Text>
+                <ScrollView style={styles.datePickerScroll} showsVerticalScrollIndicator={false}>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                    <TouchableOpacity
+                      key={m}
+                      style={[styles.datePickerItem, datePickerValue.month === m && styles.datePickerItemActive]}
+                      onPress={() => {
+                        const maxDay = getDaysInMonth(datePickerValue.year, m);
+                        setDatePickerValue(prev => ({ ...prev, month: m, day: Math.min(prev.day, maxDay) }));
+                      }}
+                    >
+                      <Text style={[styles.datePickerItemText, datePickerValue.month === m && styles.datePickerItemTextActive]}>{m}월</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* 일 선택 */}
+              <View style={styles.datePickerColumn}>
+                <Text style={styles.datePickerLabel}>일</Text>
+                <ScrollView style={styles.datePickerScroll} showsVerticalScrollIndicator={false}>
+                  {Array.from({ length: getDaysInMonth(datePickerValue.year, datePickerValue.month) }, (_, i) => i + 1).map(d => (
+                    <TouchableOpacity
+                      key={d}
+                      style={[styles.datePickerItem, datePickerValue.day === d && styles.datePickerItemActive]}
+                      onPress={() => setDatePickerValue(prev => ({ ...prev, day: d }))}
+                    >
+                      <Text style={[styles.datePickerItemText, datePickerValue.day === d && styles.datePickerItemTextActive]}>{d}일</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+
+            {/* 버튼 영역 */}
+            <View style={styles.datePickerActions}>
+              <TouchableOpacity style={styles.datePickerCancelBtn} onPress={() => setShowDatePicker(false)}>
+                <Text style={styles.datePickerCancelText}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.datePickerConfirmBtn} onPress={confirmDatePicker}>
+                <Text style={styles.datePickerConfirmText}>확인</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -750,5 +861,118 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  // ── 목표일 달력 버튼 & 날짜 선택기 ──
+  dateInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  calendarBtn: {
+    backgroundColor: 'rgba(0, 242, 254, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 254, 0.4)',
+    borderRadius: 8,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  calendarBtnText: {
+    fontSize: 20,
+  },
+  datePickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  datePickerContainer: {
+    backgroundColor: '#1E293B',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 254, 0.3)',
+  },
+  datePickerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  datePickerRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  datePickerColumn: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  datePickerLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#94A3B8',
+    marginBottom: 8,
+  },
+  datePickerScroll: {
+    maxHeight: 200,
+    width: '100%',
+  },
+  datePickerItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  datePickerItemActive: {
+    backgroundColor: 'rgba(0, 242, 254, 0.2)',
+    borderWidth: 1,
+    borderColor: '#00F2FE',
+  },
+  datePickerItemText: {
+    color: '#94A3B8',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  datePickerItemTextActive: {
+    color: '#00F2FE',
+    fontWeight: 'bold',
+  },
+  datePickerActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+  },
+  datePickerCancelBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#475569',
+  },
+  datePickerCancelText: {
+    color: '#94A3B8',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  datePickerConfirmBtn: {
+    backgroundColor: '#00F2FE',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  datePickerConfirmText: {
+    color: '#0F172A',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
 });

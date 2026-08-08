@@ -1485,6 +1485,37 @@ tr:hover { background: rgba(255,255,255,0.04); }
     background: rgba(0,0,0,0.1);
 }
 
+/* 목표일 date input 스타일 */
+.inv-field-date-input {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: #FFFFFF;
+    font-size: 15px;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+
+.inv-field-date-input:focus {
+    border-color: rgba(0, 242, 254, 0.5);
+    box-shadow: 0 0 0 2px rgba(0, 242, 254, 0.1);
+}
+
+.inv-field-date-input::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+    opacity: 0.7;
+}
+
+.inv-field-date-input::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+
 /* 저장 버튼 비활성화 상태 */
 #inv-save-btn:disabled {
     opacity: 0.4;

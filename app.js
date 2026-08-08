@@ -1749,22 +1749,43 @@ function renderInvestigationEditForm(rowIndex) {
     const nameCol = findStockColumnName(cols);
     titleEl.innerHTML = String(row[nameCol] || '—').replace(/~~(.*?)~~/g, '<del>$1</del>');
 
-    // 컬럼별 editable div 생성 (번호 컬럼은 읽기 전용으로)
+    // 컬럼별 editable div 생성 (번호 컬럼은 읽기 전용 / 목표일은 date input)
     form.innerHTML = cols.map((col, idx) => {
         const label = mapColumnLabel(col);
         const rawValue = row[col] !== undefined && row[col] !== null ? String(row[col]) : '';
         // ~~텍스트~~를 <del>텍스트</del>로 변환하여 시각화
         const displayValue = rawValue.replace(/\n/g, '<br>').replace(/~~(.*?)~~/g, '<del>$1</del>');
+        // 목표일 컬럼 판별 (명명된 컬럼 또는 Unnamed: 8)
+        const isTargetDate = (
+            String(col).includes('목표일') || col === 'Unnamed: 8'
+        );
         // 한 줄 입력 필드: 번호, 종목명, 목표일, 목표가
         const isSingleLine = (
             idx === 0 || 
             col === nameCol || 
-            String(col).includes('목표일') || 
+            isTargetDate ||
             String(col).includes('목표가') ||
-            col === 'Unnamed: 8' ||
             col === 'Unnamed: 9' ||
             col === 'Unnamed: 10'
         );
+
+        // ── 목표일 컬럼: 달력(date input)으로 렌더링 ──
+        if (isTargetDate) {
+            // YYYY-MM-DD 형식만 추출 (텍스트에 다른 내용이 섞여 있을 수 있음)
+            const dateMatch = rawValue.match(/(\d{4}-\d{2}-\d{2})/);
+            const dateValue = dateMatch ? dateMatch[1] : '';
+            return `
+                <div class="inv-field-group">
+                    <label class="inv-field-label">${label}</label>
+                    <input type="date"
+                           class="inv-field-date-input"
+                           data-col-key="${col}"
+                           data-row-index="${rowIndex}"
+                           value="${dateValue}"
+                           style="width:100%; height:42px; padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.05); color:#FFFFFF; font-size:15px; box-sizing:border-box;" />
+                </div>
+            `;
+        }
 
         return `
             <div class="inv-field-group">
@@ -1776,6 +1797,22 @@ function renderInvestigationEditForm(rowIndex) {
             </div>
         `;
     }).join('');
+
+    // ── date input 이벤트 등록 (change 시 자동 저장) ──
+    form.querySelectorAll('.inv-field-date-input').forEach(input => {
+        input.addEventListener('change', () => {
+            const colKey = input.dataset.colKey;
+            const rIdx = parseInt(input.dataset.rowIndex, 10);
+            const newValue = input.value; // YYYY-MM-DD
+
+            if (!currentData.data[rIdx]) return;
+            if (String(currentData.data[rIdx][colKey] || '') === newValue) return;
+
+            currentData.data[rIdx][colKey] = newValue;
+            saveInvestigationRow(rIdx, currentData.data[rIdx]);
+            showToast('목표일이 저장되었습니다.', 'success');
+        });
+    });
 
     // 각 editable div 이벤트 등록
     form.querySelectorAll('.inv-field-editable').forEach(ed => {
