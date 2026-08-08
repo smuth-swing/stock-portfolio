@@ -1313,6 +1313,7 @@ def ls_import_trades():
 
 TARGET_PRICES_FILE = os.path.join("StockPortfolioApp", "public", "data", "target_prices.json")
 TARGET_DATES_FILE = os.path.join("StockPortfolioApp", "public", "data", "target_dates.json")
+CASH_SNAPSHOTS_FILE = os.path.join("StockPortfolioApp", "public", "data", "cash_snapshots.json")
 
 @app.route('/api/target-prices', methods=['GET'])
 def get_target_prices():
@@ -1358,6 +1359,33 @@ def save_target_dates():
             json.dump(data, f, ensure_ascii=False, indent=2)
         
         # 파일이 업데이트되었으므로 GitHub 배포 스크립트 실행 (백그라운드)
+        trigger_export()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ────────────────────────────────────────────────
+# 월별 현금 스냅샷 (PC ↔ 모바일 공유)
+# ────────────────────────────────────────────────
+@app.route('/api/cash-snapshots', methods=['GET'])
+def get_cash_snapshots():
+    try:
+        if os.path.exists(CASH_SNAPSHOTS_FILE):
+            with open(CASH_SNAPSHOTS_FILE, 'r', encoding='utf-8') as f:
+                return jsonify(json.load(f))
+        return jsonify([])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cash-snapshots', methods=['POST'])
+def save_cash_snapshots():
+    try:
+        data = request.get_json()
+        os.makedirs(os.path.dirname(CASH_SNAPSHOTS_FILE), exist_ok=True)
+        with open(CASH_SNAPSHOTS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        
         trigger_export()
         
         return jsonify({'success': True})

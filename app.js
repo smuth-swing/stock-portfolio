@@ -2976,6 +2976,14 @@ function saveCurrentMonthSnapshot() {
 function saveSnapshotsToStorage() {
     try {
         localStorage.setItem('monthlyCashSnapshots', JSON.stringify(monthlyCashSnapshots));
+        
+        // Flask 서버에도 저장 (모바일과 데이터 공유)
+        const pcIp = localStorage.getItem('pc_ip') || '192.168.0.2';
+        fetch(`http://${pcIp}:5000/api/cash-snapshots`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(monthlyCashSnapshots)
+        }).catch(() => {}); // 실패해도 무시 (오프라인 등)
     } catch (e) {
         console.warn('월별 현금 스냅샷 저장 실패:', e);
     }

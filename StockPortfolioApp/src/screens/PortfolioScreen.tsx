@@ -9,7 +9,6 @@ import {
   Modal,
   ActivityIndicator 
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useDataStore } from '../store/useDataStore';
@@ -34,16 +33,16 @@ export default function PortfolioScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<any>>();
   const [snapshots, setSnapshots] = useState<{ month: string; investment: number; cash: number; totalAsset: number; ratio: number }[]>([]);
 
-  // AsyncStorage에서 월별 현금 스냅샷 로드
+  // 배포된 JSON 파일에서 현금 스냅샷 로드 (PC 서버가 저장한 데이터)
   useEffect(() => {
     const loadSnapshots = async () => {
       try {
-        const raw = await AsyncStorage.getItem('monthlyCashSnapshots');
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            parsed.sort((a: any, b: any) => a.month.localeCompare(b.month));
-            setSnapshots(parsed);
+        const res = await fetch('data/cash_snapshots.json');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            data.sort((a: any, b: any) => a.month.localeCompare(b.month));
+            setSnapshots(data);
           }
         }
       } catch (e) {}
