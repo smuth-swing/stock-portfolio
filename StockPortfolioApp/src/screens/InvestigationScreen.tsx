@@ -485,6 +485,19 @@ export default function InvestigationScreen() {
                         <Text style={styles.badgeText}>매매우선</Text>
                       </View>
                     ) : null}
+                    {/* ── 신호 뱃지 (목표일 경과) ── */}
+                    {(() => {
+                      const td = getTargetDate(item);
+                      const dateMatch = String(td).match(/(\d{4}-\d{2}-\d{2})/);
+                      if (dateMatch && dateMatch[1] <= new Date().toISOString().split('T')[0]) {
+                        return (
+                          <View style={styles.signalBadge}>
+                            <Text style={styles.signalBadgeText}>🔔</Text>
+                          </View>
+                        );
+                      }
+                      return null;
+                    })()}
                   </View>
                   <Text style={styles.expandIcon}>{isExpanded ? '−' : '+'}</Text>
                 </View>
@@ -804,6 +817,8 @@ const styles = StyleSheet.create({
   },
   badge: { backgroundColor: 'rgba(0, 242, 254, 0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   badgeText: { color: '#00F2FE', fontSize: 11, fontWeight: 'bold' },
+  signalBadge: { backgroundColor: 'rgba(248, 113, 113, 0.2)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(248, 113, 113, 0.4)' },
+  signalBadgeText: { fontSize: 12 },
   expandIcon: { color: '#00F2FE', fontSize: 28, fontWeight: '300', marginTop: -4 },
   expandedContent: { marginTop: 20, paddingTop: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
   section: { marginBottom: 20 },

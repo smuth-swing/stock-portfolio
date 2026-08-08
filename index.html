@@ -6,7 +6,7 @@
     <meta name="description" content="주식 체크 리스트 전용 뷰어">
     <title>주식 체크 리스트 — 전용 뷰어</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=21">
+    <link rel="stylesheet" href="styles.css?v=22">
     <!-- Chart.js 추가 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 </head>
@@ -391,7 +391,7 @@
                             <div class="investigation-search-btns">
                                 <button type="button" class="btn-secondary" onclick="searchInvestigationStock()">서칭</button>
                                 <button type="button" class="btn-ghost-sm" onclick="filterMomentumStocks()">매매 우선</button>
-                                <button type="button" class="btn-ghost-sm" onclick="filterTargetStocks()">신호</button>
+                                <button type="button" class="btn-ghost-sm" onclick="filterSignalStocks()">신호</button>
                                 <button type="button" class="btn-ghost-sm" onclick="resetInvestigationSearch()">전체</button>
                             </div>
                         </div>
@@ -483,6 +483,6 @@
     </main>
 
     <div id="toast-container"></div>
-    <script src="app.js?v=21" defer></script>
+    <script src="app.js?v=22" defer></script>
 </body>
 </html>

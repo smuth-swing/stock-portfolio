@@ -1652,6 +1652,16 @@ function renderInvestigationPanel(data) {
         });
         renderInvestigationEditForm(selectedInvestigationRowIndex);
     }
+
+    // ── 신호 계산용 현재가 배치 조회 (백그라운드) ──
+    fetchInvestigationPrices().then(() => {
+        // 가격 로드 완료 후 카드 다시 그려서 신호 뱃지 반영
+        renderInvestigationCards(
+            investigationCurrentRows || data.data,
+            data.columns,
+            investigationRowMap || data.data.map((_, idx) => idx)
+        );
+    });
 }
 
 function mapColumnLabel(columnName) {
@@ -1703,7 +1713,10 @@ function renderInvestigationCards(rows, cols, rowMap = null) {
         const targetPrice = tpCol ? String(row[tpCol] || '').trim() : '';
         const targetDate = tdCol ? String(row[tdCol] || '').trim() : '';
         const hasTarget = targetPrice !== '' || targetDate !== '';
-        
+
+        // ── 신호 상태 계산 ──
+        const signal = computeSignalStatus(row, currentData.columns || cols);
+
         // 목표가 천단위 콤마 포맷
         let targetBadge = '';
         if (hasTarget) {
@@ -1717,12 +1730,23 @@ function renderInvestigationCards(rows, cols, rowMap = null) {
             targetBadge = `<div class="investigation-target-badge">${parts.join(' ')}</div>`;
         }
 
+        // ── 신호 뱃지 ──
+        let signalBadge = '';
+        if (signal.hasSignal) {
+            let signalLabel = '🔔 신호';
+            if (signal.signalType === 'date') signalLabel = '📅 목표일 도달';
+            else if (signal.signalType === 'price') signalLabel = '💰 목표가 도달';
+            else if (signal.signalType === 'both') signalLabel = '🔔 목표일+목표가 도달';
+            signalBadge = `<div class="investigation-signal-badge">${signalLabel}</div>`;
+        }
+
         return `
-            <div class="investigation-card${isActive ? ' selected' : ''}${isCancelled ? ' cancelled' : ''}" data-original-index="${originalIndex}">
+            <div class="investigation-card${isActive ? ' selected' : ''}${isCancelled ? ' cancelled' : ''}${signal.hasSignal ? ' has-signal' : ''}" data-original-index="${originalIndex}">
                 <div class="investigation-card-header">
                     <div class="investigation-card-title ${hasMomentum ? 'has-momentum' : ''}">${displayTitle}</div>
                     <div class="investigation-card-subtitle">${numVal}</div>
                 </div>
+                ${signalBadge}
                 ${targetBadge}
             </div>
         `;
@@ -2075,40 +2099,126 @@ function filterMomentumStocks() {
     showToast(`${filtered.length}개의 매매 우선 종목을 찾았습니다.`, 'success');
 }
 
-function filterTargetStocks() {
+// ── 신호 계산: 목표일 경과 / 목표가 도달 여부 ──
+window._investigationPrices = window._investigationPrices || {};
+
+/**
+ * 종목별 신호 상태 계산
+ * - 목표일 신호: 오늘 >= 목표일
+ * - 목표가 신호: 현재가 >= 목표가 (window._investigationPrices 캐시 사용)
+ * 반환: { hasSignal, signalType: 'date'|'price'|'both'|null }
+ */
+function computeSignalStatus(row, cols) {
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const tdCol = cols.find(c => String(c).includes('목표일') || c === 'Unnamed: 8');
+    const tpCol = cols.find(c => String(c).includes('목표가') || c === 'Unnamed: 9' || c === 'Unnamed: 10');
+
+    const targetDate = tdCol ? String(row[tdCol] || '').trim() : '';
+    const targetPriceRaw = tpCol ? String(row[tpCol] || '').trim() : '';
+    const targetPrice = parseInt(targetPriceRaw.replace(/[^0-9]/g, ''), 10) || 0;
+
+    let dateSignal = false;
+    let priceSignal = false;
+
+    // 목표일 신호: YYYY-MM-DD 형식 추출 후 오늘과 비교
+    const dateMatch = targetDate.match(/(\d{4}-\d{2}-\d{2})/);
+    if (dateMatch && dateMatch[1] <= todayStr) {
+        dateSignal = true;
+    }
+
+    // 목표가 신호: 현재가 캐시가 있고 목표가 이상이면 신호
+    if (targetPrice > 0) {
+        const nameCol = findStockColumnName(cols);
+        const stockName = String(row[nameCol] || '').replace(/~~/g, '').trim();
+        const currentPrice = window._investigationPrices[stockName];
+        if (currentPrice && currentPrice > 0 && currentPrice >= targetPrice) {
+            priceSignal = true;
+        }
+    }
+
+    if (dateSignal && priceSignal) return { hasSignal: true, signalType: 'both', targetDate, targetPrice };
+    if (dateSignal) return { hasSignal: true, signalType: 'date', targetDate, targetPrice };
+    if (priceSignal) return { hasSignal: true, signalType: 'price', targetDate, targetPrice };
+    return { hasSignal: false, signalType: null, targetDate, targetPrice };
+}
+
+/**
+ * 탐구생활 종목들의 현재가를 서버에서 배치로 가져와 캐시
+ */
+async function fetchInvestigationPrices() {
     if (!currentData || !isExplorationSheet(currentData.current_sheet)) return;
 
-    // 목표가/목표일 컬럼 찾기: 실제 컬럼명 또는 Unnamed fallback
-    let targetPriceCol = currentData.columns.find(c => String(c).includes('목표가')) || null;
-    let targetDateCol = currentData.columns.find(c => String(c).includes('목표일')) || null;
-    
-    // Unnamed fallback: 컬럼명으로 못 찾으면 Unnamed: 8(목표일), Unnamed: 9(목표가) 사용
-    if (!targetPriceCol) {
-        targetPriceCol = currentData.columns.find(c => c === 'Unnamed: 9' || c === 'Unnamed: 10') || null;
-    }
-    if (!targetDateCol) {
-        targetDateCol = currentData.columns.find(c => c === 'Unnamed: 8') || null;
-    }
-    
-    if (!targetPriceCol && !targetDateCol) {
-        showToast('목표일 또는 목표가 컬럼이 없어 필터를 적용할 수 없습니다.', 'info');
-        return;
-    }
+    const nameCol = findStockColumnName(currentData.columns);
+    const stockNames = currentData.data
+        .map(row => String(row[nameCol] || '').replace(/~~/g, '').trim())
+        .filter(name => name && name !== '');
 
+    // 중복 제거
+    const uniqueNames = [...new Set(stockNames)];
+    if (uniqueNames.length === 0) return;
+
+    try {
+        const res = await fetch(`${API}/batch-current-prices`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ names: uniqueNames })
+        });
+        const data = await res.json();
+        if (data.success && data.prices) {
+            window._investigationPrices = { ...window._investigationPrices, ...data.prices };
+            // localStorage에도 저장 (다음 방문 시 빠른 로드)
+            try {
+                localStorage.setItem('investigationPrices', JSON.stringify({
+                    date: new Date().toISOString().split('T')[0],
+                    prices: window._investigationPrices
+                }));
+            } catch (e) {}
+        }
+    } catch (e) {
+        console.warn('investigation prices fetch failed:', e);
+        // fallback: localStorage 캐시 사용
+        try {
+            const cached = localStorage.getItem('investigationPrices');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (parsed.prices) {
+                    window._investigationPrices = { ...window._investigationPrices, ...parsed.prices };
+                }
+            }
+        } catch (e2) {}
+    }
+}
+
+function filterTargetStocks() {
+    // 이전 버전 호환성 유지 → filterSignalStocks 로 리다이렉트
+    filterSignalStocks();
+}
+
+/**
+ * 신호 필터: 목표일 경과 또는 목표가 도달된 종목만 표시
+ */
+function filterSignalStocks() {
+    if (!currentData || !isExplorationSheet(currentData.current_sheet)) return;
+
+    const cols = currentData.columns;
     const filtered = [];
     const rowMap = [];
+    let dateSignals = 0;
+    let priceSignals = 0;
 
     currentData.data.forEach((row, idx) => {
-        const targetPrice = targetPriceCol ? String(row[targetPriceCol] || '').trim() : '';
-        const targetDate = targetDateCol ? String(row[targetDateCol] || '').trim() : '';
-        if (targetPrice !== '' || targetDate !== '') {
+        const signal = computeSignalStatus(row, cols);
+        if (signal.hasSignal) {
             filtered.push(row);
             rowMap.push(idx);
+            if (signal.signalType === 'date' || signal.signalType === 'both') dateSignals++;
+            if (signal.signalType === 'price' || signal.signalType === 'both') priceSignals++;
         }
     });
 
     if (filtered.length === 0) {
-        showToast('목표일 또는 목표가가 입력된 항목이 없습니다.', 'info');
+        showToast('신호(목표일 경과 또는 목표가 도달)가 발생한 종목이 없습니다.', 'info');
         return;
     }
 
@@ -2116,7 +2226,11 @@ function filterTargetStocks() {
     if (rowMap.length > 0) {
         setSelectedInvestigationRow(rowMap[0]);
     }
-    showToast(`${filtered.length}개의 목표 종목을 표시합니다.`, 'success');
+
+    let detailMsg = '';
+    if (dateSignals > 0) detailMsg += `📅 목표일 경과: ${dateSignals}건 `;
+    if (priceSignals > 0) detailMsg += `💰 목표가 도달: ${priceSignals}건`;
+    showToast(`🔔 신호 발생 종목 ${filtered.length}개 발견!\n${detailMsg}`, 'success');
 }
 
 /**

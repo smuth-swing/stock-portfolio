@@ -1415,6 +1415,63 @@ def ls_current_prices():
         return jsonify({'error': f'현재가 조회 실패: {str(e)}'}), 500
 
 
+@app.route('/api/batch-current-prices', methods=['POST'])
+def batch_current_prices():
+    """
+    여러 종목의 현재가를 한 번에 조회 (탐구생활 신호 계산용)
+    POST body: { "names": ["삼성전자", "SK하이닉스", ...] }
+    반환: { "success": true, "prices": { "삼성전자": 80000, "SK하이닉스": 200000, ... } }
+    """
+    try:
+        from ls_api import fetch_current_prices, get_stock_codes_by_names, load_config, get_access_token
+    except ImportError:
+        return jsonify({'error': 'ls_api 모듈을 찾을 수 없습니다.'}), 500
+
+    data = request.get_json() or {}
+    names = data.get('names', [])
+    if not names or not isinstance(names, list):
+        return jsonify({'error': 'names 배열이 필요합니다.'}), 400
+
+    # 중복 제거 및 공백 정리
+    names = list(set(n.strip() for n in names if n and n.strip()))
+
+    if not names:
+        return jsonify({'success': True, 'prices': {}})
+
+    cfg = load_config()
+    token = get_access_token(cfg["app_key"], cfg["app_secret"])
+    if not token:
+        return jsonify({'error': 'LS API 토큰 발급 실패'}), 500
+
+    # 1. 종목명 → 종목코드 매핑
+    try:
+        name_to_code = get_stock_codes_by_names(token, names)
+    except Exception as e:
+        return jsonify({'error': f'종목코드 조회 실패: {str(e)}'}), 500
+
+    if not name_to_code:
+        return jsonify({'success': True, 'prices': {}})
+
+    # 2. 종목코드 → 현재가 조회
+    codes = list(name_to_code.values())
+    try:
+        code_prices = fetch_current_prices(codes)
+    except Exception as e:
+        return jsonify({'error': f'현재가 배치 조회 실패: {str(e)}'}), 500
+
+    # 3. 종목명 기준으로 가격 맵 구성
+    prices = {}
+    for name in names:
+        code = name_to_code.get(name)
+        if code and code in code_prices:
+            prices[name] = int(code_prices[code])
+
+    return jsonify({
+        'success': True,
+        'prices': prices
+    })
+
+
 @app.route('/api/ls/moving-averages', methods=['GET'])
 def ls_moving_averages():
     """
