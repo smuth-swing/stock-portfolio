@@ -25,6 +25,22 @@ const getTargetPrice = (item: any) => {
   return /^[0-9]+$/.test(normalized) ? Number(normalized) : normalized;
 };
 
+/** 종목에 신호가 발생했는지 확인 (목표일 경과 또는 목표가 존재) */
+const hasSignalTriggered = (item: any): boolean => {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const td = getTargetDate(item);
+  const tp = getTargetPrice(item);
+  
+  // 목표일 신호
+  const dateMatch = String(td).match(/(\d{4}-\d{2}-\d{2})/);
+  if (dateMatch && dateMatch[1] <= todayStr) return true;
+  
+  // 목표가 존재하면 신호 대상으로 간주 (모바일은 현재가 조회 불가)
+  if (tp !== '' && tp !== 0) return true;
+  
+  return false;
+};
+
 // ─────────────────────────────────────────────
 // 웹/네이티브 공통 상수 및 유틸
 // ─────────────────────────────────────────────
@@ -52,7 +68,7 @@ const computeWebHeight = (text: string | undefined | null): number => {
 export default function InvestigationScreen() {
   const { investigation, isLoading, isSyncing, refreshData, syncQueue, addToSyncQueue, markQueueAsSynced, meta } = useDataStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'priority'>('all');
+  const [filter, setFilter] = useState<'all' | 'priority' | 'signal'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<any>({});
@@ -217,6 +233,8 @@ export default function InvestigationScreen() {
     if (item._realIndex === editingIndex) return true; // 수정 중인 종목은 무조건 포함
     // 모멘텀과 매매 전략 둘 다 내용이 없는 경우 매매우선 필터에서 제외
     if (filter === 'priority' && !getMomentum(item) && !getStrategy(item)) return false;
+    // 신호 필터: 목표일 경과 또는 목표가 존재하는 종목만
+    if (filter === 'signal' && !hasSignalTriggered(item)) return false;
     if (searchQuery.trim() !== '') {
       const stockName = getStockName(item);
       if (!stockName.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
@@ -413,6 +431,12 @@ export default function InvestigationScreen() {
               onPress={() => setFilter('priority')}
             >
               <Text style={[styles.filterBtnText, filter === 'priority' && styles.filterBtnTextActive]}>매매우선</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.filterBtn, filter === 'signal' && styles.filterBtnActive]}
+              onPress={() => setFilter('signal')}
+            >
+              <Text style={[styles.filterBtnText, filter === 'signal' && styles.filterBtnTextActive]}>🔔 신호</Text>
             </TouchableOpacity>
           </View>
 
