@@ -268,7 +268,7 @@ export default function InvestigationScreen() {
       strategy: getStrategy(item),
       ceo: getCeo(item),
       targetDate: storedTargetDate || getTargetDate(item),
-      targetPrice: String(storedTargetPrice ?? getTargetPrice(item) || '')
+      targetPrice: String((storedTargetPrice ?? getTargetPrice(item)) || '')
     });
   };
 
