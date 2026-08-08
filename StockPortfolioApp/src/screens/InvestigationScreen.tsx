@@ -17,9 +17,9 @@ const getReason    = (item: any) => item['매수이유'] || item['Unnamed: 4'] |
 const getRisk      = (item: any) => item['리스크'] || item['Unnamed: 5'] || '';
 const getCeo       = (item: any) => item['대표/경영진'] || item['Unnamed: 6'] || '';
 const getStrategy  = (item: any) => item['매매 전략'] || item['Unnamed: 7'] || '';
-const getTargetDate = (item: any) => item['목표일'] || item['targetDate'] || '';
+const getTargetDate = (item: any) => item['목표일'] || item['Unnamed: 8'] || item['targetDate'] || '';
 const getTargetPrice = (item: any) => {
-  const raw = item['목표가'] || item['targetPrice'] || item['Unnamed: 8'] || item['Unnamed: 9'] || item['Unnamed: 10'] || '';
+  const raw = item['목표가'] || item['targetPrice'] || item['Unnamed: 9'] || item['Unnamed: 10'] || '';
   if (raw === null || raw === undefined || raw === '') return '';
   const normalized = String(raw).replace(/,/g, '').trim();
   return /^[0-9]+$/.test(normalized) ? Number(normalized) : normalized;
@@ -225,13 +225,16 @@ export default function InvestigationScreen() {
 
   const getEffectiveTargetDate = (item: any) => {
     const stockName = getStockName(item);
-    return getTargetDate(item) || targetDates?.[stockName] || '';
+    // 엑셀이 우선! 로컬 저장소는 엑셀에 값이 없을 때만 fallback
+    const excelDate = getTargetDate(item);
+    return excelDate || targetDates?.[stockName] || '';
   };
 
   const getEffectiveTargetPrice = (item: any) => {
     const stockName = getStockName(item);
-    const rowPrice = getTargetPrice(item);
-    return rowPrice !== '' ? rowPrice : (targetPrices?.[stockName] ?? '');
+    // 엑셀이 우선! 로컬 저장소는 엑셀에 값이 없을 때만 fallback
+    const excelPrice = getTargetPrice(item);
+    return excelPrice !== '' ? excelPrice : (targetPrices?.[stockName] ?? '');
   };
 
   // 데이터 추출 로직 — 원본 인덱스(_realIndex) 보존
@@ -255,6 +258,9 @@ export default function InvestigationScreen() {
 
   const startEditing = (realIdx: number, item: any) => {
     const stockName = getStockName(item);
+    // 엑셀이 우선! 로컬 저장소는 엑셀에 값이 없을 때만 fallback
+    const excelDate = getTargetDate(item);
+    const excelPrice = getTargetPrice(item);
     const storedTargetDate = targetDates?.[stockName];
     const storedTargetPrice = targetPrices?.[stockName];
 
@@ -267,8 +273,8 @@ export default function InvestigationScreen() {
       momentum: getMomentum(item),
       strategy: getStrategy(item),
       ceo: getCeo(item),
-      targetDate: storedTargetDate || getTargetDate(item),
-      targetPrice: String((storedTargetPrice ?? getTargetPrice(item)) || '')
+      targetDate: excelDate || storedTargetDate || '',
+      targetPrice: String((excelPrice || storedTargetPrice) || '')
     });
   };
 

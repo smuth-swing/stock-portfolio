@@ -2220,14 +2220,44 @@ function filterMomentumStocks() {
 // ── 신호 계산: 목표일 경과 / 목표가 도달 여부 ──
 window._investigationPrices = window._investigationPrices || {};
 
+// 목표가 크로스 추적기: { 종목명: { state: 'above'|'below', crossedAt: 'ISO시간'|null, targetPrice: 숫자 } }
+// crossedAt이 null이면 아직 크로스 이벤트가 발생하지 않은 초기 상태
+// 가격이 목표가 라인을 위↔아래로 크로스할 때만 crossedAt에 시간 기록
+window._priceCrossTracker = window._priceCrossTracker || {};
+try {
+    const saved = localStorage.getItem('_priceCrossTracker');
+    if (saved) {
+        const parsed = JSON.parse(saved);
+        // 구형 포맷({crossedAt} without state, or {state, changedAt}) → 초기화
+        const hasOldFormat = Object.values(parsed).some(
+            v => v && typeof v === 'object' && !('crossedAt' in v && 'state' in v)
+        );
+        if (hasOldFormat) {
+            console.log('[신호] 구형/호환되지 않는 크로스 추적기 감지 → 초기화합니다.');
+            localStorage.removeItem('_priceCrossTracker');
+        } else {
+            window._priceCrossTracker = parsed;
+        }
+    }
+} catch (e) {}
+
+function _savePriceCrossTracker() {
+    try {
+        localStorage.setItem('_priceCrossTracker', JSON.stringify(window._priceCrossTracker));
+    } catch (e) {}
+}
+
 /**
  * 종목별 신호 상태 계산
  * - 목표일 신호: 오늘 >= 목표일
- * - 목표가 신호: 현재가 >= 목표가 (window._investigationPrices 캐시 사용)
+ * - 목표가 신호: 최근 1주일(7일) 내에 현재가가 목표가 라인을 위↔아래로 크로스했는지 여부
+ *   (위로 돌파하든 아래로 깨든, 목표가 라인을 지나가면 모두 신호)
  * 반환: { hasSignal, signalType: 'date'|'price'|'both'|null }
  */
 function computeSignalStatus(row, cols) {
     const todayStr = new Date().toISOString().split('T')[0];
+    const nowMs = Date.now();
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
     const tdCol = cols.find(c => String(c).includes('목표일') || c === 'Unnamed: 8');
     const tpCol = cols.find(c => String(c).includes('목표가') || c === 'Unnamed: 9' || c === 'Unnamed: 10');
@@ -2235,6 +2265,9 @@ function computeSignalStatus(row, cols) {
     const targetDate = tdCol ? String(row[tdCol] || '').trim() : '';
     const targetPriceRaw = tpCol ? String(row[tpCol] || '').trim() : '';
     const targetPrice = parseInt(targetPriceRaw.replace(/[^0-9]/g, ''), 10) || 0;
+
+    const nameCol = findStockColumnName(cols);
+    const stockName = String(row[nameCol] || '').replace(/~~/g, '').trim();
 
     let dateSignal = false;
     let priceSignal = false;
@@ -2245,13 +2278,39 @@ function computeSignalStatus(row, cols) {
         dateSignal = true;
     }
 
-    // 목표가 신호: 현재가 캐시가 있고 목표가 이상이면 신호
-    if (targetPrice > 0) {
-        const nameCol = findStockColumnName(cols);
-        const stockName = String(row[nameCol] || '').replace(/~~/g, '').trim();
+    // 목표가 신호: 최근 1주일 내 목표가 라인 크로스 여부 (위↔아래 양방향)
+    if (targetPrice > 0 && stockName) {
         const currentPrice = window._investigationPrices[stockName];
-        if (currentPrice && currentPrice > 0 && currentPrice >= targetPrice) {
-            priceSignal = true;
+        let tracker = window._priceCrossTracker[stockName];
+
+        if (currentPrice && currentPrice > 0) {
+            const newState = currentPrice >= targetPrice ? 'above' : 'below';
+
+            if (!tracker || tracker.targetPrice !== targetPrice) {
+                // 첫 진입 또는 목표가 변경 → 초기 상태만 기록 (크로스 아님!)
+                window._priceCrossTracker[stockName] = {
+                    state: newState,
+                    crossedAt: null,  // ← null = 아직 크로스 없음
+                    targetPrice: targetPrice
+                };
+                _savePriceCrossTracker();
+            } else if (tracker.state !== newState) {
+                // 상태 변경 감지! above→below 또는 below→above = 크로스 발생!
+                window._priceCrossTracker[stockName] = {
+                    state: newState,
+                    crossedAt: new Date().toISOString(),  // ← 크로스 시점 기록
+                    targetPrice: targetPrice
+                };
+                _savePriceCrossTracker();
+                priceSignal = true; // 크로스 발생 → 신호!
+            } else if (tracker.crossedAt) {
+                // 상태 유지 중 + 이전에 크로스 기록 있음 → 7일 이내인지 확인
+                const crossedMs = new Date(tracker.crossedAt).getTime();
+                if (nowMs - crossedMs <= SEVEN_DAYS_MS) {
+                    priceSignal = true; // 7일 이내 크로스 → 신호 유지
+                }
+                // 7일 초과 or crossedAt 없음 → 신호 없음
+            }
         }
     }
 
@@ -2295,13 +2354,18 @@ async function fetchInvestigationPrices() {
         }
     } catch (e) {
         console.warn('investigation prices fetch failed:', e);
-        // fallback: localStorage 캐시 사용
+        // fallback: localStorage 캐시 사용 (오늘 날짜만 유효)
         try {
             const cached = localStorage.getItem('investigationPrices');
             if (cached) {
                 const parsed = JSON.parse(cached);
-                if (parsed.prices) {
+                const todayStr = new Date().toISOString().split('T')[0];
+                // 오늘 캐시된 가격만 사용 (오래된 캐시는 신호 오탐지 유발)
+                if (parsed.date === todayStr && parsed.prices) {
                     window._investigationPrices = { ...window._investigationPrices, ...parsed.prices };
+                    console.log('[investigation] 오늘자 캐시 가격 사용:', Object.keys(parsed.prices).length, '종목');
+                } else {
+                    console.warn('[investigation] 캐시가 오늘 날짜가 아니어서 무시됨 (캐시일자:', parsed.date, ')');
                 }
             }
         } catch (e2) {}
