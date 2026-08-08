@@ -472,8 +472,8 @@ async function loadExcel(filePath, sheetName = null) {
 
 function renderSheetTabs(sheets, activeSheet) {
     const container = document.getElementById('sheet-tabs');
-    // '탑쌓기', '카드놀이' 시트 제외
-    const filteredSheets = sheets.filter(name => name !== '탑쌓기' && name !== '카드놀이');
+    // '탑쌓기', '카드놀이', '현금비중' 시트 제외 (현금비중은 포트폴리오 탭 내 현금 패널과 연동)
+    const filteredSheets = sheets.filter(name => name !== '탑쌓기' && name !== '카드놀이' && name !== '현금비중');
 
     let html = filteredSheets.map(name => `
         <button class="sheet-tab ${name === activeSheet ? 'active' : ''}" 
