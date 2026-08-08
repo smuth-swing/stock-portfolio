@@ -26,17 +26,17 @@ const getTargetPrice = (item: any) => {
 };
 
 /** 종목에 신호가 발생했는지 확인 (목표일 경과 또는 목표가 존재) */
-const hasSignalTriggered = (item: any): boolean => {
+const hasSignalTriggered = (item: any, fallbackTargetDate?: string, fallbackTargetPrice?: any): boolean => {
   const todayStr = new Date().toISOString().split('T')[0];
-  const td = getTargetDate(item);
-  const tp = getTargetPrice(item);
+  const td = String(getTargetDate(item) || fallbackTargetDate || '');
+  const tp = getTargetPrice(item) || fallbackTargetPrice;
   
   // 목표일 신호
-  const dateMatch = String(td).match(/(\d{4}-\d{2}-\d{2})/);
+  const dateMatch = td.match(/(\d{4}-\d{2}-\d{2})/);
   if (dateMatch && dateMatch[1] <= todayStr) return true;
   
   // 목표가 존재하면 신호 대상으로 간주 (모바일은 현재가 조회 불가)
-  if (tp !== '' && tp !== 0) return true;
+  if (tp !== '' && tp !== 0 && tp !== null && tp !== undefined) return true;
   
   return false;
 };
@@ -66,7 +66,7 @@ const computeWebHeight = (text: string | undefined | null): number => {
 };
 
 export default function InvestigationScreen() {
-  const { investigation, isLoading, isSyncing, refreshData, syncQueue, addToSyncQueue, markQueueAsSynced, meta } = useDataStore();
+  const { investigation, isLoading, isSyncing, refreshData, syncQueue, addToSyncQueue, markQueueAsSynced, meta, targetPrices, targetDates, setTargetPrice, setTargetDate } = useDataStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'priority' | 'signal'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -223,6 +223,17 @@ export default function InvestigationScreen() {
     );
   }
 
+  const getEffectiveTargetDate = (item: any) => {
+    const stockName = getStockName(item);
+    return getTargetDate(item) || targetDates?.[stockName] || '';
+  };
+
+  const getEffectiveTargetPrice = (item: any) => {
+    const stockName = getStockName(item);
+    const rowPrice = getTargetPrice(item);
+    return rowPrice !== '' ? rowPrice : (targetPrices?.[stockName] ?? '');
+  };
+
   // 데이터 추출 로직 — 원본 인덱스(_realIndex) 보존
   const allData = investigation?.data || [];
   const allItems = allData
@@ -234,7 +245,7 @@ export default function InvestigationScreen() {
     // 모멘텀과 매매 전략 둘 다 내용이 없는 경우 매매우선 필터에서 제외
     if (filter === 'priority' && !getMomentum(item) && !getStrategy(item)) return false;
     // 신호 필터: 목표일 경과 또는 목표가 존재하는 종목만
-    if (filter === 'signal' && !hasSignalTriggered(item)) return false;
+    if (filter === 'signal' && !hasSignalTriggered(item, getEffectiveTargetDate(item), getEffectiveTargetPrice(item))) return false;
     if (searchQuery.trim() !== '') {
       const stockName = getStockName(item);
       if (!stockName.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
@@ -243,17 +254,21 @@ export default function InvestigationScreen() {
   });
 
   const startEditing = (realIdx: number, item: any) => {
+    const stockName = getStockName(item);
+    const storedTargetDate = targetDates?.[stockName];
+    const storedTargetPrice = targetPrices?.[stockName];
+
     setEditingIndex(realIdx);
     setEditForm({
-      stockName: getStockName(item),
+      stockName,
       question: getQuestion(item),
       reason: getReason(item),
       risk: getRisk(item),
       momentum: getMomentum(item),
       strategy: getStrategy(item),
       ceo: getCeo(item),
-      targetDate: getTargetDate(item),
-      targetPrice: String(getTargetPrice(item) || '')
+      targetDate: storedTargetDate || getTargetDate(item),
+      targetPrice: String(storedTargetPrice ?? getTargetPrice(item) || '')
     });
   };
 
@@ -305,6 +320,15 @@ export default function InvestigationScreen() {
       };
       await addToSyncQueue(editTask);
       
+      // 저장 후 로컬 target 데이터도 함께 갱신
+      const stockName = newRowData['종목명'] || newRowData['Unnamed: 1'] || '';
+      const targetDateValue = String(editForm.targetDate || '').trim();
+      const targetPriceValue = editForm.targetPrice ? Number(editForm.targetPrice.replace(/,/g, '')) : null;
+      await Promise.all([
+        setTargetDate(stockName, targetDateValue || null),
+        setTargetPrice(stockName, targetPriceValue || null),
+      ]);
+
       // ★ Zustand 상태를 불변 방식으로 업데이트 (직접 뮤테이션 금지)
       const updatedData = [...investigation.data];
       updatedData[realIndex] = newRowData;
@@ -511,9 +535,10 @@ export default function InvestigationScreen() {
                     ) : null}
                     {/* ── 신호 뱃지 (목표일 경과) ── */}
                     {(() => {
-                      const td = getTargetDate(item);
+                      const td = getTargetDate(item) || targetDates?.[getStockName(item)];
+                      const tp = getTargetPrice(item) || targetPrices?.[getStockName(item)];
                       const dateMatch = String(td).match(/(\d{4}-\d{2}-\d{2})/);
-                      if (dateMatch && dateMatch[1] <= new Date().toISOString().split('T')[0]) {
+                      if ((dateMatch && dateMatch[1] <= new Date().toISOString().split('T')[0]) || (tp !== '' && tp !== 0 && tp !== null && tp !== undefined)) {
                         return (
                           <View style={styles.signalBadge}>
                             <Text style={styles.signalBadgeText}>🔔</Text>
