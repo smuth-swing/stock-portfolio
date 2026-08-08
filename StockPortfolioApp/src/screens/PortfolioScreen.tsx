@@ -9,7 +9,6 @@ import {
   Modal,
   ActivityIndicator 
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useDataStore } from '../store/useDataStore';
@@ -31,31 +30,7 @@ export default function PortfolioScreen() {
   const { portfolioMap, isLoading } = useDataStore();
   const [currentPage, setCurrentPage] = useState(0);
   const [showFullChart, setShowFullChart] = useState(false);
-  const [snapshots, setSnapshots] = useState<{ month: string; investment: number; cash: number; totalAsset: number; ratio: number }[]>([]);
   const navigation = useNavigation<BottomTabNavigationProp<any>>();
-
-  // PC 및 웹/로컬스토리지에서 월별 현금 스냅샷 불러오기
-  useEffect(() => {
-    const loadSnapshots = async () => {
-      try {
-        let rawData = await AsyncStorage.getItem('monthlyCashSnapshots');
-        if (!rawData && typeof window !== 'undefined' && window.localStorage) {
-          rawData = window.localStorage.getItem('monthlyCashSnapshots');
-        }
-        if (rawData) {
-          const parsed = JSON.parse(rawData);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            parsed.sort((a, b) => a.month.localeCompare(b.month));
-            setSnapshots(parsed);
-            return;
-          }
-        }
-      } catch (e) {
-        console.warn('모바일 스냅샷 로드 실패:', e);
-      }
-    };
-    loadSnapshots();
-  }, []);
 
   // PC 버전과 동일한 데이터 파싱 로직
   const { sectorData, stockItems, totalInvestment, avgValue, stockCount } = useMemo(() => {
@@ -143,23 +118,6 @@ export default function PortfolioScreen() {
       stockCount: stocks.length,
     };
   }, [portfolioMap]);
-
-  // 스냅샷이 없을 경우 현재월 기준 기본 데이터 자동 생성 호환
-  const activeSnapshots = useMemo(() => {
-    if (snapshots.length > 0) return snapshots;
-    if (totalInvestment > 0) {
-      const now = new Date();
-      const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      return [{
-        month: monthStr,
-        investment: totalInvestment,
-        cash: 15,
-        totalAsset: totalInvestment + 15,
-        ratio: parseFloat(((15 / (totalInvestment + 15)) * 100).toFixed(1))
-      }];
-    }
-    return [];
-  }, [snapshots, totalInvestment]);
 
   // useCallback으로 안정화하여 ScrollView 불필요한 리렌더 방지
   const onScroll = useCallback((event: any) => {
