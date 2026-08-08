@@ -1625,6 +1625,23 @@ function renderInvestigationPanel(data) {
     const panel = document.getElementById('investigation-panel');
     if (!panel) return;
     panel.classList.remove('hidden');
+
+    // ── 빈 행(종목명 없고 모든 필드 빈 값) 필터링 ──
+    const nameCol = findStockColumnName(data.columns);
+    const cleanData = data.data.filter(row => {
+        const name = String(row[nameCol] || '').replace(/~~/g, '').trim();
+        if (name !== '') return true; // 종목명 있으면 유지
+        // 종목명이 비어있어도 다른 필드에 내용이 있으면 유지
+        for (const col of data.columns) {
+            if (col === data.columns[0]) continue; // 번호 컬럼 제외
+            if (col === nameCol) continue;
+            const val = String(row[col] || '').trim();
+            if (val !== '') return true;
+        }
+        return false; // 모든 필드가 비었으면 제외
+    });
+    data.data = cleanData;
+
     investigationRowMap = data.data.map((_, idx) => idx);
     investigationCurrentRows = data.data;
 
@@ -1638,15 +1655,8 @@ function renderInvestigationPanel(data) {
 
     // 종목명 datalist 업데이트
     updateInvestigationStockList(data);
-    // 좌측 카드 목록 렌더링
+    // 좌측 카드 목록 렌더링 (빈 행 자동 필터링됨)
     renderInvestigationCards(data.data, data.columns);
-
-    // ── 빈 행 자동 정리 (백그라운드) ──
-    cleanupEmptyInvestigationRows().then(() => {
-        if (investigationCurrentRows && investigationCurrentRows.length !== currentData.data.length) {
-            renderInvestigationCards(currentData.data, currentData.columns);
-        }
-    });
 
     // 첫 번째 항목 선택 (편집 폼은 렌더링하되, 모바일에서는 목록 화면 유지)
     if (data.data.length > 0) {
@@ -1694,19 +1704,38 @@ function mapColumnLabel(columnName) {
 function renderInvestigationCards(rows, cols, rowMap = null) {
     const container = document.getElementById('investigation-card-list');
     if (!container) return;
-    const map = rowMap || rows.map((_, idx) => idx);
+
+    // ── 빈 행 필터링 (종목명 없고 모든 필드가 빈 행은 표시 안 함) ──
+    const nameCol = findStockColumnName(cols);
+    const filteredRows = [];
+    const filteredIndices = [];
+    rows.forEach((row, idx) => {
+        const name = String(row[nameCol] || '').replace(/~~/g, '').trim();
+        if (name !== '') { filteredRows.push(row); filteredIndices.push(idx); return; }
+        // 종목명이 비어도 다른 필드에 내용 있으면 표시
+        for (const col of cols) {
+            if (col === cols[0]) continue;
+            if (col === nameCol) continue;
+            const val = String(row[col] || '').trim();
+            if (val !== '') { filteredRows.push(row); filteredIndices.push(idx); return; }
+        }
+        // 완전히 빈 행 → 제외
+    });
+
+    const map = rowMap 
+        ? filteredIndices.map(i => rowMap[i]).filter(i => i !== undefined)
+        : filteredRows.map((_, idx) => idx);
     investigationRowMap = map;
-    investigationCurrentRows = rows;
+    investigationCurrentRows = filteredRows;
 
     // 종목명 및 모멘텀/목표 컬럼 찾기
     const numCol = cols[0];  // 번호
-    const nameCol = findStockColumnName(cols); // 종목명
     const momentumCol = currentData.columns.includes('모멘텀') ? '모멘텀' : 'Unnamed: 2';
     // 목표가 컬럼 찾기 (명명된 컬럼 또는 Unnamed fallback)
     const tpCol = currentData.columns.find(c => String(c).includes('목표가') || c === 'Unnamed: 9' || c === 'Unnamed: 10') || null;
     const tdCol = currentData.columns.find(c => String(c).includes('목표일') || c === 'Unnamed: 8') || null;
 
-    container.innerHTML = rows.map((row, index) => {
+    container.innerHTML = filteredRows.map((row, index) => {
         const originalIndex = map[index];
         const isActive = originalIndex === selectedInvestigationRowIndex;
         const numVal = row[numCol] !== undefined ? row[numCol] : '';
@@ -1935,26 +1964,12 @@ function isRowEmpty(row, cols) {
 }
 
 /**
- * 빈 행 삭제: 서버에 삭제 요청 + 로컬 데이터에서 제거 + UI 갱신
+ * 빈 행 삭제: 로컬 데이터에서 제거 + UI 갱신
+ * (엑셀에는 빈 행이 남지만, renderInvestigationCards에서 자동 필터링됨)
  */
-async function deleteInvestigationRow(rowIndex) {
+function deleteInvestigationRow(rowIndex) {
     if (!currentData) return;
-    const row = currentData.data[rowIndex];
-    if (!row) return;
-
-    // 서버에 삭제 요청 (값을 모두 빈 문자열로 덮어쓰기)
-    try {
-        const sheetName = currentData.current_sheet;
-        const filePath = currentData._filePath;
-        const emptyValues = currentData.columns.map(() => '');
-        await fetch(`${API}/update-row`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ file: filePath, sheet: sheetName, rowIndex, values: emptyValues })
-        });
-    } catch (e) {
-        console.warn('빈 행 삭제 요청 실패:', e);
-    }
+    if (rowIndex < 0 || rowIndex >= currentData.data.length) return;
 
     // 로컬 데이터에서 제거
     currentData.data.splice(rowIndex, 1);
