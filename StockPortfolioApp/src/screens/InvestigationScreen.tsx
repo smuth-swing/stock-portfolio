@@ -692,18 +692,24 @@ export default function InvestigationScreen() {
                           </View>
                         ) : null}
 
-                        {getTargetDate(item) ? (
-                          <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>🎯 목표 시점</Text>
-                            <Text style={styles.sectionText}>{getTargetDate(item)}</Text>
-                          </View>
-                        ) : null}
-                        {getTargetPrice(item) ? (
-                          <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>💰 목표가</Text>
-                            <Text style={styles.sectionText}>{String(getTargetPrice(item)).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}원</Text>
-                          </View>
-                        ) : null}
+                        {(() => {
+                          const effectiveDate = getEffectiveTargetDate(item);
+                          return effectiveDate ? (
+                            <View style={styles.section}>
+                              <Text style={styles.sectionTitle}>🎯 목표 시점</Text>
+                              <Text style={styles.sectionText}>{effectiveDate}</Text>
+                            </View>
+                          ) : null;
+                        })()}
+                        {(() => {
+                          const effectivePrice = getEffectiveTargetPrice(item);
+                          return effectivePrice ? (
+                            <View style={styles.section}>
+                              <Text style={styles.sectionTitle}>💰 목표가</Text>
+                              <Text style={styles.sectionText}>{String(effectivePrice).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}원</Text>
+                            </View>
+                          ) : null;
+                        })()}
                         {getCeo(item) ? (
                           <View style={styles.section}>
                             <Text style={styles.sectionTitle}>👤 대표 / 경영진</Text>
