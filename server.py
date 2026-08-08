@@ -95,6 +95,7 @@ def find_target_onedrive_path():
     return None
 
 ONEDRIVE_PATH = find_target_onedrive_path()
+EXCEL_FILE = '주식 체크 리스트_20220328.xlsx'
 
 # ==================== 자동 동기화 트리거 ====================
 _export_lock = threading.Lock()
@@ -1449,6 +1450,146 @@ def save_cash_snapshots():
 
         trigger_export()
         return jsonify({'success': True, 'count': len(data)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ────────────────────────────────────────────────
+# 현금 계좌 & 투자금 계좌 (Excel "_계좌정보" 시트 기반)
+# ────────────────────────────────────────────────
+
+def _read_accounts_sheet(section_key):
+    """Excel '_계좌정보' 시트에서 특정 섹션의 계좌 데이터를 읽어옴"""
+    import io
+    full_path = os.path.join(ONEDRIVE_PATH, EXCEL_FILE)
+    if not os.path.isfile(full_path):
+        return []
+    try:
+        with open(full_path, 'rb') as f:
+            file_data = f.read()
+        wb = openpyxl.load_workbook(io.BytesIO(file_data), data_only=True)
+        if '_계좌정보' not in wb.sheetnames:
+            wb.close()
+            return []
+        ws = wb['_계좌정보']
+        # section_key 행 찾기 (첫 번째 열에 "현금계좌" 또는 "투자금계좌" 표시)
+        data = []
+        in_section = False
+        for r in range(1, ws.max_row + 1):
+            cell_val = str(ws.cell(r, 1).value or '').strip()
+            if cell_val == section_key:
+                in_section = True
+                continue
+            if in_section:
+                if cell_val == '' or cell_val.startswith('#'):
+                    break  # 섹션 종료
+                name = str(ws.cell(r, 1).value or '').strip()
+                amount = ws.cell(r, 2).value or 0
+                if name:
+                    data.append({'name': name, 'amount': float(amount)})
+        wb.close()
+        return data
+    except Exception as e:
+        print(f"[ACCOUNTS] 읽기 오류: {e}")
+        return []
+
+def _write_accounts_sheet(section_key, accounts):
+    """Excel '_계좌정보' 시트에 계좌 데이터 저장"""
+    full_path = os.path.join(ONEDRIVE_PATH, EXCEL_FILE)
+    if not os.path.isfile(full_path):
+        return False
+    try:
+        wb = openpyxl.load_workbook(full_path)
+        if '_계좌정보' not in wb.sheetnames:
+            ws = wb.create_sheet('_계좌정보')
+        else:
+            ws = wb['_계좌정보']
+
+        # 해당 섹션 찾기
+        section_start = None
+        section_end = None
+        for r in range(1, ws.max_row + 1):
+            cell_val = str(ws.cell(r, 1).value or '').strip()
+            if cell_val == section_key:
+                section_start = r
+            elif section_start is not None and (cell_val == '' or cell_val.startswith('#') or cell_val in ('현금계좌', '투자금계좌')):
+                section_end = r
+                break
+        if section_start is not None and section_end is None:
+            section_end = ws.max_row + 1
+
+        # 기존 섹션 데이터 삭제
+        if section_start is not None and section_end is not None:
+            for r in range(section_end - 1, section_start, -1):
+                ws.delete_rows(r)
+
+        # 새 데이터 쓰기
+        if section_start is None:
+            # 새 섹션 추가 (시트 끝에)
+            insert_row = ws.max_row + 1
+            if ws.max_row > 1 or ws.cell(1, 1).value is not None:
+                insert_row += 1  # 빈 줄 하나 띄우기
+            ws.cell(insert_row, 1, section_key)
+            for i, acc in enumerate(accounts):
+                ws.cell(insert_row + 1 + i, 1, acc.get('name', ''))
+                ws.cell(insert_row + 1 + i, 2, float(acc.get('amount', 0)))
+        else:
+            for i, acc in enumerate(accounts):
+                ws.cell(section_start + 1 + i, 1, acc.get('name', ''))
+                ws.cell(section_start + 1 + i, 2, float(acc.get('amount', 0)))
+
+        wb.save(full_path)
+        wb.close()
+        return True
+    except Exception as e:
+        print(f"[ACCOUNTS] 쓰기 오류: {e}")
+        return False
+
+
+@app.route('/api/cash-accounts', methods=['GET'])
+def get_cash_accounts():
+    """Excel '_계좌정보' 시트에서 현금 계좌 목록 읽기"""
+    try:
+        data = _read_accounts_sheet('현금계좌')
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cash-accounts', methods=['POST'])
+def save_cash_accounts():
+    """Excel '_계좌정보' 시트에 현금 계좌 목록 저장"""
+    try:
+        data = request.get_json()
+        if not isinstance(data, list):
+            return jsonify({'error': '배열 데이터가 필요합니다.'}), 400
+        success = _write_accounts_sheet('현금계좌', data)
+        if success:
+            trigger_export()
+            return jsonify({'success': True, 'count': len(data)})
+        return jsonify({'error': '저장 실패'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/invest-accounts', methods=['GET'])
+def get_invest_accounts():
+    """Excel '_계좌정보' 시트에서 투자금 계좌 목록 읽기"""
+    try:
+        data = _read_accounts_sheet('투자금계좌')
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/invest-accounts', methods=['POST'])
+def save_invest_accounts():
+    """Excel '_계좌정보' 시트에 투자금 계좌 목록 저장"""
+    try:
+        data = request.get_json()
+        if not isinstance(data, list):
+            return jsonify({'error': '배열 데이터가 필요합니다.'}), 400
+        success = _write_accounts_sheet('투자금계좌', data)
+        if success:
+            trigger_export()
+            return jsonify({'success': True, 'count': len(data)})
+        return jsonify({'error': '저장 실패'}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

@@ -21,58 +21,29 @@ let portfolioMapCache = {}; // { 종목명: 기본투자금(만원) }
 let investigationPriorityCache = new Set(); // 탐구생활 시트 기반 매매우선 종목 캐시
 
 // 현금 계좌 데이터: [{ name: '계좌명', amount: 금액(백만 단위) }, ...]
+// 엑셀이 유일한 데이터 소스 (Source of Truth) — localStorage 사용 안 함
 let cashAccounts = [];
-try {
-    const savedCash = localStorage.getItem('cashAccounts');
-    if (savedCash) cashAccounts = JSON.parse(savedCash);
-} catch (e) {
-    console.warn('현금 계좌 데이터 복원 실패:', e);
-    cashAccounts = [];
-}
 
 // 투자금 계좌 데이터: [{ name: '계좌명', amount: 금액(백만 단위) }, ...]
+// 엑셀이 유일한 데이터 소스 (Source of Truth) — localStorage 사용 안 함
 let investAccounts = [];
-try {
-    const savedInvest = localStorage.getItem('investAccounts');
-    if (savedInvest) investAccounts = JSON.parse(savedInvest);
-} catch (e) {
-    console.warn('투자금 계좌 데이터 복원 실패:', e);
-    investAccounts = [];
-}
 
 // 월별 현금 & 투자금 스냅샷 데이터: [{ month: 'YYYY-MM', investment: 백만, cash: 백만, totalAsset: 백만, ratio: % }, ...]
+// 엑셀이 유일한 데이터 소스 (Source of Truth) — localStorage 사용 안 함
 let monthlyCashSnapshots = [];
-try {
-    const savedSnapshots = localStorage.getItem('monthlyCashSnapshots');
-    if (savedSnapshots) monthlyCashSnapshots = JSON.parse(savedSnapshots);
-} catch (e) {
-    console.warn('월별 현금 스냅샷 복원 실패:', e);
-    monthlyCashSnapshots = [];
-}
 
-// 페이지 로드 후 서버(Excel)에서 최신 스냅샷을 가져와 localStorage와 동기화
-setTimeout(async () => {
-    try {
-        const pcIp = localStorage.getItem('pc_ip') || '192.168.0.2';
-        const res = await fetch(`http://${pcIp}:5000/api/cash-snapshots`);
-        if (res.ok) {
-            const serverData = await res.json();
-            if (Array.isArray(serverData) && serverData.length > 0) {
-                monthlyCashSnapshots = serverData;
-                localStorage.setItem('monthlyCashSnapshots', JSON.stringify(serverData));
-                console.log('📥 서버(Excel)에서 현금 스냅샷 동기화 완료:', serverData.length, '개월');
-            } else if (monthlyCashSnapshots.length > 0) {
-                // 서버에 데이터가 없으면 로컬 데이터를 서버로 전송
-                fetch(`http://${pcIp}:5000/api/cash-snapshots`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(monthlyCashSnapshots)
-                }).then(r => r.ok && console.log('📤 로컬 스냅샷 → 서버 전송 완료'))
-                  .catch(() => {});
+// ===== 구 localStorage 데이터 삭제 (1회성 정리) =====
+(function cleanupLegacyLocalStorage() {
+    const keysToRemove = ['cashAccounts', 'investAccounts', 'monthlyCashSnapshots'];
+    keysToRemove.forEach(key => {
+        try {
+            if (localStorage.getItem(key) !== null) {
+                localStorage.removeItem(key);
+                console.log(`[정리] localStorage '${key}' 삭제 완료 — 이제 엑셀을 사용합니다.`);
             }
-        }
-    } catch (e) {}
-}, 2000);
+        } catch (e) { /* 무시 */ }
+    });
+})();
 let cashTrendChart = null; // 월별 현금 비중 트렌드 Chart.js 인스턴스
 let investigationRowMap = [];
 let selectedInvestigationRowIndex = null;
@@ -300,6 +271,8 @@ async function init() {
             badge.className = 'connection-badge connected';
             badge.querySelector('.status-text').textContent = 'OneDrive 연결됨';
             await loadExcel(TARGET_FILE);
+            // 엑셀에서 현금 관련 데이터 로드 (localStorage 대신 엑셀이 Source of Truth)
+            fetchAllCashDataFromExcel();
         } else {
             badge.className = 'connection-badge disconnected';
             badge.querySelector('.status-text').textContent = '연결 안됨';
@@ -375,6 +348,8 @@ function startReconnectPolling() {
                 const overlay = document.getElementById('loading-overlay');
                 overlay.classList.remove('hidden');
                 await loadExcel(TARGET_FILE);
+                // 엑셀에서 현금 관련 데이터 로드 (localStorage 대신 엑셀이 Source of Truth)
+                fetchAllCashDataFromExcel();
             } else {
                 badge.className = 'connection-badge disconnected';
                 badge.querySelector('.status-text').textContent = '연결 안됨';
@@ -472,8 +447,8 @@ async function loadExcel(filePath, sheetName = null) {
 
 function renderSheetTabs(sheets, activeSheet) {
     const container = document.getElementById('sheet-tabs');
-    // '탑쌓기', '카드놀이', '현금비중' 시트 제외 (현금비중은 포트폴리오 탭 내 현금 패널과 연동)
-    const filteredSheets = sheets.filter(name => name !== '탑쌓기' && name !== '카드놀이' && name !== '현금비중');
+    // '탑쌓기', '카드놀이', '현금비중', '_계좌정보' 시트 제외 (현금비중은 포트폴리오 탭 내 현금 패널과 연동, _계좌정보는 시스템용)
+    const filteredSheets = sheets.filter(name => name !== '탑쌓기' && name !== '카드놀이' && name !== '현금비중' && name !== '_계좌정보');
 
     let html = filteredSheets.map(name => `
         <button class="sheet-tab ${name === activeSheet ? 'active' : ''}" 
@@ -2713,12 +2688,14 @@ async function fetchPortfolioMapData() {
 /**
  * 현금 패널 열기/닫기 토글
  */
-function toggleCashPanel() {
+async function toggleCashPanel() {
     const body = document.getElementById('cash-panel-body');
     const chevron = document.getElementById('cash-panel-chevron');
     if (body.style.display === 'none') {
         body.style.display = 'block';
         chevron.textContent = '▲ 접기';
+        // 엑셀에서 최신 현금 데이터를 먼저 가져온 후 렌더링
+        await fetchAllCashDataFromExcel();
         renderCashAccounts();
         updateCashTrendChart();
         renderSnapshotTable();
@@ -2768,7 +2745,7 @@ function renderCashAccounts() {
  */
 function addCashAccount() {
     cashAccounts.push({ name: '', amount: 0 });
-    saveCashAccounts();
+    saveCashAccountsToExcel();
     renderCashAccounts();
 }
 
@@ -2782,7 +2759,7 @@ function updateCashAccount(index, field, value) {
     } else {
         cashAccounts[index][field] = value;
     }
-    saveCashAccounts();
+    saveCashAccountsToExcel();
     updateCashSummary();
 }
 
@@ -2792,19 +2769,31 @@ function updateCashAccount(index, field, value) {
 function removeCashAccount(index) {
     if (index < 0 || index >= cashAccounts.length) return;
     cashAccounts.splice(index, 1);
-    saveCashAccounts();
+    saveCashAccountsToExcel();
     renderCashAccounts();
     updateCashSummary();
 }
 
 /**
- * localStorage에 현금 데이터 저장
+ * 현금 계좌 데이터를 엑셀(서버)에 저장
  */
-function saveCashAccounts() {
+async function saveCashAccountsToExcel() {
+    if (IS_GITHUB_PAGES) return; // GitHub Pages에서는 서버 연동 불가
     try {
-        localStorage.setItem('cashAccounts', JSON.stringify(cashAccounts));
+        const pcIp = localStorage.getItem('pc_ip') || window.location.hostname || '192.168.0.2';
+        const res = await fetch(`http://${pcIp}:5000/api/cash-accounts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(cashAccounts)
+        });
+        const data = await res.json();
+        if (data.success) {
+            console.log('📤 현금 계좌 → 엑셀 저장 완료');
+        } else {
+            console.warn('⚠️ 현금 계좌 엑셀 저장 실패:', data.error);
+        }
     } catch (e) {
-        console.warn('현금 계좌 저장 실패:', e);
+        console.warn('⚠️ 현금 계좌 엑셀 저장 실패 (서버 연결 안 됨):', e.message);
     }
 }
 
@@ -2862,7 +2851,7 @@ function renderInvestAccounts() {
  */
 function addInvestAccount() {
     investAccounts.push({ name: '', amount: 0 });
-    saveInvestAccounts();
+    saveInvestAccountsToExcel();
     renderInvestAccounts();
 }
 
@@ -2876,7 +2865,7 @@ function updateInvestAccount(index, field, value) {
     } else {
         investAccounts[index][field] = value;
     }
-    saveInvestAccounts();
+    saveInvestAccountsToExcel();
     updateInvestSummaryDisplay();
     updateCashSummary();
 }
@@ -2887,19 +2876,31 @@ function updateInvestAccount(index, field, value) {
 function removeInvestAccount(index) {
     if (index < 0 || index >= investAccounts.length) return;
     investAccounts.splice(index, 1);
-    saveInvestAccounts();
+    saveInvestAccountsToExcel();
     renderInvestAccounts();
     updateCashSummary();
 }
 
 /**
- * localStorage에 투자금 데이터 저장
+ * 투자금 계좌 데이터를 엑셀(서버)에 저장
  */
-function saveInvestAccounts() {
+async function saveInvestAccountsToExcel() {
+    if (IS_GITHUB_PAGES) return; // GitHub Pages에서는 서버 연동 불가
     try {
-        localStorage.setItem('investAccounts', JSON.stringify(investAccounts));
+        const pcIp = localStorage.getItem('pc_ip') || window.location.hostname || '192.168.0.2';
+        const res = await fetch(`http://${pcIp}:5000/api/invest-accounts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(investAccounts)
+        });
+        const data = await res.json();
+        if (data.success) {
+            console.log('📤 투자금 계좌 → 엑셀 저장 완료');
+        } else {
+            console.warn('⚠️ 투자금 계좌 엑셀 저장 실패:', data.error);
+        }
     } catch (e) {
-        console.warn('투자금 계좌 저장 실패:', e);
+        console.warn('⚠️ 투자금 계좌 엑셀 저장 실패 (서버 연결 안 됨):', e.message);
     }
 }
 
@@ -2987,7 +2988,7 @@ function saveCurrentMonthSnapshot() {
     // 월 오름차순 정렬
     monthlyCashSnapshots.sort((a, b) => a.month.localeCompare(b.month));
 
-    saveSnapshotsToStorage();
+    saveSnapshotsToExcel();
     updateCashTrendChart();
     renderSnapshotTable();
 
@@ -2995,22 +2996,120 @@ function saveCurrentMonthSnapshot() {
 }
 
 /**
- * 월별 스냅샷 localStorage 저장
+ * 월별 스냅샷을 엑셀(서버)에 직접 저장 (localStorage 사용 안 함)
  */
-function saveSnapshotsToStorage() {
+async function saveSnapshotsToExcel() {
+    if (IS_GITHUB_PAGES) return; // GitHub Pages에서는 서버 연동 불가
+    if (monthlyCashSnapshots.length === 0) return;
+    
+    const pcIp = localStorage.getItem('pc_ip') || window.location.hostname || '192.168.0.2';
     try {
-        localStorage.setItem('monthlyCashSnapshots', JSON.stringify(monthlyCashSnapshots));
-        
-        // Flask 서버에도 저장 (모바일과 데이터 공유)
-        const pcIp = localStorage.getItem('pc_ip') || '192.168.0.2';
-        fetch(`http://${pcIp}:5000/api/cash-snapshots`, {
+        const res = await fetch(`http://${pcIp}:5000/api/cash-snapshots`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(monthlyCashSnapshots)
-        }).catch(() => {}); // 실패해도 무시 (오프라인 등)
+        });
+        const data = await res.json();
+        if (data.success) {
+            console.log('📤 현금 스냅샷 → 엑셀 저장 완료:', monthlyCashSnapshots.length, '개월');
+            showToast(`✅ 엑셀 저장 완료! (${monthlyCashSnapshots.length}개월 데이터)`, 'success');
+        } else {
+            console.warn('⚠️ 엑셀 저장 실패:', data.error);
+            showToast(`⚠️ 엑셀 저장 실패: ${data.error || '알 수 없는 오류'}`, 'error');
+        }
     } catch (e) {
-        console.warn('월별 현금 스냅샷 저장 실패:', e);
+        console.warn('⚠️ 엑셀 저장 실패 (서버 연결 안 됨):', e.message);
+        showToast('⚠️ 서버 연결 실패 - Flask 서버가 실행 중인지 확인하세요 (port 5000)', 'error');
     }
+}
+
+/**
+ * 서버(Excel)에서 현금 스냅샷 데이터 가져오기
+ */
+async function fetchCashSnapshotsFromExcel() {
+    if (IS_GITHUB_PAGES) {
+        // GitHub Pages: cash_snapshots.json 파일에서 읽기
+        try {
+            const ts = new Date().getTime();
+            const res = await fetch(`${API}/cash_snapshots.json?t=${ts}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                    monthlyCashSnapshots = data;
+                    monthlyCashSnapshots.sort((a, b) => a.month.localeCompare(b.month));
+                    console.log('📥 GitHub Pages → 현금 스냅샷 로드 완료:', monthlyCashSnapshots.length, '개월');
+                }
+            }
+        } catch (e) {
+            console.warn('GitHub Pages 현금 스냅샷 로드 실패:', e.message);
+        }
+        return;
+    }
+    // 로컬 서버: Excel '현금비중' 시트에서 읽기
+    try {
+        const pcIp = localStorage.getItem('pc_ip') || window.location.hostname || '192.168.0.2';
+        const res = await fetch(`http://${pcIp}:5000/api/cash-snapshots`);
+        const data = await res.json();
+        if (Array.isArray(data)) {
+            monthlyCashSnapshots = data;
+            monthlyCashSnapshots.sort((a, b) => a.month.localeCompare(b.month));
+            console.log('📥 엑셀 → 현금 스냅샷 로드 완료:', monthlyCashSnapshots.length, '개월');
+        }
+    } catch (e) {
+        console.warn('⚠️ 엑셀 현금 스냅샷 로드 실패 (서버 연결 안 됨):', e.message);
+    }
+}
+
+/**
+ * 서버(Excel)에서 현금 계좌 데이터 가져오기
+ */
+async function fetchCashAccountsFromExcel() {
+    if (IS_GITHUB_PAGES) return;
+    try {
+        const pcIp = localStorage.getItem('pc_ip') || window.location.hostname || '192.168.0.2';
+        const res = await fetch(`http://${pcIp}:5000/api/cash-accounts`);
+        const data = await res.json();
+        if (Array.isArray(data)) {
+            cashAccounts = data;
+            console.log('📥 엑셀 → 현금 계좌 로드 완료:', cashAccounts.length, '개');
+        }
+    } catch (e) {
+        console.warn('⚠️ 엑셀 현금 계좌 로드 실패:', e.message);
+    }
+}
+
+/**
+ * 서버(Excel)에서 투자금 계좌 데이터 가져오기
+ */
+async function fetchInvestAccountsFromExcel() {
+    if (IS_GITHUB_PAGES) return;
+    try {
+        const pcIp = localStorage.getItem('pc_ip') || window.location.hostname || '192.168.0.2';
+        const res = await fetch(`http://${pcIp}:5000/api/invest-accounts`);
+        const data = await res.json();
+        if (Array.isArray(data)) {
+            investAccounts = data;
+            console.log('📥 엑셀 → 투자금 계좌 로드 완료:', investAccounts.length, '개');
+        }
+    } catch (e) {
+        console.warn('⚠️ 엑셀 투자금 계좌 로드 실패:', e.message);
+    }
+}
+
+/**
+ * 엑셀에서 모든 현금 관련 데이터를 한 번에 가져오기
+ * (localStorage 대신 엑셀이 유일한 Source of Truth)
+ */
+async function fetchAllCashDataFromExcel() {
+    await Promise.all([
+        fetchCashSnapshotsFromExcel(),
+        fetchCashAccountsFromExcel(),
+        fetchInvestAccountsFromExcel()
+    ]);
+    // 데이터 로드 후 UI 업데이트
+    updateCashSummary();
+    renderCashAccounts();
+    renderInvestAccounts();
 }
 
 /**
@@ -3293,7 +3392,7 @@ function addManualSnapshot() {
     }
 
     monthlyCashSnapshots.sort((a, b) => a.month.localeCompare(b.month));
-    saveSnapshotsToStorage();
+    saveSnapshotsToExcel();
     updateCashTrendChart();
     renderSnapshotTable();
 
@@ -3307,7 +3406,7 @@ function addManualSnapshot() {
 function deleteSnapshot(monthKey) {
     if (!confirm(`[${monthKey}] 월별 스냅샷 기록을 삭제하시겠습니까?`)) return;
     monthlyCashSnapshots = monthlyCashSnapshots.filter(item => item.month !== monthKey);
-    saveSnapshotsToStorage();
+    saveSnapshotsToExcel();
     updateCashTrendChart();
     renderSnapshotTable();
 }
@@ -3347,7 +3446,7 @@ function importSnapshotsJSON(event) {
             if (Array.isArray(imported)) {
                 monthlyCashSnapshots = imported;
                 monthlyCashSnapshots.sort((a, b) => a.month.localeCompare(b.month));
-                saveSnapshotsToStorage();
+                saveSnapshotsToExcel();
                 updateCashTrendChart();
                 renderSnapshotTable();
                 alert(`${imported.length}개의 스냅샷을 성공적으로 불러왔습니다.`);
