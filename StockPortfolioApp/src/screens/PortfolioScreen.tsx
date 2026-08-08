@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -27,28 +27,12 @@ const COLOR_EXCLUDING_BORDER = '#475569';
 const COLOR_AVG_LINE = '#EF4444';                       // 빨간색: 평균선
 
 export default function PortfolioScreen() {
-  const { portfolioMap, isLoading } = useDataStore();
+  const { portfolioMap, cashSnapshots, isLoading } = useDataStore();
   const [currentPage, setCurrentPage] = useState(0);
   const [showFullChart, setShowFullChart] = useState(false);
   const navigation = useNavigation<BottomTabNavigationProp<any>>();
-  const [snapshots, setSnapshots] = useState<{ month: string; investment: number; cash: number; totalAsset: number; ratio: number }[]>([]);
 
-  // 배포된 JSON 파일에서 현금 스냅샷 로드 (PC 서버가 저장한 데이터)
-  useEffect(() => {
-    const loadSnapshots = async () => {
-      try {
-        const res = await fetch('data/cash_snapshots.json');
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            data.sort((a: any, b: any) => a.month.localeCompare(b.month));
-            setSnapshots(data);
-          }
-        }
-      } catch (e) {}
-    };
-    loadSnapshots();
-  }, []);
+  // 스토어의 cashSnapshots를 그대로 사용 (이미 정렬되어 있으며 캐시/서버 동기화 완료된 데이터)
 
   // PC 버전과 동일한 데이터 파싱 로직
   const { sectorData, stockItems, totalInvestment, avgValue, stockCount } = useMemo(() => {
@@ -137,16 +121,16 @@ export default function PortfolioScreen() {
     };
   }, [portfolioMap]);
 
-  // 스냅샷이 없으면 현재 투자금 기준 기본값 생성
+  // 스토어의 cashSnapshots 사용 (없으면 현재 투자금 기준 기본값)
   const activeSnapshots = useMemo(() => {
-    if (snapshots.length > 0) return snapshots;
+    if (cashSnapshots && cashSnapshots.length > 0) return cashSnapshots;
     if (totalInvestment > 0) {
       const now = new Date();
       const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       return [{ month: monthStr, investment: totalInvestment, cash: 0, totalAsset: totalInvestment, ratio: 0 }];
     }
     return [];
-  }, [snapshots, totalInvestment]);
+  }, [cashSnapshots, totalInvestment]);
 
   // useCallback으로 안정화하여 ScrollView 불필요한 리렌더 방지
   const onScroll = useCallback((event: any) => {

@@ -248,6 +248,19 @@ export const useDataStore = create<AppState>((set, get) => ({
     });
 
     const extraSyncPromises = [
+      // cashSnapshots 동기화 (일반 배열 형식)
+      (async () => {
+        try {
+          const result = await fetchJSON('cashSnapshots' as any);
+          if (Array.isArray(result) && result.length > 0) {
+            result.sort((a: any, b: any) => a.month.localeCompare(b.month));
+            set({ cashSnapshots: result });
+            anyServerLoaded = true;
+          }
+        } catch (e) {
+          console.warn('[useDataStore] cashSnapshots 서버 동기화 실패:', e);
+        }
+      })(),
       (async () => {
         try {
           const result = await fetchJSON('targetPrices');
@@ -309,6 +322,7 @@ export const useDataStore = create<AppState>((set, get) => ({
       portfolioMap: null,
       investigation: null,
       performance: null,
+      cashSnapshots: null,
       meta: null,
       lastSyncTime: null,
       hasCachedData: false,
