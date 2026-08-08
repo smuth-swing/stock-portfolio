@@ -25,20 +25,57 @@ const getTargetPrice = (item: any) => {
   return /^[0-9]+$/.test(normalized) ? Number(normalized) : normalized;
 };
 
-/** 종목에 신호가 발생했는지 확인 (목표일 경과 또는 목표가 존재) */
-const hasSignalTriggered = (item: any, fallbackTargetDate?: string, fallbackTargetPrice?: any): boolean => {
+/**
+ * 종목 신호 상태 계산 (PC 버전 computeSignalStatus와 동일한 로직)
+ * - 목표일 신호: 오늘 >= 목표일 (YYYY-MM-DD)
+ * - 목표가 신호: 모바일은 실시간 현재가 조회 불가 → 신호 데이터 파일에서 읽음
+ *   (PC에서 export_signals.py 가 생성하는 investigation_signals.json 사용)
+ * 반환: { hasSignal, signalType: 'date'|'price'|'both'|null, targetDate, targetPrice }
+ */
+const computeSignalStatusMobile = (item: any, signalData?: Record<string, any>): { hasSignal: boolean; signalType: string | null; targetDate: string; targetPrice: any } => {
   const todayStr = new Date().toISOString().split('T')[0];
-  const td = String(getTargetDate(item) || fallbackTargetDate || '');
-  const tp = getTargetPrice(item) || fallbackTargetPrice;
+  const td = String(getTargetDate(item) || '');
+  const tp = getTargetPrice(item);
   
-  // 목표일 신호
+  let dateSignal = false;
+  let priceSignal = false;
+
+  // 목표일 신호: YYYY-MM-DD 형식 추출 후 오늘과 비교 (PC와 동일)
   const dateMatch = td.match(/(\d{4}-\d{2}-\d{2})/);
-  if (dateMatch && dateMatch[1] <= todayStr) return true;
-  
-  // 목표가 존재하면 신호 대상으로 간주 (모바일은 현재가 조회 불가)
-  if (tp !== '' && tp !== 0 && tp !== null && tp !== undefined) return true;
-  
-  return false;
+  if (dateMatch && dateMatch[1] <= todayStr) {
+    dateSignal = true;
+  }
+
+  // 목표가 신호: signalData(PC에서 export한 크로스 상태) 확인
+  if (signalData && tp) {
+    const stockName = getStockName(item);
+    const sig = signalData[stockName];
+    if (sig && sig.hasPriceSignal) {
+      priceSignal = true;
+    }
+  }
+
+  if (dateSignal && priceSignal) return { hasSignal: true, signalType: 'both', targetDate: td, targetPrice: tp };
+  if (dateSignal) return { hasSignal: true, signalType: 'date', targetDate: td, targetPrice: tp };
+  if (priceSignal) return { hasSignal: true, signalType: 'price', targetDate: td, targetPrice: tp };
+  return { hasSignal: false, signalType: null, targetDate: td, targetPrice: tp };
+};
+
+/**
+ * PC에서 export한 신호 데이터 로드 (investigation_signals.json)
+ * PC의 _priceCrossTracker 기반으로 어떤 종목이 목표가를 크로스했는지 기록됨
+ */
+let cachedSignalData: Record<string, any> | null = null;
+const loadSignalData = async (): Promise<Record<string, any>> => {
+  if (cachedSignalData) return cachedSignalData;
+  try {
+    const res = await fetch('data/investigation_signals.json');
+    if (res.ok) {
+      cachedSignalData = await res.json();
+      return cachedSignalData || {};
+    }
+  } catch (e) {}
+  return {};
 };
 
 // ─────────────────────────────────────────────
@@ -74,6 +111,7 @@ export default function InvestigationScreen() {
   const [editForm, setEditForm] = useState<any>({});
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [signalData, setSignalData] = useState<Record<string, any>>({});  // PC에서 export한 신호 상태
   const [inputHeights, setInputHeights] = useState<Record<string, number>>({
     question: 80,
     reason: 80,
@@ -193,6 +231,11 @@ export default function InvestigationScreen() {
     }
   }, []);
 
+  // PC에서 export한 신호 데이터 로드 (목표가 크로스 상태)
+  useEffect(() => {
+    loadSignalData().then(data => setSignalData(data));
+  }, [investigation]); // investigation이 로드될 때마다 신호 데이터 갱신
+
   const toggleExpand = useCallback((id: string) => {
     // 웹 환경에서는 LayoutAnimation 미지원 → 네이티브만 사용
     if (Platform.OS !== 'web') {
@@ -247,8 +290,8 @@ export default function InvestigationScreen() {
     if (item._realIndex === editingIndex) return true; // 수정 중인 종목은 무조건 포함
     // 모멘텀과 매매 전략 둘 다 내용이 없는 경우 매매우선 필터에서 제외
     if (filter === 'priority' && !getMomentum(item) && !getStrategy(item)) return false;
-    // 신호 필터: 목표일 경과 또는 목표가 존재하는 종목만
-    if (filter === 'signal' && !hasSignalTriggered(item, getEffectiveTargetDate(item), getEffectiveTargetPrice(item))) return false;
+    // 신호 필터: 목표일 경과 또는 목표가 크로스된 종목만 (PC와 동일 로직)
+    if (filter === 'signal' && !computeSignalStatusMobile(item, signalData).hasSignal) return false;
     if (searchQuery.trim() !== '') {
       const stockName = getStockName(item);
       if (!stockName.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
@@ -539,15 +582,17 @@ export default function InvestigationScreen() {
                         <Text style={styles.badgeText}>매매우선</Text>
                       </View>
                     ) : null}
-                    {/* ── 신호 뱃지 (목표일 경과) ── */}
+                    {/* ── 신호 뱃지 (PC와 동일 로직) ── */}
                     {(() => {
-                      const td = getTargetDate(item) || targetDates?.[getStockName(item)];
-                      const tp = getTargetPrice(item) || targetPrices?.[getStockName(item)];
-                      const dateMatch = String(td).match(/(\d{4}-\d{2}-\d{2})/);
-                      if ((dateMatch && dateMatch[1] <= new Date().toISOString().split('T')[0]) || (tp !== '' && tp !== 0 && tp !== null && tp !== undefined)) {
+                      const signal = computeSignalStatusMobile(item, signalData);
+                      if (signal.hasSignal) {
+                        let label = '🔔';
+                        if (signal.signalType === 'date') label = '📅';
+                        else if (signal.signalType === 'price') label = '💰';
+                        else if (signal.signalType === 'both') label = '🔔';
                         return (
                           <View style={styles.signalBadge}>
-                            <Text style={styles.signalBadgeText}>🔔</Text>
+                            <Text style={styles.signalBadgeText}>{label}</Text>
                           </View>
                         );
                       }
