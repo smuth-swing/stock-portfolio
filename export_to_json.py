@@ -57,6 +57,60 @@ EXPORT_SHEETS = {
     '현금비중':     'cash_snapshots.json',
 }
 
+# 추가 내보내기: 신호 데이터 (PC에서 계산한 목표가 크로스 상태)
+# 모바일 앱이 PC와 동일한 신호를 표시하기 위해 사용
+def export_investigation_signals(file_data, sheet_names):
+    """탐구생활 시트의 목표일/목표가 기반 신호 데이터 생성"""
+    import re
+    from datetime import date
+    
+    if '탐구생활' not in sheet_names:
+        return {}
+    
+    today_str = date.today().isoformat()
+    signals = {}
+    
+    try:
+        df = pd.read_excel(io.BytesIO(file_data), sheet_name='탐구생활', engine='openpyxl')
+        df = df.fillna('')
+        
+        cols = [str(c) for c in df.columns.tolist()]
+        name_col = next((c for c in cols if '종목명' in c or c == 'Unnamed: 1'), None)
+        td_col = next((c for c in cols if '목표일' in c or c == 'Unnamed: 8'), None)
+        tp_col = next((c for c in cols if '목표가' in c or c == 'Unnamed: 9' or c == 'Unnamed: 10'), None)
+        
+        if not name_col:
+            return {}
+        
+        for _, row in df.iterrows():
+            stock_name = str(row.get(name_col, '')).replace('~~', '').strip()
+            if not stock_name or stock_name in ('종목', 'stock'):
+                continue
+            
+            target_date = str(row.get(td_col, '')).strip() if td_col else ''
+            target_price_raw = str(row.get(tp_col, '')).strip() if tp_col else ''
+            target_price = int(re.sub(r'[^0-9]', '', target_price_raw)) if target_price_raw else 0
+            
+            has_date_signal = False
+            date_match = re.search(r'(\d{4}-\d{2}-\d{2})', target_date)
+            if date_match and date_match.group(1) <= today_str:
+                has_date_signal = True
+            
+            # 목표가 신호: 모바일은 실시간 가격 조회 불가 → PC에서 _priceCrossTracker 기반 판단
+            # 여기서는 일단 목표가 존재 여부만 기록 (실제 크로스 여부는 PC 웹앱에서만 판단 가능)
+            has_price_signal = False  # 모바일 단독으로는 판단 불가 → PC 연동 필요
+            
+            signals[stock_name] = {
+                'hasDateSignal': has_date_signal,
+                'hasPriceSignal': has_price_signal,
+                'targetDate': target_date,
+                'targetPrice': target_price,
+            }
+    except Exception as e:
+        print(f'  [경고] 신호 데이터 생성 실패: {e}')
+    
+    return signals
+
 # ==================== 취소선 텍스트 추출 (server.py와 동일) ====================
 def extract_rich_text(cell):
     """엑셀 셀의 취소선 서식을 ~~텍스트~~ 마크다운으로 변환"""
@@ -235,6 +289,23 @@ def export_all():
             size_kb = output_path.stat().st_size / 1024
             print(f'완료! ({row_count}행, {size_kb:.1f} KB) -> {filename}')
             success_count += 1
+        except Exception as e:
+            print(f'실패!')
+            print(f'     오류: {e}')
+
+    # 4.5. 탐구생활 신호 데이터 내보내기 (모바일용)
+    if '탐구생활' in sheet_names:
+        try:
+            print(f'  신호 데이터 생성 중...', end=' ')
+            sig_data = export_investigation_signals(file_data, sheet_names)
+            sig_path = APP_DATA_DIR / 'investigation_signals.json'
+            with open(sig_path, 'w', encoding='utf-8') as f:
+                json.dump(sig_data, f, ensure_ascii=False, separators=(',', ':'), default=str)
+            # OneDrive에도 복사
+            sig_out = OUTPUT_DIR / 'investigation_signals.json'
+            with open(sig_out, 'w', encoding='utf-8') as f:
+                json.dump(sig_data, f, ensure_ascii=False, separators=(',', ':'), default=str)
+            print(f'완료! ({len(sig_data)}종목) -> investigation_signals.json')
         except Exception as e:
             print(f'실패!')
             print(f'     오류: {e}')
