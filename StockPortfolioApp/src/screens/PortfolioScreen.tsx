@@ -296,98 +296,7 @@ export default function PortfolioScreen() {
     );
   };
 
-  // ─── 3번째 페이지: 월별 현금 비중 & 현금액 가로 트렌드 차트 ───
-  const renderCashTrendChart = () => {
-    const list = activeSnapshots;
-    if (list.length === 0) {
-      return (
-        <View style={[styles.chartPage, { paddingHorizontal: 24, flex: 1, justifyContent: 'center' }]}>
-          <Text style={styles.cardTitle}>월별 현금 비중 트렌드</Text>
-          <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 20 }}>
-            저장된 월별 현금 스냅샷이 없습니다.
-          </Text>
-        </View>
-      );
-    }
 
-    const maxCashVal = Math.max(...list.map(s => s.cash), 10);
-    const BAR_HEIGHT = 26;
-    const BAR_GAP = 12;
-    const LABEL_W = 65;       // 월 이름 너비 (YYYY-MM)
-    const PCT_W = 52;         // 현금 비중 % 배지 너비
-    const VALUE_W = 42;       // 현금액 표시 너비
-    const BAR_AREA = CHART_PAGE_WIDTH - LABEL_W - PCT_W - VALUE_W - 32;
-
-    return (
-      <View style={[styles.chartPage, { paddingHorizontal: 0, flex: 1 }]}>
-        <Text style={[styles.cardTitle, { paddingHorizontal: 24, marginBottom: 16 }]}>월별 현금 비중 트렌드</Text>
-        
-        {/* 범례 */}
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginBottom: 14 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#22C55E' }} />
-            <Text style={{ color: '#22C55E', fontSize: 11, fontWeight: 'bold' }}>현금 비중(%)</Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#D4AF37' }} />
-            <Text style={{ color: '#D4AF37', fontSize: 11, fontWeight: 'bold' }}>보유 현금액(M)</Text>
-          </View>
-        </View>
-
-        <View style={{ flex: 1 }}>
-          <ScrollView nestedScrollEnabled showsVerticalScrollIndicator contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 40 }}>
-            {list.map((item, idx) => {
-              const barWidth = Math.min((item.cash / maxCashVal) * BAR_AREA, BAR_AREA);
-              return (
-                <View key={`cash-snap-${idx}`} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: BAR_GAP, height: BAR_HEIGHT }}>
-                  {/* 월 (YYYY-MM) */}
-                  <Text style={{ width: LABEL_W, color: '#E2E8F0', fontSize: 11, fontWeight: 'bold', textAlign: 'center' }}>
-                    {item.month}
-                  </Text>
-
-                  {/* 현금 비중 % 배지 */}
-                  <View style={{
-                    width: PCT_W,
-                    backgroundColor: 'rgba(34, 197, 94, 0.15)',
-                    borderColor: 'rgba(34, 197, 94, 0.6)',
-                    borderWidth: 1,
-                    borderRadius: 6,
-                    paddingVertical: 3,
-                    alignItems: 'center',
-                    marginRight: 6
-                  }}>
-                    <Text style={{ color: '#22C55E', fontSize: 10, fontWeight: '800' }}>
-                      {item.ratio}%
-                    </Text>
-                  </View>
-
-                  {/* 가로 현금액 막대 영역 */}
-                  <View style={{ width: BAR_AREA, height: BAR_HEIGHT, position: 'relative' }}>
-                    <View style={{
-                      position: 'absolute', left: 0, top: 0, width: BAR_AREA, height: BAR_HEIGHT,
-                      backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 6
-                    }} />
-                    <View style={{
-                      position: 'absolute', left: 0, top: 0, width: Math.max(barWidth, 6), height: BAR_HEIGHT,
-                      backgroundColor: 'rgba(212, 175, 55, 0.75)',
-                      borderColor: '#D4AF37',
-                      borderWidth: 1,
-                      borderRadius: 6
-                    }} />
-                  </View>
-
-                  {/* 현금액 (백만 단위) */}
-                  <Text style={{ width: VALUE_W, color: '#D4AF37', fontSize: 11, fontWeight: 'bold', textAlign: 'right' }}>
-                    {item.cash}M
-                  </Text>
-                </View>
-              );
-            })}
-          </ScrollView>
-        </View>
-      </View>
-    );
-  };
 
   // ─── 종목별 투자 현황 페이지 ───
   const renderStockBarChart = () => {
@@ -462,16 +371,14 @@ export default function PortfolioScreen() {
               style={styles.pager}
               contentContainerStyle={{ flexGrow: 1 }}
             >
-              {renderPieChart()}
+                {renderPieChart()}
               {renderStockBarChart()}
-              {renderCashTrendChart()}
             </ScrollView>
             
-            {/* 페이지 인디케이터 점(Dots) 3개 */}
+            {/* 페이지 인디케이터 점(Dots) 2개 */}
             <View style={styles.indicatorContainer}>
               <View style={[styles.indicatorDot, currentPage === 0 && styles.indicatorDotActive]} />
               <View style={[styles.indicatorDot, currentPage === 1 && styles.indicatorDotActive]} />
-              <View style={[styles.indicatorDot, currentPage === 2 && styles.indicatorDotActive]} />
             </View>
           </View>
         ) : (
