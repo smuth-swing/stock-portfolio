@@ -1641,6 +1641,13 @@ function renderInvestigationPanel(data) {
     // 좌측 카드 목록 렌더링
     renderInvestigationCards(data.data, data.columns);
 
+    // ── 빈 행 자동 정리 (백그라운드) ──
+    cleanupEmptyInvestigationRows().then(() => {
+        if (investigationCurrentRows && investigationCurrentRows.length !== currentData.data.length) {
+            renderInvestigationCards(currentData.data, currentData.columns);
+        }
+    });
+
     // 첫 번째 항목 선택 (편집 폼은 렌더링하되, 모바일에서는 목록 화면 유지)
     if (data.data.length > 0) {
         if (selectedInvestigationRowIndex === null || selectedInvestigationRowIndex >= data.data.length) {
@@ -1901,11 +1908,108 @@ function renderInvestigationEditForm(rowIndex) {
                     card.querySelector('.investigation-card-title').innerHTML = ed.innerHTML;
                     card.classList.toggle('cancelled', newValue.includes('~~'));
                 }
+
+                // ★ 종목명이 비어있고 다른 필드도 모두 비어있으면 행 삭제
+                if (newValue.trim() === '' && isRowEmpty(currentData.data[rIdx], currentData.columns)) {
+                    deleteInvestigationRow(rIdx);
+                    return;
+                }
             }
 
             saveInvestigationRow(rIdx, currentData.data[rIdx]);
         });
     });
+}
+
+/**
+ * 행이 실질적으로 비어있는지 확인 (번호 컬럼만 있고 나머지 모두 빈 값)
+ */
+function isRowEmpty(row, cols) {
+    const nameCol = findStockColumnName(cols);
+    for (const col of cols) {
+        if (col === cols[0]) continue; // 번호 컬럼은 무시
+        const val = String(row[col] || '').trim();
+        if (val !== '') return false;
+    }
+    return true;
+}
+
+/**
+ * 빈 행 삭제: 서버에 삭제 요청 + 로컬 데이터에서 제거 + UI 갱신
+ */
+async function deleteInvestigationRow(rowIndex) {
+    if (!currentData) return;
+    const row = currentData.data[rowIndex];
+    if (!row) return;
+
+    // 서버에 삭제 요청 (값을 모두 빈 문자열로 덮어쓰기)
+    try {
+        const sheetName = currentData.current_sheet;
+        const filePath = currentData._filePath;
+        const emptyValues = currentData.columns.map(() => '');
+        await fetch(`${API}/update-row`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ file: filePath, sheet: sheetName, rowIndex, values: emptyValues })
+        });
+    } catch (e) {
+        console.warn('빈 행 삭제 요청 실패:', e);
+    }
+
+    // 로컬 데이터에서 제거
+    currentData.data.splice(rowIndex, 1);
+
+    // UI 갱신
+    renderInvestigationCards(currentData.data, currentData.columns);
+    if (currentData.data.length > 0) {
+        setSelectedInvestigationRow(0);
+    } else {
+        document.getElementById('investigation-edit-form').innerHTML = `
+            <div class="inv-edit-placeholder">
+                <p>좌측에서 종목을 선택하세요</p>
+            </div>
+        `;
+        document.getElementById('inv-edit-title').textContent = '—';
+    }
+    showToast('빈 종목이 삭제되었습니다.', 'info');
+}
+
+/**
+ * 탐구생활 패널 로드 시 기존 빈 행 일괄 정리
+ */
+async function cleanupEmptyInvestigationRows() {
+    if (!currentData || !isExplorationSheet(currentData.current_sheet)) return;
+    
+    const cols = currentData.columns;
+    const toDelete = [];
+    
+    currentData.data.forEach((row, idx) => {
+        if (isRowEmpty(row, cols)) {
+            toDelete.push(idx);
+        }
+    });
+
+    if (toDelete.length === 0) return;
+
+    // 역순으로 삭제 (인덱스 변화 방지)
+    for (let i = toDelete.length - 1; i >= 0; i--) {
+        const idx = toDelete[i];
+        const row = currentData.data[idx];
+        // 서버에 빈 값으로 덮어쓰기
+        try {
+            const sheetName = currentData.current_sheet;
+            const filePath = currentData._filePath;
+            const emptyValues = currentData.columns.map(() => '');
+            await fetch(`${API}/update-row`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ file: filePath, sheet: sheetName, rowIndex: idx, values: emptyValues })
+            });
+        } catch (e) { /* 무시 */ }
+        currentData.data.splice(idx, 1);
+    }
+
+    console.log(`[정리] 빈 행 ${toDelete.length}개 삭제 완료`);
 }
 
 /** HTML 특수문자 이스케이프 (textarea innerHTML 삽입 방지) */
@@ -2202,6 +2306,37 @@ function filterSignalStocks() {
     if (!currentData || !isExplorationSheet(currentData.current_sheet)) return;
 
     const cols = currentData.columns;
+    
+    // 목표일/목표가 컬럼 존재 여부 확인
+    const tdCol = cols.find(c => String(c).includes('목표일') || c === 'Unnamed: 8');
+    const tpCol = cols.find(c => String(c).includes('목표가') || c === 'Unnamed: 9' || c === 'Unnamed: 10');
+    
+    if (!tdCol && !tpCol) {
+        showToast('목표일/목표가 컬럼이 없습니다. 먼저 엑셀에 컬럼을 추가해주세요.', 'error');
+        return;
+    }
+
+    // 목표일/목표가가 하나라도 입력된 종목 수 확인
+    let totalWithTarget = 0;
+    currentData.data.forEach(row => {
+        const td = tdCol ? String(row[tdCol] || '').trim() : '';
+        const tp = tpCol ? String(row[tpCol] || '').trim() : '';
+        if (td !== '' || tp !== '') totalWithTarget++;
+    });
+
+    if (totalWithTarget === 0) {
+        // 목표 데이터 자체가 하나도 없음 → 카드 비우고 안내
+        renderInvestigationCards([], currentData.columns, []);
+        document.getElementById('investigation-edit-form').innerHTML = `
+            <div class="inv-edit-placeholder">
+                <p>📋 아직 목표일/목표가를 입력한 종목이 없습니다.</p>
+                <p style="font-size:12px; color:#64748B;">종목을 선택하고 우측 편집 폼에서 목표일(YYYY-MM-DD)과 목표가(숫자)를 입력해주세요.</p>
+            </div>
+        `;
+        showToast('목표일/목표가가 입력된 종목이 하나도 없습니다. 먼저 목표 데이터를 입력해주세요.', 'info');
+        return;
+    }
+
     const filtered = [];
     const rowMap = [];
     let dateSignals = 0;
@@ -2218,7 +2353,21 @@ function filterSignalStocks() {
     });
 
     if (filtered.length === 0) {
-        showToast('신호(목표일 경과 또는 목표가 도달)가 발생한 종목이 없습니다.', 'info');
+        // 신호 0건 → 카드 비우고 안내
+        renderInvestigationCards([], currentData.columns, []);
+        document.getElementById('investigation-edit-form').innerHTML = `
+            <div class="inv-edit-placeholder">
+                <p>🔔 아직 신호가 발생한 종목이 없습니다.</p>
+                <p style="font-size:12px; color:#64748B;">
+                    📅 목표일 신호: 오늘(${new Date().toISOString().split('T')[0]}) 기준으로 목표일이 지난 종목<br/>
+                    💰 목표가 신호: 현재 주가가 목표가 이상인 종목
+                </p>
+                <p style="font-size:11px; color:#475569; margin-top:8px;">
+                    (목표 데이터 입력된 종목: ${totalWithTarget}건 / 신호: 0건)
+                </p>
+            </div>
+        `;
+        showToast(`목표 데이터 ${totalWithTarget}건 중 신호 발생 종목이 없습니다.`, 'info');
         return;
     }
 
@@ -2230,7 +2379,7 @@ function filterSignalStocks() {
     let detailMsg = '';
     if (dateSignals > 0) detailMsg += `📅 목표일 경과: ${dateSignals}건 `;
     if (priceSignals > 0) detailMsg += `💰 목표가 도달: ${priceSignals}건`;
-    showToast(`🔔 신호 발생 종목 ${filtered.length}개 발견!\n${detailMsg}`, 'success');
+    showToast(`🔔 신호 발생 종목 ${filtered.length}개 발견! ${detailMsg}`, 'success');
 }
 
 /**
