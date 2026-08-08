@@ -54,6 +54,7 @@ EXPORT_SHEETS = {
     '포트폴리오 맵': 'portfolio_map.json',
     '탐구생활':     'investigation.json',
     '실적':         'performance.json',
+    '현금비중':     'cash_snapshots.json',
 }
 
 # ==================== 취소선 텍스트 추출 (server.py와 동일) ====================
@@ -194,20 +195,45 @@ def export_all():
             continue
         try:
             print(f'  변환 중: {sheet_name} ...', end=' ')
-            json_data = sheet_to_json(file_data, sheet_name, sheet_names)
+            
+            # 현금비중 시트는 단순 배열 형식으로 내보내기 (모바일 차트용)
+            if sheet_name == '현금비중':
+                json_data = []
+                wb = openpyxl.load_workbook(io.BytesIO(file_data), data_only=True)
+                ws = wb[sheet_name]
+                for r in range(2, ws.max_row + 1):
+                    month = ws.cell(r, 1).value
+                    if not month:
+                        continue
+                    json_data.append({
+                        'month': str(month).strip(),
+                        'investment': float(ws.cell(r, 2).value or 0),
+                        'cash': float(ws.cell(r, 3).value or 0),
+                        'totalAsset': float(ws.cell(r, 4).value or 0),
+                        'ratio': float(ws.cell(r, 5).value or 0)
+                    })
+                wb.close()
+                json_data.sort(key=lambda x: x['month'])
+                row_count = len(json_data)
+                is_simple_array = True
+            else:
+                json_data = sheet_to_json(file_data, sheet_name, sheet_names)
+                row_count = json_data.get("row_count", 0)
+                is_simple_array = False
+            
             output_path = OUTPUT_DIR / filename
             app_path = APP_DATA_DIR / filename
             
-            # OneDrive 폴더에 저장 (압축 JSON - 네트워크 전송 최적화)
+            # OneDrive 폴더에 저장
             with open(output_path, 'w', encoding='utf-8') as f:
                 json.dump(json_data, f, ensure_ascii=False, separators=(',', ':'), default=str)
                 
-            # 앱 public 폴더에도 복사 저장 (아이폰 직접 연동용)
+            # 앱 public 폴더에도 복사 저장
             with open(app_path, 'w', encoding='utf-8') as f:
                 json.dump(json_data, f, ensure_ascii=False, separators=(',', ':'), default=str)
                 
             size_kb = output_path.stat().st_size / 1024
-            print(f'완료! ({json_data["row_count"]}행, {size_kb:.1f} KB) -> {filename}')
+            print(f'완료! ({row_count}행, {size_kb:.1f} KB) -> {filename}')
             success_count += 1
         except Exception as e:
             print(f'실패!')
