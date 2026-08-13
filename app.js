@@ -3015,33 +3015,62 @@ function updateCashSummary() {
     }
 
     updateInvestSummaryDisplay();
+    // 이번 달 스냅샷 자동 갱신 (버튼 없이 자동 계산)
+    autoUpdateCurrentMonthSnapshot();
     // 트렌드 차트 및 스냅샷 업데이트
     updateCashTrendChart();
 }
 
 /**
- * 월별 현금 & 투자금 스냅샷 저장 (현재 달 기준)
+ * 이번 달 스냅샷 자동 갱신 (alert 없이, updateCashSummary에서 자동 호출)
+ * - 값이 실제로 변경된 경우에만 엑셀 저장 수행 (불필요한 저장 방지)
  */
-function saveCurrentMonthSnapshot() {
+function autoUpdateCurrentMonthSnapshot() {
+    if (IS_GITHUB_PAGES) return; // 로컬 PC 전용
+
     const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const currentMonthKey = `${year}-${month}`;
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     const investment = getEffectiveInvestment();
     const cash = getTotalCash();
     const totalAsset = investment + cash;
     const ratio = totalAsset > 0 ? parseFloat((cash / totalAsset * 100).toFixed(1)) : 0;
 
-    // 기존 기록 탐색
     const existingIdx = monthlyCashSnapshots.findIndex(item => item.month === currentMonthKey);
-    const newSnapshot = {
-        month: currentMonthKey,
-        investment: investment,
-        cash: cash,
-        totalAsset: totalAsset,
-        ratio: ratio
-    };
+    const newSnapshot = { month: currentMonthKey, investment, cash, totalAsset, ratio };
+
+    // 기존 값과 동일하면 저장 스킵 (불필요한 서버 요청 방지)
+    if (existingIdx !== -1) {
+        const prev = monthlyCashSnapshots[existingIdx];
+        if (prev.investment === investment && prev.cash === cash && prev.ratio === ratio) return;
+        monthlyCashSnapshots[existingIdx] = newSnapshot;
+    } else {
+        monthlyCashSnapshots.push(newSnapshot);
+    }
+
+    monthlyCashSnapshots.sort((a, b) => a.month.localeCompare(b.month));
+
+    // silent=true: 토스트 메시지 없이 조용히 저장
+    saveSnapshotsToExcel(true);
+    renderSnapshotTable();
+    console.log(`🔄 [${currentMonthKey}] 현금 비중 자동 갱신: ${ratio}% (현금 ${cash}백만 / 총자산 ${totalAsset}백만)`);
+}
+
+/**
+ * 월별 현금 & 투자금 스냅샷 수동 저장 (버튼 클릭 시)
+ * - 자동 저장과 동일한 로직이지만 확인 메시지(toast) 표시
+ */
+function saveCurrentMonthSnapshot() {
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    const investment = getEffectiveInvestment();
+    const cash = getTotalCash();
+    const totalAsset = investment + cash;
+    const ratio = totalAsset > 0 ? parseFloat((cash / totalAsset * 100).toFixed(1)) : 0;
+
+    const existingIdx = monthlyCashSnapshots.findIndex(item => item.month === currentMonthKey);
+    const newSnapshot = { month: currentMonthKey, investment, cash, totalAsset, ratio };
 
     if (existingIdx !== -1) {
         monthlyCashSnapshots[existingIdx] = newSnapshot;
@@ -3049,20 +3078,21 @@ function saveCurrentMonthSnapshot() {
         monthlyCashSnapshots.push(newSnapshot);
     }
 
-    // 월 오름차순 정렬
     monthlyCashSnapshots.sort((a, b) => a.month.localeCompare(b.month));
 
-    saveSnapshotsToExcel();
+    // silent=false: 완료 토스트 표시
+    saveSnapshotsToExcel(false);
     updateCashTrendChart();
     renderSnapshotTable();
 
-    alert(`[${currentMonthKey}] 스냅샷이 저장되었습니다.\n• 주식 투자금: ${investment.toLocaleString()}백만\n• 보유 현금: ${cash.toLocaleString()}백만\n• 현금 비중: ${ratio}%`);
+    showToast(`✅ [${currentMonthKey}] 스냅샷 저장 완료!  현금 비중: ${ratio}%`, 'success');
 }
 
 /**
- * 월별 스냅샷을 엑셀(서버)에 직접 저장 (localStorage 사용 안 함)
+ * 월별 스냅샷을 엑셀(서버)에 직접 저장
+ * @param {boolean} silent - true이면 성공 토스트 표시 안 함 (자동 저장 시 사용)
  */
-async function saveSnapshotsToExcel() {
+async function saveSnapshotsToExcel(silent = false) {
     if (IS_GITHUB_PAGES) return; // GitHub Pages에서는 서버 연동 불가
     if (monthlyCashSnapshots.length === 0) return;
     
@@ -3076,14 +3106,15 @@ async function saveSnapshotsToExcel() {
         const data = await res.json();
         if (data.success) {
             console.log('📤 현금 스냅샷 → 엑셀 저장 완료:', monthlyCashSnapshots.length, '개월');
-            showToast(`✅ 엑셀 저장 완료! (${monthlyCashSnapshots.length}개월 데이터)`, 'success');
+            if (!silent) showToast(`✅ 엑셀 저장 완료! (${monthlyCashSnapshots.length}개월 데이터)`, 'success');
         } else {
             console.warn('⚠️ 엑셀 저장 실패:', data.error);
-            showToast(`⚠️ 엑셀 저장 실패: ${data.error || '알 수 없는 오류'}`, 'error');
+            if (!silent) showToast(`⚠️ 엑셀 저장 실패: ${data.error || '알 수 없는 오류'}`, 'error');
         }
     } catch (e) {
-        console.warn('⚠️ 엑셀 저장 실패 (서버 연결 안 됨):', e.message);
-        showToast('⚠️ 서버 연결 실패 - Flask 서버가 실행 중인지 확인하세요 (port 5000)', 'error');
+        console.warn('⚠️ 엑셀 자동 저장 실패 (서버 연결 안 됨):', e.message);
+        // silent 모드에서는 서버 연결 실패 토스트 생략 (페이지 로드 시 등 혼란 방지)
+        if (!silent) showToast('⚠️ 서버 연결 실패 - Flask 서버가 실행 중인지 확인하세요 (port 5000)', 'error');
     }
 }
 
