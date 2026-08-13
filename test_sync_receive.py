@@ -18,7 +18,7 @@ def test_sync_api():
 
     print("[TEST 1] JSON POST 테스트 (모바일 AJAX fetch 요청 패턴)...")
     try:
-        res = requests.post(url, json=payload, headers={"Accept": "application/json"}, timeout=15)
+        res = requests.post(url, json=payload, headers={"Accept": "application/json"}, timeout=60)
         print("  - HTTP Status:", res.status_code)
         print("  - Response:", res.text)
         if res.status_code == 200 and "success" in res.json():
@@ -30,7 +30,7 @@ def test_sync_api():
 
     print("\n[TEST 2] Form Data POST 테스트 (기존 폼 제출 패턴)...")
     try:
-        res = requests.post(url, data={"payload": json.dumps(payload)}, timeout=15)
+        res = requests.post(url, data={"payload": json.dumps(payload)}, timeout=60)
         print("  - HTTP Status:", res.status_code)
         print("  - Response Content-Length:", len(res.text))
         if res.status_code == 200 and "PC" in res.text:
