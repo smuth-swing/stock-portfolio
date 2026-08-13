@@ -103,7 +103,7 @@ const computeWebHeight = (text: string | undefined | null): number => {
 };
 
 export default function InvestigationScreen() {
-  const { investigation, isLoading, isSyncing, refreshData, syncQueue, addToSyncQueue, markQueueAsSynced, meta, targetPrices, targetDates, setTargetPrice, setTargetDate } = useDataStore();
+  const { investigation, isLoading, isSyncing, refreshData, syncQueue, addToSyncQueue, markQueueAsSynced, meta, targetPrices, targetDates, setTargetPrice, setTargetDate, customServerIp, setCustomServerIp } = useDataStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'priority' | 'signal'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -112,6 +112,9 @@ export default function InvestigationScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [signalData, setSignalData] = useState<Record<string, any>>({});  // PC에서 export한 신호 상태
+  const [isSyncingPC, setIsSyncingPC] = useState(false);
+  const [showIpModal, setShowIpModal] = useState(false);
+  const [ipInput, setIpInput] = useState('');
   const [inputHeights, setInputHeights] = useState<Record<string, number>>({
     question: 80,
     reason: 80,
@@ -461,25 +464,64 @@ export default function InvestigationScreen() {
     });
   };
 
-  const handleSync = () => {
-    if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      const pcIp = meta?.server_ip || '192.168.0.2';
-      const targetUrl = `http://${pcIp}:5000/api/sync-receive`;
+  const effectiveIp = customServerIp || meta?.server_ip || '192.168.0.2';
+
+  const handleSync = async () => {
+    if (!syncQueue || syncQueue.length === 0) return;
+    setIsSyncingPC(true);
+    const targetUrl = `http://${effectiveIp}:5000/api/sync-receive`;
+
+    try {
+      // 1. AJAX fetch JSON 전송 시도
+      const res = await fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(syncQueue),
+      });
+
+      if (res.ok) {
+        await markQueueAsSynced();
+        setToastMessage(`✅ PC 서버(${effectiveIp})에 성공적으로 전송되었습니다!`);
+        setTimeout(() => setToastMessage(null), 4000);
+        refreshData();
+      } else {
+        const errText = await res.text().catch(() => '');
+        alert(`❌ PC 서버 전송 실패 (${res.status}): ${errText}`);
+      }
+    } catch (err: any) {
+      console.warn('Fetch sync failed, trying form submit fallback:', err);
       
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = targetUrl;
-      
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = 'payload';
-      input.value = JSON.stringify(syncQueue);
-      
-      form.appendChild(input);
-      document.body.appendChild(form);
-      form.submit();
-    } else {
-      alert('웹(PWA) 환경에서만 동기화가 지원됩니다.');
+      // Form submit 폴백 시도 (Platform.OS === 'web')
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        try {
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = targetUrl;
+          
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'payload';
+          input.value = JSON.stringify(syncQueue);
+          
+          form.appendChild(input);
+          document.body.appendChild(form);
+          form.submit();
+          return;
+        } catch (e) {}
+      }
+
+      alert(
+        `❌ PC 서버(${effectiveIp}:5000) 연결 실패!\n\n` +
+        `확인 사항:\n` +
+        `1. 핸드폰이 PC와 같은 와이파이(Wi-Fi)에 연결되어 있는지 확인해주세요. (LTE/5G 연결시 통신 불가)\n` +
+        `2. PC에서 서버(server.py)가 실행 중인지 확인해주세요.\n` +
+        `3. PC IP가 변경되었다면 옆의 [⚙️ IP] 버튼을 눌러 변경된 IP를 입력해주세요.`
+      );
+    } finally {
+      setIsSyncingPC(false);
     }
   };
 
@@ -540,9 +582,24 @@ export default function InvestigationScreen() {
                 : `⏳ GitHub 서버 반영 대기 중... (${syncQueue.length}건)`}
             </Text>
             {hasPendingSync && (
-              <TouchableOpacity style={styles.syncBtn} onPress={handleSync}>
-                <Text style={styles.syncBtnText}>PC로 전송하기</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                <TouchableOpacity style={styles.syncBtn} onPress={handleSync} disabled={isSyncingPC}>
+                  {isSyncingPC ? (
+                    <ActivityIndicator size="small" color="#422006" />
+                  ) : (
+                    <Text style={styles.syncBtnText}>PC로 전송하기</Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.syncBtn, { backgroundColor: '#475569' }]} 
+                  onPress={() => {
+                    setIpInput(effectiveIp);
+                    setShowIpModal(true);
+                  }}
+                >
+                  <Text style={[styles.syncBtnText, { color: '#FFFFFF' }]}>⚙️ IP</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         )}
@@ -859,6 +916,53 @@ export default function InvestigationScreen() {
               </TouchableOpacity>
               <TouchableOpacity style={styles.datePickerConfirmBtn} onPress={confirmDatePicker}>
                 <Text style={styles.datePickerConfirmText}>확인</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* PC IP 설정 모달 */}
+      <Modal
+        visible={showIpModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowIpModal(false)}
+      >
+        <View style={styles.datePickerOverlay}>
+          <View style={styles.datePickerContainer}>
+            <Text style={styles.datePickerTitle}>⚙️ PC 서버 IP 설정</Text>
+            <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 16, textAlign: 'center', lineHeight: 20 }}>
+              핸드폰과 PC가 같은 와이파이에 연결되어 있어야 합니다.{'\n'}
+              현재 설정 IP: <Text style={{ color: '#00F2FE', fontWeight: 'bold' }}>{effectiveIp}</Text>
+            </Text>
+            <TextInput
+              style={[styles.singleLineInput, { color: '#FFFFFF', marginBottom: 20, textAlign: 'center', fontSize: 16 }]}
+              value={ipInput}
+              onChangeText={setIpInput}
+              placeholder="예: 192.168.0.2"
+              placeholderTextColor="#64748B"
+            />
+            <View style={styles.datePickerActions}>
+              <TouchableOpacity
+                style={styles.datePickerCancelBtn}
+                onPress={async () => {
+                  await setCustomServerIp(null);
+                  setShowIpModal(false);
+                }}
+              >
+                <Text style={styles.datePickerCancelText}>기본값 리셋</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.datePickerConfirmBtn}
+                onPress={async () => {
+                  if (ipInput.trim()) {
+                    await setCustomServerIp(ipInput.trim());
+                  }
+                  setShowIpModal(false);
+                }}
+              >
+                <Text style={styles.datePickerConfirmText}>저장</Text>
               </TouchableOpacity>
             </View>
           </View>

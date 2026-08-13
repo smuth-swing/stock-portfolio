@@ -964,9 +964,15 @@ def sync_receive():
                 except: pass
 
         # ★ 모바일 동기화: JSON 내보내기 + Git Push를 동기적으로 실행
-        # 비동기 trigger_export() 대신 동기적으로 실행하여
-        # GitHub Pages에 최신 데이터가 반영된 후 리다이렉트합니다.
         push_success = trigger_export_and_push_sync()
+
+        # AJAX / fetch 요청 (JSON) 인 경우 JSON 응답 반환
+        if request.is_json or 'application/json' in request.headers.get('Accept', ''):
+            return jsonify({
+                'success': True,
+                'push_success': push_success,
+                'message': 'PC 엑셀 정상 반영 완료' if push_success else 'PC 엑셀 저장 완료 (GitHub 반영 진행 중)'
+            })
 
         if push_success:
             return """
@@ -1026,6 +1032,8 @@ def sync_receive():
     except Exception as e:
         import traceback
         print(traceback.format_exc())
+        if request.is_json or 'application/json' in request.headers.get('Accept', ''):
+            return jsonify({'error': f'동기화 오류: {str(e)}'}), 500
         return f"동기화 오류: {str(e)}", 500
 
 

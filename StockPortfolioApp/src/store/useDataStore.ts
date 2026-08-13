@@ -52,6 +52,11 @@ interface AppState {
   targetDates: Record<string, string>;
   setTargetDate: (stock: string, date: string | null) => Promise<void>;
   loadTargetDates: () => Promise<void>;
+
+  // 커스텀 PC IP (사용자 변경용)
+  customServerIp: string | null;
+  setCustomServerIp: (ip: string | null) => Promise<void>;
+  loadCustomServerIp: () => Promise<void>;
 }
 
 // ─────────────────────────────────────────────
@@ -154,6 +159,22 @@ export const useDataStore = create<AppState>((set, get) => ({
     try {
       const dStr = await AsyncStorage.getItem('@target_dates');
       if (dStr) set({ targetDates: JSON.parse(dStr) });
+    } catch (e) {}
+  },
+  customServerIp: null,
+  setCustomServerIp: async (ip: string | null) => {
+    const cleanIp = ip ? ip.trim() : null;
+    set({ customServerIp: cleanIp });
+    if (cleanIp) {
+      await AsyncStorage.setItem('@custom_server_ip', cleanIp);
+    } else {
+      await AsyncStorage.removeItem('@custom_server_ip');
+    }
+  },
+  loadCustomServerIp: async () => {
+    try {
+      const ip = await AsyncStorage.getItem('@custom_server_ip');
+      if (ip) set({ customServerIp: ip });
     } catch (e) {}
   },
 
@@ -398,3 +419,4 @@ export const useDataStore = create<AppState>((set, get) => ({
 useDataStore.getState().loadSyncQueue();
 useDataStore.getState().loadTargetPrices();
 useDataStore.getState().loadTargetDates();
+useDataStore.getState().loadCustomServerIp();
