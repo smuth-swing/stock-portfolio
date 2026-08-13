@@ -14,6 +14,7 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useDataStore } from '../store/useDataStore';
 import { PieChart } from 'react-native-gifted-charts';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Path, Circle, Rect, Line as SvgLine, Text as SvgText, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_PADDING = 48;
@@ -270,7 +271,7 @@ export default function PortfolioScreen() {
 
 
 
-  // ─── 월별 현금 비중 트렌드 페이지 ───
+  // ─── 월별 현금 비중 트렌드 페이지 (선 그래프 Line Chart) ───
   const renderCashTrendChart = () => {
     const list = activeSnapshots;
     if (list.length === 0) {
@@ -284,79 +285,178 @@ export default function PortfolioScreen() {
       );
     }
 
-    const maxCash = Math.max(...list.map((s: any) => s.cash), 10);
-    const maxRatio = Math.max(...list.map((s: any) => s.ratio), 100);
-    const BAR_H = 18;
-    const GAP = 6;
-    const MONTH_W = 60;
-    const RATIO_W = 44;
-    const AMOUNT_W = 40;
-    const BAR_W = CHART_PAGE_WIDTH - MONTH_W - RATIO_W - AMOUNT_W - 40;
+    const maxCash = Math.max(...list.map((s: any) => Number(s.cash) || 0), 10);
+    const maxRatio = Math.max(...list.map((s: any) => Number(s.ratio) || 0), 100);
+
+    // SVG 차트 좌표 및 레이아웃 스펙
+    const ITEM_WIDTH = Math.max(75, (CHART_PAGE_WIDTH - 24) / Math.max(list.length, 1));
+    const SVG_WIDTH = Math.max(CHART_PAGE_WIDTH - 24, list.length * ITEM_WIDTH);
+    const SVG_HEIGHT = 210;
+    const TOP_PADDING = 32;
+    const BOTTOM_PADDING = 35;
+    const PLOT_HEIGHT = SVG_HEIGHT - TOP_PADDING - BOTTOM_PADDING;
+
+    // 각 월별 점(X, Y) 좌표 계산
+    const points = list.map((item: any, idx: number) => {
+      const ratio = Number(item.ratio) || 0;
+      const cash = Number(item.cash) || 0;
+      const x = idx * ITEM_WIDTH + ITEM_WIDTH / 2;
+      // Y 좌표: ratio 0% -> PLOT_HEIGHT + TOP_PADDING, ratio maxRatio% -> TOP_PADDING
+      const ratioNorm = maxRatio > 0 ? ratio / maxRatio : 0;
+      const y = TOP_PADDING + PLOT_HEIGHT * (1 - ratioNorm * 0.85);
+      // 현금액(M) 막대 높이 및 Y
+      const cashNorm = maxCash > 0 ? cash / maxCash : 0;
+      const barHeight = Math.max(4, PLOT_HEIGHT * cashNorm * 0.45);
+      const barY = TOP_PADDING + PLOT_HEIGHT - barHeight;
+
+      return { x, y, barY, barHeight, ratio, cash, month: item.month };
+    });
+
+    // SVG Line Path 명령어 생성 (M x0,y0 L x1,y1 L x2,y2 ...)
+    const lineD = points.reduce((acc: string, pt: any, idx: number) => {
+      return idx === 0 ? `M ${pt.x} ${pt.y}` : `${acc} L ${pt.x} ${pt.y}`;
+    }, '');
+
+    // SVG Area Fill Path (선 아래 그라데이션 영역)
+    const firstX = points[0]?.x || 0;
+    const lastX = points[points.length - 1]?.x || 0;
+    const bottomY = TOP_PADDING + PLOT_HEIGHT;
+    const areaD = `${lineD} L ${lastX} ${bottomY} L ${firstX} ${bottomY} Z`;
 
     return (
       <View style={[styles.chartPage, { paddingHorizontal: 0, flex: 1 }]}>
-        <Text style={[styles.cardTitle, { paddingHorizontal: 24, marginBottom: 12 }]}>월별 현금 비중 트렌드</Text>
+        <Text style={[styles.cardTitle, { paddingHorizontal: 24, marginBottom: 10 }]}>월별 현금 비중 트렌드</Text>
 
         {/* 범례 */}
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 14, marginBottom: 14 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#22C55E' }} />
-            <Text style={{ color: '#22C55E', fontSize: 11, fontWeight: 'bold' }}>현금 비중(%)</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ width: 14, height: 3, backgroundColor: '#22C55E', borderRadius: 2 }} />
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22C55E', marginLeft: -9 }} />
+            <Text style={{ color: '#22C55E', fontSize: 12, fontWeight: 'bold' }}>현금 비중 (%)</Text>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#D4AF37' }} />
-            <Text style={{ color: '#D4AF37', fontSize: 11, fontWeight: 'bold' }}>보유 현금액(M)</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: 'rgba(212,175,55,0.7)', borderWidth: 1, borderColor: '#D4AF37' }} />
+            <Text style={{ color: '#D4AF37', fontSize: 12, fontWeight: 'bold' }}>보유 현금액 (M)</Text>
           </View>
         </View>
 
-        <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 40 }}>
-          {list.map((item: any, idx: number) => {
-            const barWidth = Math.max((item.cash / maxCash) * BAR_W, 6);
-            const ratioBarWidth = Math.max((item.ratio / maxRatio) * BAR_W, 4);
-            return (
-              <View key={`cash-${idx}`} style={{ marginBottom: GAP }}>
-                {/* 상단: 월 + 현금비중 % */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', height: BAR_H }}>
-                  <Text style={{ width: MONTH_W, color: '#E2E8F0', fontSize: 10, fontWeight: 'bold', textAlign: 'center' }}>
-                    {item.month}
-                  </Text>
-                  <View style={{
-                    width: RATIO_W, backgroundColor: 'rgba(34,197,94,0.15)',
-                    borderColor: 'rgba(34,197,94,0.5)', borderWidth: 1, borderRadius: 4,
-                    paddingVertical: 1, alignItems: 'center', marginRight: 6
-                  }}>
-                    <Text style={{ color: '#22C55E', fontSize: 9, fontWeight: '800' }}>{item.ratio}%</Text>
-                  </View>
-                  <View style={{ width: BAR_W, height: BAR_H, position: 'relative', justifyContent: 'center' }}>
-                    {/* 비중 퍼센트 라인 (초록색 얇은 막대) */}
-                    <View style={{
-                      position: 'absolute', left: 0, height: 6,
-                      width: ratioBarWidth, backgroundColor: 'rgba(34,197,94,0.3)',
-                      borderRadius: 3
-                    }} />
-                  </View>
-                  <Text style={{ width: AMOUNT_W, color: '#D4AF37', fontSize: 10, fontWeight: 'bold', textAlign: 'right' }}>
-                    {item.cash}M
-                  </Text>
-                </View>
-                {/* 하단: 현금액 막대 (금색) */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', height: 4, marginTop: 2 }}>
-                  <View style={{ width: MONTH_W + RATIO_W + 6 }} />
-                  <View style={{ width: BAR_W, height: 4, position: 'relative' }}>
-                    <View style={{
-                      position: 'absolute', left: 0, top: 0, width: BAR_W, height: 4,
-                      backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 2
-                    }} />
-                    <View style={{
-                      position: 'absolute', left: 0, top: 0, width: barWidth, height: 4,
-                      backgroundColor: 'rgba(212,175,55,0.7)', borderRadius: 2
-                    }} />
-                  </View>
-                  <View style={{ width: AMOUNT_W }} />
-                </View>
+        <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
+          {/* 가로 스크롤 가능한 SVG 선 그래프 차트 */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12 }}>
+            <View style={{ width: SVG_WIDTH, height: SVG_HEIGHT }}>
+              <Svg width={SVG_WIDTH} height={SVG_HEIGHT}>
+                <Defs>
+                  <SvgLinearGradient id="cashRatioGrad" x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="0" stopColor="#22C55E" stopOpacity="0.35" />
+                    <Stop offset="1" stopColor="#22C55E" stopOpacity="0.0" />
+                  </SvgLinearGradient>
+                </Defs>
+
+                {/* 그리드 가로선 3개 */}
+                {[0, 0.5, 1].map((ratioStep, i) => {
+                  const gridY = TOP_PADDING + PLOT_HEIGHT * ratioStep;
+                  return (
+                    <SvgLine
+                      key={`grid-${i}`}
+                      x1="0"
+                      y1={gridY}
+                      x2={SVG_WIDTH}
+                      y2={gridY}
+                      stroke="rgba(255, 255, 255, 0.07)"
+                      strokeDasharray="4 4"
+                      strokeWidth="1"
+                    />
+                  );
+                })}
+
+                {/* 1. 하단 보유 현금액(M) 막대 그래프 */}
+                {points.map((pt: any, idx: number) => (
+                  <React.Fragment key={`bar-${idx}`}>
+                    <Rect
+                      x={pt.x - 14}
+                      y={pt.barY}
+                      width={28}
+                      height={pt.barHeight}
+                      fill="rgba(212, 175, 55, 0.45)"
+                      stroke="#D4AF37"
+                      strokeWidth="1"
+                      rx="4"
+                    />
+                    {/* 현금액 M 수치 라벨 */}
+                    <SvgText
+                      x={pt.x}
+                      y={pt.barY - 4}
+                      fill="#D4AF37"
+                      fontSize="9"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      {pt.cash}M
+                    </SvgText>
+                  </React.Fragment>
+                ))}
+
+                {/* 2. 현금 비중(%) 영역 채우기 (Area Gradient) */}
+                <Path d={areaD} fill="url(#cashRatioGrad)" />
+
+                {/* 3. 현금 비중(%) 선 그래프 (Green Line) */}
+                <Path d={lineD} fill="none" stroke="#22C55E" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+
+                {/* 4. 현금 비중(%) 데이터 포인트(Circle 노드) & 비중 % 라벨 */}
+                {points.map((pt: any, idx: number) => (
+                  <React.Fragment key={`pt-${idx}`}>
+                    {/* 외부 링 & 내부 노드 */}
+                    <Circle cx={pt.x} cy={pt.y} r="6" fill="#0F172A" stroke="#22C55E" strokeWidth="2.5" />
+                    <Circle cx={pt.x} cy={pt.y} r="2.5" fill="#22C55E" />
+
+                    {/* 비중 % 수치 뱃지 텍스트 */}
+                    <SvgText
+                      x={pt.x}
+                      y={pt.y - 10}
+                      fill="#22C55E"
+                      fontSize="10"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      {pt.ratio}%
+                    </SvgText>
+
+                    {/* X축 월 라벨 */}
+                    <SvgText
+                      x={pt.x}
+                      y={SVG_HEIGHT - 10}
+                      fill="#94A3B8"
+                      fontSize="10"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      {pt.month}
+                    </SvgText>
+                  </React.Fragment>
+                ))}
+              </Svg>
+            </View>
+          </ScrollView>
+
+          {/* 하단 월별 현금 스냅샷 수치 요약 테이블 카드 */}
+          <View style={{ paddingHorizontal: 16, marginTop: 15 }}>
+            <View style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+              <View style={{ flexDirection: 'row', paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255, 255, 255, 0.1)', marginBottom: 6 }}>
+                <Text style={{ flex: 1, color: '#94A3B8', fontSize: 11, fontWeight: 'bold', textAlign: 'center' }}>월</Text>
+                <Text style={{ flex: 1, color: '#22C55E', fontSize: 11, fontWeight: 'bold', textAlign: 'center' }}>현금 비중 (%)</Text>
+                <Text style={{ flex: 1, color: '#D4AF37', fontSize: 11, fontWeight: 'bold', textAlign: 'center' }}>보유 현금 (M)</Text>
+                <Text style={{ flex: 1, color: '#E2E8F0', fontSize: 11, fontWeight: 'bold', textAlign: 'center' }}>총 자산 (M)</Text>
               </View>
-            );
-          })}
+              {list.map((item: any, idx: number) => (
+                <View key={`row-${idx}`} style={{ flexDirection: 'row', paddingVertical: 5, alignItems: 'center' }}>
+                  <Text style={{ flex: 1, color: '#E2E8F0', fontSize: 11, fontWeight: '600', textAlign: 'center' }}>{item.month}</Text>
+                  <Text style={{ flex: 1, color: '#22C55E', fontSize: 11, fontWeight: 'bold', textAlign: 'center' }}>{item.ratio}%</Text>
+                  <Text style={{ flex: 1, color: '#D4AF37', fontSize: 11, fontWeight: 'bold', textAlign: 'center' }}>{item.cash}M</Text>
+                  <Text style={{ flex: 1, color: '#94A3B8', fontSize: 11, textAlign: 'center' }}>{item.totalAsset || (item.investment + item.cash)}M</Text>
+                </View>
+              ))}
+            </View>
+          </View>
         </ScrollView>
       </View>
     );
