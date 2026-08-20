@@ -2114,8 +2114,58 @@ function setSelectedInvestigationRow(rowIndex) {
     // 우측 편집 폼 렌더링
     renderInvestigationEditForm(rowIndex);
 
+    // 삭제 버튼 표시 (종목이 선택된 경우)
+    const deleteBtn = document.getElementById('inv-delete-btn');
+    if (deleteBtn) deleteBtn.classList.remove('hidden');
+
     // 모바일: 편집 화면으로 전환
     switchToMobileEditView();
+}
+
+/**
+ * 탐구생활 선택 종목 삭제
+ */
+async function deleteInvestigationRow() {
+    if (selectedInvestigationRowIndex === null || !currentData) return;
+
+    const row = currentData.data[selectedInvestigationRowIndex];
+    if (!row) return;
+
+    const nameCol = findStockColumnName(currentData.columns);
+    const stockName = String(row[nameCol] || '').replace(/~~/g, '').trim() || `번호 ${row['번호'] || ''}`.trim();
+    const realIndex = row._realIndex;
+
+    if (!confirm(`'${stockName}' 종목을 탐구생활에서 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+
+    try {
+        const res = await fetch(`${API}/delete-row`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                file: TARGET_FILE,
+                sheet: '탐구생활',
+                rowIndex: realIndex
+            })
+        });
+
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+        const result = await res.json();
+        if (result.success) {
+            showToast(`'${stockName}' 종목이 삭제되었습니다.`, 'success');
+            // 삭제 버튼 숨기기
+            const deleteBtn = document.getElementById('inv-delete-btn');
+            if (deleteBtn) deleteBtn.classList.add('hidden');
+            selectedInvestigationRowIndex = null;
+            // 데이터 새로고침
+            refreshData(true);
+        } else {
+            showToast('삭제 실패: ' + (result.error || '알 수 없는 오류'), 'error');
+        }
+    } catch (err) {
+        console.error('Investigation delete error:', err);
+        showToast('삭제 중 오류가 발생했습니다.', 'error');
+    }
 }
 
 /**
