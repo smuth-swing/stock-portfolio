@@ -1704,31 +1704,44 @@ function renderInvestigationCards(rows, cols, rowMap = null) {
     const container = document.getElementById('investigation-card-list');
     if (!container) return;
 
-    // ── 빈 행 필터링 (종목명 없고 모든 필드가 빈 행은 표시 안 함) ──
+    // ── 빈 행 필터링 및 종목 번호 오름차순 자동 정렬 ──
     const nameCol = findStockColumnName(cols);
-    const filteredRows = [];
-    const filteredIndices = [];
+    const numCol = cols[0];  // 번호
+    const items = [];
+
     rows.forEach((row, idx) => {
+        const origIdx = rowMap ? rowMap[idx] : idx;
         const name = String(row[nameCol] || '').replace(/~~/g, '').trim();
-        if (name !== '') { filteredRows.push(row); filteredIndices.push(idx); return; }
-        // 종목명이 비어도 다른 필드에 내용 있으면 표시
-        for (const col of cols) {
-            if (col === cols[0]) continue;
-            if (col === nameCol) continue;
-            const val = String(row[col] || '').trim();
-            if (val !== '') { filteredRows.push(row); filteredIndices.push(idx); return; }
+        let keep = name !== '';
+        if (!keep) {
+            for (const col of cols) {
+                if (col === cols[0] || col === nameCol) continue;
+                if (String(row[col] || '').trim() !== '') { keep = true; break; }
+            }
         }
-        // 완전히 빈 행 → 제외
+        if (keep) {
+            items.push({ row, origIdx });
+        }
     });
 
-    const map = rowMap 
-        ? filteredIndices.map(i => rowMap[i]).filter(i => i !== undefined)
-        : filteredRows.map((_, idx) => idx);
+    // ── 종목 번호(숫자) 오름차순 정렬 ──
+    items.sort((a, b) => {
+        const numA = parseFloat(String(a.row[numCol] || '').replace(/[^0-9.]/g, ''));
+        const numB = parseFloat(String(b.row[numCol] || '').replace(/[^0-9.]/g, ''));
+        const validA = !isNaN(numA);
+        const validB = !isNaN(numB);
+        if (validA && validB) return numA - numB;
+        if (validA) return -1;
+        if (validB) return 1;
+        return a.origIdx - b.origIdx;
+    });
+
+    const filteredRows = items.map(item => item.row);
+    const map = items.map(item => item.origIdx);
     investigationRowMap = map;
     investigationCurrentRows = filteredRows;
 
     // 종목명 및 모멘텀/목표 컬럼 찾기
-    const numCol = cols[0];  // 번호
     const momentumCol = currentData.columns.includes('모멘텀') ? '모멘텀' : 'Unnamed: 2';
     // 목표가 컬럼 찾기 (명명된 컬럼 또는 Unnamed fallback)
     const tpCol = currentData.columns.find(c => String(c).includes('목표가') || c === 'Unnamed: 9' || c === 'Unnamed: 10') || null;
