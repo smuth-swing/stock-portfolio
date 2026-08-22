@@ -18,6 +18,7 @@ interface AppState {
   investigation: any;
   performance: any;
   cashSnapshots: any[] | null;    // 월별 현금비중 스냅샷 배열 (Excel 기반)
+  cashAccounts: any[] | null;     // 현금 계좌 배열 (Excel _계좌정보 기반)
   meta: any;
 
   // 상태 플래그
@@ -117,6 +118,7 @@ export const useDataStore = create<AppState>((set, get) => ({
   investigation: null,
   performance: null,
   cashSnapshots: null,
+  cashAccounts: null,
   meta: null,
   isLoading: false,
   isSyncing: false,
@@ -221,15 +223,20 @@ export const useDataStore = create<AppState>((set, get) => ({
       }
     }
 
-    // cashSnapshots 캐시 별도 로드 (일반 배열 형식이므로 별도 처리)
+    // cashSnapshots & cashAccounts 캐시 별도 로드 (일반 배열 형식이므로 별도 처리)
     try {
       const cachedCash = await getCachedData('cashSnapshots' as any);
       if (Array.isArray(cachedCash) && cachedCash.length > 0) {
         set({ cashSnapshots: cachedCash });
         anyCacheLoaded = true;
       }
+      const cachedAccounts = await getCachedData('cashAccounts' as any);
+      if (Array.isArray(cachedAccounts) && cachedAccounts.length > 0) {
+        set({ cashAccounts: cachedAccounts });
+        anyCacheLoaded = true;
+      }
     } catch (e) {
-      console.warn('[useDataStore] cashSnapshots 캐시 로드 실패:', e);
+      console.warn('[useDataStore] cashSnapshots/Accounts 캐시 로드 실패:', e);
     }
 
     // 로컬 캐시 로드 완료 → 로딩 해제
@@ -269,13 +276,27 @@ export const useDataStore = create<AppState>((set, get) => ({
     });
 
     const extraSyncPromises = [
+      // cashAccounts 동기화
+      (async () => {
+        try {
+          const result = await fetchJSON('cashAccounts' as any);
+          const data = result && result.data ? result.data : result;
+          if (Array.isArray(data)) {
+            set({ cashAccounts: data });
+            anyServerLoaded = true;
+          }
+        } catch (e) {
+          console.warn('[useDataStore] cashAccounts 서버 동기화 실패:', e);
+        }
+      })(),
       // cashSnapshots 동기화 (일반 배열 형식)
       (async () => {
         try {
           const result = await fetchJSON('cashSnapshots' as any);
-          if (Array.isArray(result) && result.length > 0) {
-            result.sort((a: any, b: any) => a.month.localeCompare(b.month));
-            set({ cashSnapshots: result });
+          const data = result && result.data ? result.data : result;
+          if (Array.isArray(data) && data.length > 0) {
+            data.sort((a: any, b: any) => a.month.localeCompare(b.month));
+            set({ cashSnapshots: data });
             anyServerLoaded = true;
           }
         } catch (e) {

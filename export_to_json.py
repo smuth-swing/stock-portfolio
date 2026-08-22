@@ -111,6 +111,33 @@ def export_investigation_signals(file_data, sheet_names):
     
     return signals
 
+def export_cash_accounts(file_data, sheet_names):
+    """Excel '_계좌정보' 시트에서 현금 계좌 목록 추출"""
+    if '_계좌정보' not in sheet_names:
+        return []
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(file_data), data_only=True)
+        ws = wb['_계좌정보']
+        data = []
+        in_section = False
+        for r in range(1, ws.max_row + 1):
+            cell_val = str(ws.cell(r, 1).value or '').strip()
+            if cell_val == '현금계좌':
+                in_section = True
+                continue
+            if in_section:
+                if cell_val == '' or cell_val.startswith('#'):
+                    break
+                name = str(ws.cell(r, 1).value or '').strip()
+                amount = ws.cell(r, 2).value or 0
+                if name:
+                    data.append({'name': name, 'amount': float(amount)})
+        wb.close()
+        return data
+    except Exception as e:
+        print(f'  [경고] 현금 계좌 데이터 추출 실패: {e}')
+        return []
+
 # ==================== 취소선 텍스트 추출 (server.py와 동일) ====================
 def extract_rich_text(cell):
     """엑셀 셀의 취소선 서식을 ~~텍스트~~ 마크다운으로 변환"""
@@ -293,7 +320,22 @@ def export_all():
             print(f'실패!')
             print(f'     오류: {e}')
 
-    # 4.5. 탐구생활 신호 데이터 내보내기 (모바일용)
+    # 4.5. 현금계좌 및 탐구생활 신호 데이터 내보내기 (모바일용)
+    if '_계좌정보' in sheet_names:
+        try:
+            print(f'  현금 계좌 데이터 생성 중...', end=' ')
+            cash_accs = export_cash_accounts(file_data, sheet_names)
+            acc_path = APP_DATA_DIR / 'cash_accounts.json'
+            with open(acc_path, 'w', encoding='utf-8') as f:
+                json.dump(cash_accs, f, ensure_ascii=False, separators=(',', ':'), default=str)
+            # OneDrive에도 복사
+            acc_out = OUTPUT_DIR / 'cash_accounts.json'
+            with open(acc_out, 'w', encoding='utf-8') as f:
+                json.dump(acc_out_data if 'acc_out_data' in locals() else cash_accs, f, ensure_ascii=False, separators=(',', ':'), default=str)
+            print(f'완료! ({len(cash_accs)}개 계좌) -> cash_accounts.json')
+        except Exception as e:
+            print(f'실패! 오류: {e}')
+
     if '탐구생활' in sheet_names:
         try:
             print(f'  신호 데이터 생성 중...', end=' ')

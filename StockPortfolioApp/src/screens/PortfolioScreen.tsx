@@ -28,12 +28,10 @@ const COLOR_EXCLUDING_BORDER = '#475569';
 const COLOR_AVG_LINE = '#EF4444';                       // 빨간색: 평균선
 
 export default function PortfolioScreen() {
-  const { portfolioMap, cashSnapshots, isLoading } = useDataStore();
+  const { portfolioMap, cashSnapshots, cashAccounts, isLoading } = useDataStore();
   const [currentPage, setCurrentPage] = useState(0);
   const [showFullChart, setShowFullChart] = useState(false);
   const navigation = useNavigation<BottomTabNavigationProp<any>>();
-
-  // 스토어의 cashSnapshots를 그대로 사용 (이미 정렬되어 있으며 캐시/서버 동기화 완료된 데이터)
 
   // PC 버전과 동일한 데이터 파싱 로직
   const { sectorData, stockItems, totalInvestment, avgValue, stockCount } = useMemo(() => {
@@ -122,16 +120,47 @@ export default function PortfolioScreen() {
     };
   }, [portfolioMap]);
 
-  // 스토어의 cashSnapshots 사용 (없으면 현재 투자금 기준 기본값)
+  // 동기화된 현금 계좌 합계 (실시간 현금액 M)
+  const liveCash = useMemo(() => {
+    if (!cashAccounts || !Array.isArray(cashAccounts)) return null;
+    return cashAccounts.reduce((sum: any, acc: any) => sum + (parseFloat(acc.amount) || 0), 0);
+  }, [cashAccounts]);
+
+  // 스토어의 cashSnapshots 사용 (실시간 현금 계좌 동기화 적용)
   const activeSnapshots = useMemo(() => {
-    if (cashSnapshots && cashSnapshots.length > 0) return cashSnapshots;
-    if (totalInvestment > 0) {
-      const now = new Date();
-      const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      return [{ month: monthStr, investment: totalInvestment, cash: 0, totalAsset: totalInvestment, ratio: 0 }];
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    
+    let list = cashSnapshots && cashSnapshots.length > 0 ? [...cashSnapshots] : [];
+    
+    // 만약 동기화된 liveCash가 있다면 이번 달 스냅샷 데이터 실시간 보완/갱신
+    if (liveCash !== null) {
+      const existingIdx = list.findIndex((item: any) => item.month === currentMonthKey);
+      const investment = totalInvestment > 0 ? totalInvestment : (existingIdx !== -1 ? (Number(list[existingIdx].investment) || 0) : 0);
+      const totalAsset = investment + liveCash;
+      const ratio = totalAsset > 0 ? parseFloat(((liveCash / totalAsset) * 100).toFixed(1)) : 0;
+      
+      const liveSnapshot = {
+        month: currentMonthKey,
+        investment,
+        cash: liveCash,
+        totalAsset,
+        ratio,
+      };
+
+      if (existingIdx !== -1) {
+        list[existingIdx] = liveSnapshot;
+      } else {
+        list.push(liveSnapshot);
+      }
     }
-    return [];
-  }, [cashSnapshots, totalInvestment]);
+
+    if (list.length === 0 && totalInvestment > 0) {
+      return [{ month: currentMonthKey, investment: totalInvestment, cash: 0, totalAsset: totalInvestment, ratio: 0 }];
+    }
+
+    return list.sort((a: any, b: any) => String(a.month).localeCompare(String(b.month)));
+  }, [cashSnapshots, liveCash, totalInvestment]);
 
   // useCallback으로 안정화하여 ScrollView 불필요한 리렌더 방지
   const onScroll = useCallback((event: any) => {
