@@ -123,12 +123,27 @@ def save_workbook_safely(wb, full_path):
             with open(full_path, 'r+b') as dst:
                 dst.write(data)
                 dst.truncate()
+                dst.flush()
+                os.fsync(dst.fileno())
     finally:
         try:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
         except Exception:
             pass
+
+def load_workbook_retry(full_path, max_attempts=4, **kwargs):
+    """엑셀 로드 재시도 — 동시 쓰기로 인한 순간적 비-zip 상태 대응"""
+    import zipfile, time
+    last_err = None
+    for attempt in range(max_attempts):
+        try:
+            return openpyxl.load_workbook(full_path, **kwargs)
+        except (zipfile.BadZipFile, openpyxl.utils.exceptions.InvalidFileException, KeyError, OSError) as e:
+            last_err = e
+            if attempt < max_attempts - 1:
+                time.sleep(0.4 * (attempt + 1))
+    raise last_err
 
 def trigger_export():
     """데이터 변경 시 export_to_json.py를 실행하여 앱용 JSON 갱신 (비동기)"""
@@ -786,7 +801,7 @@ def save_journal():
         # openpyxl을 사용하여 데이터 추가 (동시 쓰기 방지용 락 획득)
         _excel_write_lock.acquire()
         try:
-            wb = openpyxl.load_workbook(full_path, rich_text=True)
+            wb = load_workbook_retry(full_path, rich_text=True)
         except Exception:
             _excel_write_lock.release()
             raise
@@ -880,7 +895,7 @@ def update_row():
         from openpyxl.styles import Alignment
         _excel_write_lock.acquire()
         try:
-            wb = openpyxl.load_workbook(full_path, rich_text=True)
+            wb = load_workbook_retry(full_path, rich_text=True)
         except Exception:
             _excel_write_lock.release()
             raise
@@ -963,7 +978,7 @@ def sync_receive():
 
             _excel_write_lock.acquire()
             try:
-                wb = openpyxl.load_workbook(full_path, rich_text=True)
+                wb = load_workbook_retry(full_path, rich_text=True)
             except Exception:
                 _excel_write_lock.release()
                 raise
@@ -1151,7 +1166,7 @@ def delete_row():
     try:
         _excel_write_lock.acquire()
         try:
-            wb = openpyxl.load_workbook(full_path, rich_text=True)
+            wb = load_workbook_retry(full_path, rich_text=True)
         except Exception:
             _excel_write_lock.release()
             raise
@@ -1323,7 +1338,7 @@ def ls_import_trades():
     try:
         _excel_write_lock.acquire()
         try:
-            wb = openpyxl.load_workbook(full_path, rich_text=True)
+            wb = load_workbook_retry(full_path, rich_text=True)
         except Exception:
             _excel_write_lock.release()
             raise
@@ -1506,7 +1521,7 @@ def save_cash_snapshots():
 
         _excel_write_lock.acquire()
         try:
-            wb = openpyxl.load_workbook(full_path, rich_text=True)
+            wb = load_workbook_retry(full_path, rich_text=True)
         except Exception:
             _excel_write_lock.release()
             raise
@@ -1593,7 +1608,7 @@ def _write_accounts_sheet(section_key, accounts):
         return False
     _excel_write_lock.acquire()
     try:
-        wb = openpyxl.load_workbook(full_path, rich_text=True)
+        wb = load_workbook_retry(full_path, rich_text=True)
         if '_계좌정보' not in wb.sheetnames:
             ws = wb.create_sheet('_계좌정보')
         else:
