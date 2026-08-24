@@ -9,7 +9,7 @@ import { LineChart } from 'react-native-gifted-charts';
 const { width } = Dimensions.get('window');
 
 export default function TradeScreen() {
-  const { tradeJournal, isLoading } = useDataStore();
+  const { tradeJournal, portfolioMap, isLoading } = useDataStore();
   const route = useRoute<RouteProp<any, '매매일지'>>();
   const [selectedStock, setSelectedStock] = useState<string>('전체');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -65,8 +65,6 @@ export default function TradeScreen() {
 
   // 차트 데이터 구성 (선택된 종목)
   const chartData = useMemo(() => {
-    const portfolioMap = useDataStore.getState().portfolioMap;
-
     if (selectedStock === '전체') {
       const getYearWeek = (date: Date) => {
         const d = new Date(date);
@@ -250,7 +248,7 @@ export default function TradeScreen() {
     }));
 
     return { investmentData, priceData };
-  }, [validTrades, selectedStock]);
+  }, [validTrades, selectedStock, portfolioMap]);
 
   // 종목 또는 총합 필터 선택 시 최신 날짜(우측 끝)로 자동 스크롤 이동
   useEffect(() => {
