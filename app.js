@@ -2791,20 +2791,16 @@ function getPortfolioMapColumns(data) {
     const strategyCol = pick(['전략'], 'Unnamed: 1');
     const sectorCol = pick(['분류'], 'Unnamed: 2');
 
-    // 금액 컬럼: 숫자 헤더(100, 200, ...) 우선, 없으면 Unnamed: 4 이후 전체
-    const numericCols = cols.filter(c => {
+    // 금액 컬럼: 숫자 헤더(100, 200, ...)와 Unnamed: 4 이후 컬럼을 모두 포함
+    // (숫자 헤더 범위를 넘어선 마크가 Unnamed 컬럼에 있을 수 있음 — 예: 46~49열)
+    const amountCols = cols.filter(c => {
         const s = String(c).trim();
-        if (!s || s.startsWith('Unnamed')) return false;
+        if (s.startsWith('Unnamed:')) {
+            return parseInt(s.split(':')[1], 10) >= 4;
+        }
         const n = Number(s);
         return !isNaN(n) && isFinite(n);
     });
-    let amountCols;
-    if (numericCols.length > 0) {
-        amountCols = numericCols;
-    } else {
-        const startIdx = cols.indexOf('Unnamed: 4');
-        amountCols = startIdx !== -1 ? cols.slice(startIdx) : [];
-    }
 
     // 구 포맷이면 헤더 행(종목 값이 '종목'인 행)을 데이터에서 제거
     let dataRows = data.data || [];

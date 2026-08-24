@@ -25,6 +25,32 @@ Format: `## YYYY-MM-DD — Summary`
 
 ---
 
+## 2026-08-24 — 모바일 앱 매매일지/포트폴리오 데이터 미표시 수정 (웹 빌드 재배포)
+
+### Problem / Motivation
+엑셀 헤더 변경(Unnamed → 명명 컬럼) 이후 모바일 앱(Expo 웹 번들)에서도 매매일지/포트폴리오 탭이 하드코딩된 `Unnamed: N` 컬럼을 참조해 데이터가 빈 화면으로 표시됨.
+
+### Changes
+- **StockPortfolioApp/src/utils/excelFields.ts**: 신규 파일 — `getField`(명명 컬럼 우선 + Unnamed 폴백), `getJournalDataRows`, `getPortfolioMapInfo` 헬퍼
+- **StockPortfolioApp/src/screens/PortfolioScreen.tsx**: 포트폴리오 맵 파싱을 헬퍼 기반 동적 해석으로 교체
+- **StockPortfolioApp/src/screens/TradeScreen.tsx**: 매매일지(date/stock/qty/price/type/amount) 및 누적 투자금 계산을 헬퍼 기반으로 교체
+- **StockPortfolioApp/src/screens/SignalScreen.tsx**: 포트폴리오 종목 추출을 헬퍼 기반으로 교체
+- **StockPortfolioApp/src/services/dataService.ts**: localhost API URL 파생 시 origin 사용 (경로 접두사 /stock-portfolio 오류 수정)
+- **StockPortfolioApp/public/sw.js**: SW 캐시 버전 v20→v21 (기존 클라이언트 강제 갱신)
+- **app.js**: 포트폴리오 맵 금액 컬럼에 `Unnamed: 4+` 포함 (46~49열 마크 누락 수정, 총 투자 220→225백만)
+- 웹 재빌드(`npx expo export -p web`) → `copy_dist_to_mobile.py`로 `mobile/` 반영
+
+### Affected Flows
+- `StockPortfolioApp/public/data/*.json` → GitHub Pages → 모바일 PWA 렌더링
+- 로컬 환경에서는 `/api/read-excel` 직접 호출
+
+### Verification
+- 모바일 매매일지: 주간 추이 차트/종목 목록 표시 확인
+- 모바일 포트폴리오: 섹터 비중(전닉주 40% 등), 15종목, 총 225M 표시 확인
+- 데스크톱 포트폴리오: 총 투자 225백만으로 모바일과 일치 확인
+
+---
+
 ## 2026-08-07 — Git Credential Fix (Background Push)
 
 ### Problem
