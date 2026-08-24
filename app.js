@@ -1251,14 +1251,9 @@ function updateChart(data, columnName) {
 
     if (data.current_sheet === '포트폴리오 맵') {
         labelName = '전략/종목군별 투자 금액 (백만)';
-        if (data.data.length < 2) return;
 
-        const dataRows = data.data.slice(1);
-        const stockCol = 'Unnamed: 3';
-        const strategyCol = 'Unnamed: 1';
-        const sectorCol = 'Unnamed: 2';
-        const startColIndex = data.columns.indexOf('Unnamed: 4');
-        const amountCols = startColIndex !== -1 ? data.columns.slice(startColIndex) : [];
+        const { stockCol, strategyCol, sectorCol, amountCols, dataRows } = getPortfolioMapColumns(data);
+        if (dataRows.length === 0) return;
 
         const sortedRows = [...dataRows].sort((a, b) => {
             const stratA = String(a[strategyCol] || '');
@@ -2777,36 +2772,66 @@ function toggleStrikethrough() {
 
 // ===== 포트폴리오 맵 연동 유틸리티 =====
 
+/**
+ * 포트폴리오 맵 시트의 컬럼 매핑을 동적으로 해석한다.
+ * - 신규 포맷: 헤더가 '전략'/'분류'/'종목' + 숫자 금액 컬럼(100, 200, ...)으로 명명됨
+ * - 구 포맷: 헤더가 Unnamed: 0..49 이고 첫 데이터 행에 '종목' 등 헤더 값이 포함됨
+ */
+function getPortfolioMapColumns(data) {
+    const cols = data.columns || [];
+
+    const pick = (names, fallback) => {
+        for (const n of names) {
+            if (cols.includes(n)) return n;
+        }
+        return cols.includes(fallback) ? fallback : null;
+    };
+
+    const stockCol = pick(['종목'], 'Unnamed: 3');
+    const strategyCol = pick(['전략'], 'Unnamed: 1');
+    const sectorCol = pick(['분류'], 'Unnamed: 2');
+
+    // 금액 컬럼: 숫자 헤더(100, 200, ...) 우선, 없으면 Unnamed: 4 이후 전체
+    const numericCols = cols.filter(c => {
+        const s = String(c).trim();
+        if (!s || s.startsWith('Unnamed')) return false;
+        const n = Number(s);
+        return !isNaN(n) && isFinite(n);
+    });
+    let amountCols;
+    if (numericCols.length > 0) {
+        amountCols = numericCols;
+    } else {
+        const startIdx = cols.indexOf('Unnamed: 4');
+        amountCols = startIdx !== -1 ? cols.slice(startIdx) : [];
+    }
+
+    // 구 포맷이면 헤더 행(종목 값이 '종목'인 행)을 데이터에서 제거
+    let dataRows = data.data || [];
+    if (dataRows.length > 0) {
+        const firstStock = String(dataRows[0][stockCol] || '').trim();
+        if (firstStock === '종목' || firstStock === 'stock') {
+            dataRows = dataRows.slice(1);
+        }
+    }
+
+    return { stockCol, strategyCol, sectorCol, amountCols, dataRows };
+}
+
 function updatePortfolioMapCache(data) {
     if (data.current_sheet !== '포트폴리오 맵') return;
 
     portfolioMapCache = {};
     if (!data.data || data.data.length === 0) return;
 
-    // '종목' 이라는 텍스트가 포함된 컬럼 찾기
-    let stockCol = null;
-    const firstRow = data.data[0];
-    for (const key in firstRow) {
-        if (String(firstRow[key]).includes('종목')) {
-            stockCol = key;
-            break;
-        }
-    }
-    // 못 찾으면 기본값 시도
-    if (!stockCol) stockCol = 'Unnamed: 3';
+    const { stockCol, amountCols, dataRows } = getPortfolioMapColumns(data);
 
-    // 금액이 시작되는 컬럼('1'들이 적힌 곳) 찾기 (보통 Unnamed: 4 이후)
-    const amountKeys = Object.keys(firstRow).filter(k => {
-        const kNum = parseInt(k.replace('Unnamed: ', ''));
-        return !isNaN(kNum) && kNum >= 4;
-    });
-
-    data.data.forEach(row => {
+    dataRows.forEach(row => {
         const stockName = String(row[stockCol] || '').trim();
         // 종목명이 유효하고 헤더가 아닌 경우만 처리
         if (stockName && stockName !== '종목' && stockName !== 'stock') {
             let countOfOnes = 0;
-            amountKeys.forEach(key => {
+            amountCols.forEach(key => {
                 const val = parseFloat(row[key]);
                 if (val === 1) countOfOnes++;
             });

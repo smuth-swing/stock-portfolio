@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView, Dimensions, TextInput } from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { useDataStore } from '../store/useDataStore';
+import { getField, JOURNAL_FIELDS, getJournalDataRows, getPortfolioMapInfo } from '../utils/excelFields';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart } from 'react-native-gifted-charts';
 
@@ -31,9 +32,9 @@ export default function TradeScreen() {
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
     
-    return tradeJournal.data.slice(1).filter((r: any) => {
-      const rawDate = r['Unnamed: 0'];
-      const rawStock = r['Unnamed: 1'];
+    return getJournalDataRows(tradeJournal).filter((r: any) => {
+      const rawDate = getField(r, JOURNAL_FIELDS.date);
+      const rawStock = getField(r, JOURNAL_FIELDS.stock);
       
       // 값이 아예 없거나, 헤더인 경우 필터링
       if (!rawDate || rawDate === 'Date' || !rawStock || rawStock === '종목') return false;
@@ -50,7 +51,7 @@ export default function TradeScreen() {
   const stocks = useMemo(() => {
     const stockSet = new Set<string>();
     validTrades.forEach((row: any) => {
-      const name = row['Unnamed: 1'];
+      const name = getField(row, JOURNAL_FIELDS.stock);
       if (name && typeof name === 'string' && name.trim()) stockSet.add(name.trim());
     });
     return ['전체', ...Array.from(stockSet).sort()];
@@ -79,17 +80,17 @@ export default function TradeScreen() {
       const weeklyGroups: { [key: string]: number } = {};
 
       validTrades.forEach((row: any) => {
-        const rawDate = row['Unnamed: 0'];
+        const rawDate = getField(row, JOURNAL_FIELDS.date);
         const safeDateStr = String(rawDate).includes(' ') ? String(rawDate).replace(' ', 'T') : rawDate;
         const date = new Date(safeDateStr);
         
-        const qty = parseFloat(row['Unnamed: 2']) || 0;
-        const price = parseFloat(row['Unnamed: 3']) || 0;
+        const qty = parseFloat(String(getField(row, JOURNAL_FIELDS.qty)).replace(/,/g, '')) || 0;
+        const price = parseFloat(String(getField(row, JOURNAL_FIELDS.price)).replace(/,/g, '')) || 0;
 
         const tradeOnes = Math.round((qty * price) / 1000000);
         let numVal = tradeOnes * 100;
 
-        const tradeType = String(row['Unnamed: 4'] || '').trim();
+        const tradeType = String(getField(row, JOURNAL_FIELDS.type) || '').trim();
         if (tradeType === '매도') {
           numVal = -Math.abs(numVal);
         } else {
@@ -118,18 +119,16 @@ export default function TradeScreen() {
       let currentTotal = 9500; // 만원 단위 (기본 9500만원)
       if (portfolioMap && portfolioMap.data) {
         let totalMarks = 0;
-        const rows = portfolioMap.data.slice(1);
-        const cols = portfolioMap.columns || [];
-        rows.forEach((row: any) => {
-          const stockName = String(row['Unnamed: 3'] || '').trim();
+        const { stockCol, amountCols, dataRows } = getPortfolioMapInfo(portfolioMap);
+        dataRows.forEach((row: any) => {
+          const stockName = String(row[stockCol as string] || '').trim();
           if (!stockName || stockName === '종목') return;
           
-          for (let colIdx = 4; colIdx < cols.length; colIdx++) {
-            const colName = cols[colIdx];
-            if (row[colName] === 1 || row[colName] === 1.0) {
+          amountCols.forEach((colName: string) => {
+            if (parseFloat(row[colName]) === 1) {
               totalMarks++;
             }
-          }
+          });
         });
         if (totalMarks > 0) {
           currentTotal = totalMarks * 100;
@@ -196,10 +195,10 @@ export default function TradeScreen() {
 
     // 개별 종목일 때의 로직
     const stockTrades = validTrades
-      .filter((r: any) => r['Unnamed: 1'] === selectedStock)
+      .filter((r: any) => getField(r, JOURNAL_FIELDS.stock) === selectedStock)
       .sort((a: any, b: any) => {
-        const safeA = String(a['Unnamed: 0']).includes(' ') ? String(a['Unnamed: 0']).replace(' ', 'T') : a['Unnamed: 0'];
-        const safeB = String(b['Unnamed: 0']).includes(' ') ? String(b['Unnamed: 0']).replace(' ', 'T') : b['Unnamed: 0'];
+        const safeA = String(getField(a, JOURNAL_FIELDS.date)).includes(' ') ? String(getField(a, JOURNAL_FIELDS.date)).replace(' ', 'T') : getField(a, JOURNAL_FIELDS.date);
+        const safeB = String(getField(b, JOURNAL_FIELDS.date)).includes(' ') ? String(getField(b, JOURNAL_FIELDS.date)).replace(' ', 'T') : getField(b, JOURNAL_FIELDS.date);
         let dateA = new Date(safeA).getTime();
         let dateB = new Date(safeB).getTime();
         if (isNaN(dateA)) dateA = 0;
@@ -211,15 +210,15 @@ export default function TradeScreen() {
     const rawPriceData: any[] = [];
 
     stockTrades.forEach((row: any) => {
-      const safeDateStr = String(row['Unnamed: 0']).includes(' ') ? String(row['Unnamed: 0']).replace(' ', 'T') : row['Unnamed: 0'];
+      const safeDateStr = String(getField(row, JOURNAL_FIELDS.date)).includes(' ') ? String(getField(row, JOURNAL_FIELDS.date)).replace(' ', 'T') : getField(row, JOURNAL_FIELDS.date);
       const date = new Date(safeDateStr);
       const label = isNaN(date.getTime()) ? '' : `${date.getMonth() + 1}/${date.getDate()}`;
 
-      const rawAmount = row['Unnamed: 5'];
+      const rawAmount = getField(row, JOURNAL_FIELDS.amount);
       const amountVal = typeof rawAmount === 'number' ? rawAmount : parseFloat(String(rawAmount).replace(/,/g, '')) || 0;
       const investmentM = amountVal / 100;
 
-      const rawPrice = row['Unnamed: 3'];
+      const rawPrice = getField(row, JOURNAL_FIELDS.price);
       const priceVal = typeof rawPrice === 'number' ? rawPrice : parseFloat(String(rawPrice).replace(/,/g, '')) || 0;
 
       const roundedInvestmentM = Math.round(investmentM);

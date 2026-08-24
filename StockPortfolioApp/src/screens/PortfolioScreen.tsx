@@ -12,6 +12,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useDataStore } from '../store/useDataStore';
+import { getPortfolioMapInfo } from '../utils/excelFields';
 import { PieChart } from 'react-native-gifted-charts';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Rect, Line as SvgLine, Text as SvgText, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
@@ -41,16 +42,13 @@ export default function PortfolioScreen() {
     
     const sectors: { [key: string]: number } = {};
     const stocks: { label: string, value: number, sector: string, strategy: string }[] = [];
-    const dataRows = portfolioMap.data.slice(1);
-    const amountCols = portfolioMap.columns.filter(
-      (c: string) => c.startsWith('Unnamed:') && parseInt(c.split(':')[1]) >= 4
-    );
+    const { stockCol, strategyCol, sectorCol, amountCols, dataRows } = getPortfolioMapInfo(portfolioMap);
     const colors = ['#22C55E', '#F97316', '#38BDF8', '#EAB308', '#8B5CF6', '#14B8A6', '#F59E0B', '#64748B'];
 
     dataRows.forEach((row: any) => {
-      const stockName = row['Unnamed: 3'] || '알수없음';
-      const sector = row['Unnamed: 2'] || '기타';
-      const strategy = row['Unnamed: 1'] || '';
+      const stockName = (stockCol ? String(row[stockCol] || '').trim() : '') || '알수없음';
+      const sector = (sectorCol ? String(row[sectorCol] || '').trim() : '') || '기타';
+      const strategy = strategyCol ? String(row[strategyCol] || '').trim() : '';
       let amount = 0;
       amountCols.forEach((col: string) => {
         if (parseFloat(row[col]) === 1) amount++;

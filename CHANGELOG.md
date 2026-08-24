@@ -6,6 +6,25 @@ Format: `## YYYY-MM-DD — Summary`
 
 ---
 
+## 2026-08-24 — 포트폴리오 맵 컬럼 매핑 수정 (엑셀 헤더 변경 대응)
+
+### Problem / Motivation
+엑셀 '포트폴리오 맵' 시트의 헤더가 기존 `Unnamed: N` 형식에서 실제 이름(전략/분류/종목) + 숫자 금액 헤더(100, 200, ...) 형식으로 변경되면서, 포트폴리오 탭에서 엑셀 데이터를 읽지 못하는 문제 발생. (매매일지 탭은 정상)
+
+### Changes
+- **app.js**: `getPortfolioMapColumns()` 헬퍼 추가 — 명명 컬럼과 구 Unnamed 포맷을 모두 자동 해석
+- **app.js**: `updateChart()` 포트폴리오 맵 분기 — 하드코딩된 `Unnamed: 3/1/2/4` 대신 동적 컬럼 사용, 데이터 첫 행 헤더 포함 여부도 자동 판별
+- **app.js**: `updatePortfolioMapCache()` — 같은 헬퍼를 사용해 종목/금액 컬럼 해석
+
+### Affected Flows
+- `GET /api/read-excel?sheet=포트폴리오 맵` 응답 → 차트/요약 스탯/포트폴리오 맵 캐시 렌더링
+
+### Verification
+- API 호출 확인: 38행, 컬럼 `Unnamed: 0|전략|분류|종목|100.0|...|4400.0|Unnamed: 46..49`
+- 포트폴리오 탭에서 차트/투자 요약이 표시되는지 확인 필요
+
+---
+
 ## 2026-08-07 — Git Credential Fix (Background Push)
 
 ### Problem

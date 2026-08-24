@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useDataStore } from '../store/useDataStore';
+import { getPortfolioMapInfo } from '../utils/excelFields';
 
 export default function SignalScreen() {
   const { portfolioMap, investigation, meta, targetPrices, targetDates } = useDataStore();
@@ -64,20 +65,14 @@ export default function SignalScreen() {
   const getPortfolioStocks = () => {
     if (!portfolioMap || !portfolioMap.data) return [];
     
-    const cols = portfolioMap.columns || [];
-    const stockCol = cols.includes('종목') ? '종목' : 'Unnamed: 3';
-    
-    const amountKeys = Object.keys(portfolioMap.data[0] || {}).filter(k => {
-      const num = parseInt(k.replace('Unnamed: ', ''));
-      return !isNaN(num) && num >= 4;
-    });
+    const { stockCol, amountCols, dataRows } = getPortfolioMapInfo(portfolioMap);
 
     const portSet = new Set<string>();
-    portfolioMap.data.slice(1).forEach((row: any) => {
-      const stockName = String(row[stockCol] || '').trim();
+    dataRows.forEach((row: any) => {
+      const stockName = String(row[stockCol as string] || '').trim();
       if (stockName && stockName !== '종목' && stockName !== 'stock') {
         let hasOne = false;
-        amountKeys.forEach(k => {
+        amountCols.forEach((k: string) => {
           if (parseFloat(row[k]) === 1) hasOne = true;
         });
         if (hasOne) portSet.add(stockName);
