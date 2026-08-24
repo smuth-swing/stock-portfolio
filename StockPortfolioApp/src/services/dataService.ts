@@ -51,9 +51,10 @@ export const fetchJSON = async (key: keyof typeof DATA_URLS) => {
   // 만약 BASE_URL이 로컬 API 서버(localhost:5000)를 가리키고 있다면
   // 정적 JSON 파일 대신 백엔드의 실시간 /api/read-excel API를 호출하여 CORS 문제 완벽 회피
   if (url.includes('localhost:5000') || url.includes('127.0.0.1:5000')) {
+    // API 베이스는 origin만 사용 (경로 접두사 /mobile, /stock-portfolio/mobile 등과 무관)
+    const origin = new URL(url).origin;
     if (key === 'cashAccounts') {
-      const baseApiUrl = url.includes('/mobile/') ? url.split('/mobile/')[0] : url.split('/data/')[0];
-      url = `${baseApiUrl}/api/cash-accounts`;
+      url = `${origin}/api/cash-accounts`;
     } else {
       const sheetMap: Record<string, string> = {
         tradeJournal: '매매일지',
@@ -63,8 +64,7 @@ export const fetchJSON = async (key: keyof typeof DATA_URLS) => {
       };
       const sheetName = sheetMap[key];
       if (sheetName) {
-        const baseApiUrl = url.includes('/mobile/') ? url.split('/mobile/')[0] : url.split('/data/')[0];
-        url = `${baseApiUrl}/api/read-excel?sheet=${encodeURIComponent(sheetName)}&file=${encodeURIComponent('주식 체크 리스트_20220328.xlsx')}`;
+        url = `${origin}/api/read-excel?sheet=${encodeURIComponent(sheetName)}&file=${encodeURIComponent('주식 체크 리스트_20220328.xlsx')}`;
       }
     }
   }
