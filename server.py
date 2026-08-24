@@ -100,6 +100,36 @@ EXCEL_FILE = '주식 체크 리스트_20220328.xlsx'
 # ==================== 자동 동기화 트리거 ====================
 _export_lock = threading.Lock()
 
+# ==================== 엑셀 쓰기 직렬화 ====================
+# 여러 쓰기 엔드포인트가 동시에 wb.save()를 호출하면 zip 스트림이 뒤섞여
+# 파일이 손상(CRC 오류)되는 문제 방지: 모든 쓰기를 락으로 직렬화하고
+# 임시 파일에 먼저 저장한 뒤 원본에 반영한다.
+_excel_write_lock = threading.Lock()
+
+def save_workbook_safely(wb, full_path):
+    """워크북을 임시 파일에 먼저 저장한 뒤 원본에 반영 (동시 쓰기/중단 손상 방지)"""
+    import tempfile
+    directory = os.path.dirname(full_path) or '.'
+    fd, tmp_path = tempfile.mkstemp(prefix='~wb_', suffix='.xlsx', dir=directory)
+    os.close(fd)
+    try:
+        wb.save(tmp_path)
+        try:
+            os.replace(tmp_path, full_path)
+        except OSError:
+            # 다른 프로세스가 읽기 잠금을 걸고 있어 교체가 불가하면 내용만 덮어쓰기
+            with open(tmp_path, 'rb') as src:
+                data = src.read()
+            with open(full_path, 'r+b') as dst:
+                dst.write(data)
+                dst.truncate()
+    finally:
+        try:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except Exception:
+            pass
+
 def trigger_export():
     """데이터 변경 시 export_to_json.py를 실행하여 앱용 JSON 갱신 (비동기)"""
     def run():
@@ -753,8 +783,13 @@ def save_journal():
         )
         no_fill = PatternFill(fill_type=None)  # 배경색 없음(초기화용)
 
-        # openpyxl을 사용하여 데이터 추가
-        wb = openpyxl.load_workbook(full_path, rich_text=True)
+        # openpyxl을 사용하여 데이터 추가 (동시 쓰기 방지용 락 획득)
+        _excel_write_lock.acquire()
+        try:
+            wb = openpyxl.load_workbook(full_path, rich_text=True)
+        except Exception:
+            _excel_write_lock.release()
+            raise
         try:
             if sheet_name not in wb.sheetnames:
                 ws = wb.create_sheet(sheet_name)
@@ -803,7 +838,7 @@ def save_journal():
                 print(f"[ERROR] portfolio map update failed: {inner_e}")
             
             # 최종 저장 (매매일지 + 포트폴리오 맵 모두 반영)
-            wb.save(full_path)
+            save_workbook_safely(wb, full_path)
             wb.close()
             
             # 아이폰 앱용 데이터 자동 갱신
@@ -813,6 +848,7 @@ def save_journal():
             # 오류가 발생하더라도 확실하게 파일을 닫아 잠금 해제
             try: wb.close()
             except: pass
+            _excel_write_lock.release()
         
         return jsonify({'success': True, 'message': '성공적으로 저장되었습니다.'})
     
@@ -842,7 +878,12 @@ def update_row():
 
     try:
         from openpyxl.styles import Alignment
-        wb = openpyxl.load_workbook(full_path, rich_text=True)
+        _excel_write_lock.acquire()
+        try:
+            wb = openpyxl.load_workbook(full_path, rich_text=True)
+        except Exception:
+            _excel_write_lock.release()
+            raise
         try:
             if sheet_name not in wb.sheetnames:
                 return jsonify({'error': f'시트를 찾을 수 없습니다: {sheet_name}'}), 404
@@ -868,10 +909,11 @@ def update_row():
                         sync_portfolio_map(wb, stock_name, amount)
                 except: pass
 
-            wb.save(full_path)
+            save_workbook_safely(wb, full_path)
         finally:
             try: wb.close()
             except: pass
+            _excel_write_lock.release()
         
         # 아이폰 앱용 데이터 자동 갱신
         trigger_export()
@@ -919,7 +961,12 @@ def sync_receive():
                 print(f'[sync-receive] 파일 없음: {full_path}')
                 continue
 
-            wb = openpyxl.load_workbook(full_path, rich_text=True)
+            _excel_write_lock.acquire()
+            try:
+                wb = openpyxl.load_workbook(full_path, rich_text=True)
+            except Exception:
+                _excel_write_lock.release()
+                raise
 
             try:
                 for edit in file_edits:
@@ -973,10 +1020,11 @@ def sync_receive():
                             cell.alignment = Alignment(wrap_text=True)
 
                 # 파일당 1회만 저장/닫기
-                wb.save(full_path)
+                save_workbook_safely(wb, full_path)
             finally:
                 try: wb.close()
                 except: pass
+                _excel_write_lock.release()
 
         # ★ 모바일 동기화: JSON 내보내기 + Git Push를 동기적으로 실행
         push_success = trigger_export_and_push_sync()
@@ -1101,7 +1149,12 @@ def delete_row():
         return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
 
     try:
-        wb = openpyxl.load_workbook(full_path, rich_text=True)
+        _excel_write_lock.acquire()
+        try:
+            wb = openpyxl.load_workbook(full_path, rich_text=True)
+        except Exception:
+            _excel_write_lock.release()
+            raise
         try:
             if sheet_name not in wb.sheetnames:
                 return jsonify({'error': f'시트를 찾을 수 없습니다: {sheet_name}'}), 404
@@ -1132,10 +1185,11 @@ def delete_row():
                 sync_portfolio_map(wb, stock_name, last_amount)
                 print(f"🗑️ [{stock_name}] 삭제 및 이전 데이터({last_amount}) 동기화")
 
-            wb.save(full_path)
+            save_workbook_safely(wb, full_path)
         finally:
             try: wb.close()
             except: pass
+            _excel_write_lock.release()
         
         # 아이폰 앱용 데이터 자동 갱신
         trigger_export()
@@ -1267,7 +1321,12 @@ def ls_import_trades():
         return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
 
     try:
-        wb = openpyxl.load_workbook(full_path, rich_text=True)
+        _excel_write_lock.acquire()
+        try:
+            wb = openpyxl.load_workbook(full_path, rich_text=True)
+        except Exception:
+            _excel_write_lock.release()
+            raise
         try:
             sheet_name = '매매일지'
             if sheet_name not in wb.sheetnames:
@@ -1316,10 +1375,11 @@ def ls_import_trades():
                 except Exception as row_e:
                     errors.append(f"{trade.get('name', '?')}: {str(row_e)}")
 
-            wb.save(full_path)
+            save_workbook_safely(wb, full_path)
         finally:
             try: wb.close()
             except: pass
+            _excel_write_lock.release()
 
         # 아이폰 앱용 JSON 자동 갱신
         trigger_export()
@@ -1444,7 +1504,13 @@ def save_cash_snapshots():
         if not isinstance(data, list):
             return jsonify({'error': '배열 데이터가 필요합니다.'}), 400
 
-        wb = openpyxl.load_workbook(full_path)
+        _excel_write_lock.acquire()
+        try:
+            wb = openpyxl.load_workbook(full_path, rich_text=True)
+        except Exception:
+            _excel_write_lock.release()
+            raise
+
         if '현금비중' not in wb.sheetnames:
             ws = wb.create_sheet('현금비중')
         else:
@@ -1468,12 +1534,17 @@ def save_cash_snapshots():
             ws.cell(row, 4, float(item.get('totalAsset', 0)))
             ws.cell(row, 5, float(item.get('ratio', 0)))
 
-        wb.save(full_path)
+        save_workbook_safely(wb, full_path)
         wb.close()
+        _excel_write_lock.release()
 
         trigger_export()
         return jsonify({'success': True, 'count': len(data)})
     except Exception as e:
+        try:
+            _excel_write_lock.release()
+        except RuntimeError:
+            pass  # 락을 획득하지 않은 상태에서 예외가 발생한 경우
         return jsonify({'error': str(e)}), 500
 
 # ────────────────────────────────────────────────
@@ -1520,8 +1591,9 @@ def _write_accounts_sheet(section_key, accounts):
     full_path = os.path.join(ONEDRIVE_PATH, EXCEL_FILE)
     if not os.path.isfile(full_path):
         return False
+    _excel_write_lock.acquire()
     try:
-        wb = openpyxl.load_workbook(full_path)
+        wb = openpyxl.load_workbook(full_path, rich_text=True)
         if '_계좌정보' not in wb.sheetnames:
             ws = wb.create_sheet('_계좌정보')
         else:
@@ -1560,12 +1632,14 @@ def _write_accounts_sheet(section_key, accounts):
                 ws.cell(section_start + 1 + i, 1, acc.get('name', ''))
                 ws.cell(section_start + 1 + i, 2, float(acc.get('amount', 0)))
 
-        wb.save(full_path)
+        save_workbook_safely(wb, full_path)
         wb.close()
         return True
     except Exception as e:
         print(f"[ACCOUNTS] 쓰기 오류: {e}")
         return False
+    finally:
+        _excel_write_lock.release()
 
 
 @app.route('/api/cash-accounts', methods=['GET'])
