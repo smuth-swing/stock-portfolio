@@ -80,6 +80,29 @@ Format: `## YYYY-MM-DD — Summary`
 
 ---
 
+## 2026-08-24 — 모바일 매매일지 날짜 파싱/차트 기준값 수정
+
+### Problem / Motivation
+모바일 매매일지 탭이 "최근 6개월 내 거래 내역이 없습니다"로 표시됨. 원인 두 가지:
+1. `export_to_json.py`가 날짜 컬럼을 숫자로 강제 변환해 JSON에 엑셀 시리얼(44648)이 저장됨 → `new Date(44648)` = 1970년 → 6개월 필터가 모든 행 제거
+2. 엑셀 복구 과정에서 재생성한 `styles.xml`에 날짜 numFmt가 없어 엑셀 자체도 날짜를 숫자로 표시
+
+### Changes
+- **export_to_json.py**: 날짜/날짜이름 컬럼은 숫자 변환 제외(server.py read_excel과 동일), datetime 값은 `YYYY-MM-DD` 문자열로 직렬화
+- **scratch/fix_excel_dates.py**: 복구된 xlsx의 매매일지 A열 날짜 시리얼 셀에 날짜 서식(numFmt 164) 적용 + styles.xml 재생성
+- **StockPortfolioApp/src/screens/TradeScreen.tsx**: `chartData` useMemo 의존성에 `portfolioMap` 추가 (포트폴리오 맵 로드 전에 계산되어 기본값 9,500만원으로 고정되던 문제 수정, 누적 투자금 225M 정상 표시)
+- 웹 번들 재빌드 → `mobile/` 반영
+
+### Affected Flows
+- `export_to_json.py` → `trade_journal.json` → GitHub Pages → 모바일 매매일지
+- `GET /api/read-excel?sheet=매매일지` 날짜 직렬화
+
+### Verification
+- API/JSON 날짜: `2022-03-28` 문자열 확인 (시리얼 44648 → 문자열)
+- 모바일 매매일지: 주간 추이 차트가 누적 225M로 종료(포트폴리오 합계와 일치)
+
+---
+
 ## 2026-08-07 — Git Credential Fix (Background Push)
 
 ### Problem
