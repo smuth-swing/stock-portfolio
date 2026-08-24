@@ -400,7 +400,7 @@ async function loadExcel(filePath, sheetName = null) {
         const data = await res.json();
 
         if (data.error) {
-            showToast('파일을 찾을 수 없습니다: ' + TARGET_FILE, 'error');
+            showToast(data.error || ('파일을 찾을 수 없습니다: ' + TARGET_FILE), 'error');
             return;
         }
 
