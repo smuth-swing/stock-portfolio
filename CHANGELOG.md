@@ -51,6 +51,35 @@ Format: `## YYYY-MM-DD — Summary`
 
 ---
 
+## 2026-08-24 — 엑셀 파일 손상 복구 + 동시 쓰기 손상 방지 (스냅샷 저장 오류)
+
+### Problem / Motivation
+계좌 현금 스냅샷 저장 시 "파일 접근이 안됨" 및 이후 모든 read-excel이 `Bad CRC-32 for file '[Content_Types].xml'`로 실패 — 엑셀 파일(xlsx zip)이 실제로 손상됨.
+
+### Root Cause
+1. **이중 서버 실행**: Task Scheduler(SYSTEM 권한)로 구동 중인 서버(구 코드)와 새로 띄운 서버가 동시에 0.0.0.0:5000을 LISTEN(SO_REUSEADDR) → 요청이 두 프로세스에 분산
+2. 구 서버의 `save_cash_snapshots`가 `wb.save(full_path)`로 **비원자적·비직렬화** 저장 → 동시 요청(자동 스냅샷 + 수동 저장)의 zip 스트림이 뒤섞여 파일 손상
+
+### Changes
+- **server.py**: `_excel_write_lock` 추가 — 모든 엑셀 쓰기 엔드포인트(save-journal/update-row/delete-row/sync-receive/ls-import-trades/cash-snapshots/accounts)를 락으로 직렬화
+- **server.py**: `save_workbook_safely()` — 임시 파일 저장 후 os.replace(실패 시 r+b 덮어쓰기+fsync) 방식의 안전 저장
+- **server.py**: `load_workbook_retry()` — 동시 쓰기 순간의 비-zip 상태 읽기 재시도
+- **server.py**: 쓰기 엔드포인트 load_workbook에 `rich_text=True` 일괄 적용 (서식 보존)
+- **scratch/repair_excel.py**: 손상 파일 복구 스크립트 — 무손상 시트(1~6) + deflate 복구한 sheet7/8 + 골격 XML 재생성 (styles.xml은 최소 재생성 → 셀 서식은 기본값으로 변경됨)
+- 서버 중복 실행 해소: SYSTEM 재시작 태스크(`StockPortfolioRestart`)로 단일 서버로 통일
+
+### Affected Flows
+- `POST /api/cash-snapshots`, 계좌/매매일지 저장 → Excel '현금비중'/'_계좌정보' 시트
+- `GET /api/read-excel` 전체
+
+### Verification
+- 스냅샷 저장 1회: success, zip 무결성 유지
+- 동시 저장 8회 스트레스: 전부 200 OK, zip 무결성 유지
+- 복구 후 read-excel: 매매일지 1450행/포트폴리오 맵/현금비중 정상
+- 손상 파일은 `backup\주식 체크 리스트_corrupt_*.xlsx`에 백업됨
+
+---
+
 ## 2026-08-07 — Git Credential Fix (Background Push)
 
 ### Problem
