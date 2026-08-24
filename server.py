@@ -533,11 +533,10 @@ def read_excel():
         header_row_idx = 0
         is_unnamed_header = any(str(c).startswith('Unnamed:') for c in df.columns)
         if not df.empty and (is_unnamed_header or "실적" in target_sheet or "매매" in target_sheet):
-            found_header = False
             keywords = ["Date", "종목", "날짜", "수량", "가격", "매매유형", "연도", "수익율", "종목명"]
             for i in range(min(10, len(df))):
                 row_vals = [str(x).strip() for x in df.iloc[i].values]
-                if any(any(k in val for k in keywords) for val in row_vals if val):
+                if any(k in row_vals for k in keywords):
                     header_row_idx = i
                     new_cols = []
                     for j, val in enumerate(row_vals):
@@ -547,7 +546,6 @@ def read_excel():
                             new_cols.append(f"Unnamed: {j}")
                     df.columns = new_cols
                     df = df.iloc[i+1:].reset_index(drop=True)
-                    found_header = True
                     break
 
         # 숫자형 컬럼 감지 (강제 변환 시도 포함)

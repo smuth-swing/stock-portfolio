@@ -173,7 +173,7 @@ def sheet_to_json(file_data: bytes, sheet_name: str, sheet_names: list) -> dict:
         keywords = ['Date', '종목', '날짜', '수량', '가격', '매매유형', '연도', '수익율', '종목명']
         for i in range(min(10, len(df))):
             row_vals = [str(x).strip() for x in df.iloc[i].values]
-            if any(any(k in val for k in keywords) for val in row_vals if val):
+            if any(k in row_vals for k in keywords):
                 header_row_idx = i
                 new_cols = []
                 for j, val in enumerate(row_vals):
