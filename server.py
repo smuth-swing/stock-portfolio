@@ -504,6 +504,7 @@ def read_excel():
     
     try:
         import io
+        from datetime import datetime, date as date_cls
         
         # 캐시 확인 (수정 시간이 같으면 캐시 반환)
         file_stat = os.stat(full_path)
@@ -531,6 +532,7 @@ def read_excel():
 
         # --- 헤더 자동 탐색 및 승격 (첫 행이 빈 줄이거나 Unnamed인 경우) ---
         header_row_idx = 0
+        promoted = False
         is_unnamed_header = any(str(c).startswith('Unnamed:') for c in df.columns)
         if not df.empty and (is_unnamed_header or "실적" in target_sheet or "매매" in target_sheet):
             keywords = ["Date", "종목", "날짜", "수량", "가격", "매매유형", "연도", "수익율", "종목명"]
@@ -538,6 +540,7 @@ def read_excel():
                 row_vals = [str(x).strip() for x in df.iloc[i].values]
                 if any(k in row_vals for k in keywords):
                     header_row_idx = i
+                    promoted = True
                     new_cols = []
                     for j, val in enumerate(row_vals):
                         if val and val != 'nan':
@@ -549,15 +552,29 @@ def read_excel():
                     break
 
         # 숫자형 컬럼 감지 (강제 변환 시도 포함)
-        for col in df.columns:
-            if '연도' in str(col): continue 
-            try:
-                temp_numeric = pd.to_numeric(df[col].replace('', pd.NA), errors='coerce')
-                if temp_numeric.notna().any():
-                    if temp_numeric.notna().sum() / len(df) > 0.2: # 기준 완화
-                        df[col] = temp_numeric.fillna(0)
-            except:
-                pass
+        # 주의: 매매일지 시트는 '52000원' 같은 혼합 텍스트, 코멘트, 날짜가 섞여 있어
+        # 강제 숫자 변환 시 실제 데이터가 0으로 파괴되므로 변환을 건너뜀
+        if "매매" not in target_sheet:
+            for col in df.columns:
+                col_str = str(col)
+                if '연도' in col_str: continue 
+                if 'date' in col_str.lower() or '날짜' in col_str: continue
+                try:
+                    series = df[col]
+                    non_empty = series.dropna()
+                    try:
+                        non_empty = non_empty[non_empty != '']
+                    except Exception:
+                        pass
+                    # 날짜 값이 들어있는 컬럼은 숫자 변환 제외
+                    if len(non_empty) > 0 and isinstance(non_empty.iloc[0], (datetime, date_cls)):
+                        continue
+                    temp_numeric = pd.to_numeric(series.replace('', pd.NA), errors='coerce')
+                    if temp_numeric.notna().any():
+                        if temp_numeric.notna().sum() / len(df) > 0.2: # 기준 완화
+                            df[col] = temp_numeric.fillna(0)
+                except:
+                    pass
 
         numeric_columns = df.select_dtypes(include=['number']).columns.tolist()
         
@@ -601,12 +618,17 @@ def read_excel():
                 data.append(row_data)
         else:
             data = []
+            # 헤더 승격 시 _realIndex 보정:
+            # 승격 전 df 행 N = 엑셀 N+2행, 승격 후 df 행 0 = 엑셀 (header_row_idx+3)행
+            # → _realIndex가 '엑셀 행번호 - 2'가 되도록 오프셋 적용 (update/delete API의 +2 규칙 유지)
+            real_offset = (header_row_idx + 1) if promoted else 0
             for idx, row in df.iterrows():
-                row_data = {'_realIndex': idx}
+                row_data = {'_realIndex': idx + real_offset}
                 for i, col in enumerate(df.columns):
                     val = row[col]
                     col_name = columns[i]
                     if pd.isna(val): row_data[col_name] = ''
+                    elif isinstance(val, (datetime, date_cls)): row_data[col_name] = val.strftime('%Y-%m-%d')
                     elif isinstance(val, (int, float)): row_data[col_name] = val
                     else: row_data[col_name] = str(val)
                 data.append(row_data)

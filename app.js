@@ -13,6 +13,25 @@ const GITHUB_JSON_MAP = {
     '실적': 'performance.json',
     '배당금': 'dividend.json'
 };
+
+// 매매일지 컬럼명 조회 (헤더 승격된 컬럼명 우선, 이전 Unnamed 컬럼명 폴백)
+const JOURNAL_COL_NAMES = {
+    date:   ['Date', 'Unnamed: 0'],
+    stock:  ['종목', 'Unnamed: 1'],
+    qty:    ['수량', 'Unnamed: 2'],
+    price:  ['가격', '단가', 'Unnamed: 3'],
+    type:   ['매매유형', '매매종류', 'Unnamed: 4'],
+    amount: ['하고 싶은 말', '투자금', 'Unnamed: 5']
+};
+function getJournalField(row, key) {
+    const names = JOURNAL_COL_NAMES[key] || [];
+    if (!row) return '';
+    for (const name of names) {
+        const v = row[name];
+        if (v !== undefined && v !== null && v !== '') return v;
+    }
+    return '';
+}
 const EXPLORATION_SHEET_KEYWORD = '탐구';
 let currentData = null;
 let autoRefreshTimer = null;
@@ -886,8 +905,8 @@ function renderChart(data) {
         const stocks = new Set();
 
         data.data.forEach(row => {
-            const dateStr = row['Unnamed: 0'];
-            const stockName = row['Unnamed: 1'];
+            const dateStr = getJournalField(row, 'date');
+            const stockName = getJournalField(row, 'stock');
             if (dateStr && stockName) {
                 const rowDate = new Date(dateStr);
                 const sName = String(stockName).trim();
@@ -1614,7 +1633,10 @@ function _journalClickDelegate(e) {
         if (typeof setJournalEditMode === 'function') {
             const rowData = currentDisplayRows.find((_, i) => currentDisplayMap[i] === originalIndex);
             if (rowData) {
-                setJournalEditMode(originalIndex, rowData);
+                // 서버 update/delete API의 '엑셀 행번호 - 2' 규칙에 맞춰 _realIndex 사용
+                const realIndex = (rowData._realIndex !== undefined && rowData._realIndex !== null)
+                    ? rowData._realIndex : originalIndex;
+                setJournalEditMode(realIndex, rowData);
             }
         }
     }
@@ -3711,8 +3733,8 @@ function updateJournalTrendChart() {
         // 1. 매매일지 데이터 중 종목명이 유효하고 최근 6개월 이내인 거래 행 필터링
         const filteredData = currentData.data
             .filter(row => {
-                const dateStr = row['Unnamed: 0'];
-                const stockName = row['Unnamed: 1'];
+                const dateStr = getJournalField(row, 'date');
+                const stockName = getJournalField(row, 'stock');
                 if (!dateStr || !stockName || stockName === '종목' || stockName === 'stock') return false;
                 
                 const date = new Date(dateStr);
@@ -3731,18 +3753,18 @@ function updateJournalTrendChart() {
 
         // 2. 각 거래 행을 해당 주차로 분류하여 수량(Unnamed: 2) X 단가(Unnamed: 3)를 곱하고 반올림하여 합산 (매도는 차감)
         filteredData.forEach(row => {
-            const dateStr = row['Unnamed: 0'];
+            const dateStr = getJournalField(row, 'date');
             const date = new Date(dateStr);
             
-            const qty = parseFloat(row['Unnamed: 2']) || 0;
-            const price = parseFloat(row['Unnamed: 3']) || 0;
+            const qty = parseFloat(getJournalField(row, 'qty')) || 0;
+            const price = parseFloat(getJournalField(row, 'price')) || 0;
 
             // 수량 * 단가 / 1,000,000을 반올림하여 백만원 단위 개수를 산출한 후 100을 곱함 (만원 단위로 맞춤)
             const tradeOnes = Math.round((qty * price) / 1000000);
             let numVal = tradeOnes * 100;
 
-            // 매매구분(Unnamed: 4)이 '매도'인 경우 마이너스로 처리
-            const tradeType = String(row['Unnamed: 4'] || '').trim();
+            // 매매구분이 '매도'인 경우 마이너스로 처리
+            const tradeType = String(getJournalField(row, 'type') || '').trim();
             if (tradeType === '매도') {
                 numVal = -Math.abs(numVal);
             } else {
@@ -3803,14 +3825,14 @@ function updateJournalTrendChart() {
         // 해당 종목의 최근 6개월 데이터 필터링
         const filteredData = currentData.data
             .filter(row => {
-                const stockName = String(row['Unnamed: 1'] || '').trim();
-                const dateStr = row['Unnamed: 0'];
+                const stockName = String(getJournalField(row, 'stock') || '').trim();
+                const dateStr = getJournalField(row, 'date');
                 if (!dateStr || stockName !== selectedStock) return false;
                 
                 const date = new Date(dateStr);
                 return !isNaN(date) && date >= sixMonthsAgo;
             })
-            .sort((a, b) => new Date(a['Unnamed: 0']) - new Date(b['Unnamed: 0']));
+            .sort((a, b) => new Date(getJournalField(a, 'date')) - new Date(getJournalField(b, 'date')));
 
         if (filteredData.length === 0) {
             if (journalTrendChart) {
@@ -3821,18 +3843,18 @@ function updateJournalTrendChart() {
         }
 
         labels = filteredData.map(row => {
-            const d = new Date(row['Unnamed: 0']);
+            const d = new Date(getJournalField(row, 'date'));
             return `${d.getMonth() + 1}/${d.getDate()}`;
         });
         
         values = filteredData.map(row => {
-            const val = row['Unnamed: 5'];
+            const val = getJournalField(row, 'amount');
             const numVal = typeof val === 'number' ? val : parseFloat(String(val).replace(/,/g, '')) || 0;
             return numVal / 100; // 만원 -> 백만 단위로 변환
         });
 
         prices = filteredData.map(row => {
-            const val = row['Unnamed: 3'];
+            const val = getJournalField(row, 'price');
             const numVal = typeof val === 'number' ? val : parseFloat(String(val).replace(/,/g, '')) || 0;
             return numVal;
         });
@@ -3944,20 +3966,22 @@ function updateJournalTrendChart() {
                     // 해당 종목의 최근 6개월 필터된 데이터 재계산
                     const filteredData = currentData.data
                         .filter(row => {
-                            const stockName = String(row['Unnamed: 1'] || '').trim();
-                            const dateStr = row['Unnamed: 0'];
+                            const stockName = String(getJournalField(row, 'stock') || '').trim();
+                            const dateStr = getJournalField(row, 'date');
                             if (!dateStr || stockName !== selectedStock) return false;
                             
                             const date = new Date(dateStr);
                             return !isNaN(date) && date >= sixMonthsAgo;
                         })
-                        .sort((a, b) => new Date(a['Unnamed: 0']) - new Date(b['Unnamed: 0']));
+                        .sort((a, b) => new Date(getJournalField(a, 'date')) - new Date(getJournalField(b, 'date')));
                     
                     const row = filteredData[index];
                     const originalIndex = currentData.data.indexOf(row);
+                    const realIndex = (row && row._realIndex !== undefined && row._realIndex !== null)
+                        ? row._realIndex : originalIndex;
                     
                     if (originalIndex !== -1) {
-                        setJournalEditMode(originalIndex, row);
+                        setJournalEditMode(realIndex, row);
                     }
                 }
             },
@@ -3988,15 +4012,15 @@ function updateJournalTrendChart() {
                             // 개별 종목인 경우 원래 로직 작동하도록
                             const filteredData = currentData.data
                                 .filter(row => {
-                                    const stockName = String(row['Unnamed: 1'] || '').trim();
-                                    const dateStr = row['Unnamed: 0'];
+                                    const stockName = String(getJournalField(row, 'stock') || '').trim();
+                                    const dateStr = getJournalField(row, 'date');
                                     if (!dateStr || stockName !== selectedStock) return false;
                                     
                                     const date = new Date(dateStr);
                                     return !isNaN(date) && date >= sixMonthsAgo;
                                 })
-                                .sort((a, b) => new Date(a['Unnamed: 0']) - new Date(b['Unnamed: 0']));
-                            return filteredData[idx]['Unnamed: 0'];
+                                .sort((a, b) => new Date(getJournalField(a, 'date')) - new Date(getJournalField(b, 'date')));
+                            return getJournalField(filteredData[idx], 'date');
                         },
                         label: (context) => {
                             if (context.datasetIndex === 0) {
@@ -4052,12 +4076,13 @@ function setJournalEditMode(rowIndex, data) {
     editingJournalRowIndex = rowIndex;
     
     // 입력 폼에 데이터 채우기
-    document.getElementById('trade-date').value = data['Unnamed: 0'] || '';
-    document.getElementById('trade-stock').value = data['Unnamed: 1'] || '';
-    document.getElementById('trade-quantity').value = data['Unnamed: 2'] || '';
-    document.getElementById('trade-price').value = data['Unnamed: 3'] || '';
-    document.getElementById('trade-type').value = data['Unnamed: 4'] || '매수';
-    document.getElementById('trade-amount').value = data['Unnamed: 5'] || '';
+    const rawDate = String(getJournalField(data, 'date') || '');
+    document.getElementById('trade-date').value = rawDate.slice(0, 10);
+    document.getElementById('trade-stock').value = getJournalField(data, 'stock');
+    document.getElementById('trade-quantity').value = getJournalField(data, 'qty');
+    document.getElementById('trade-price').value = getJournalField(data, 'price');
+    document.getElementById('trade-type').value = getJournalField(data, 'type') || '매수';
+    document.getElementById('trade-amount').value = getJournalField(data, 'amount');
     
     // UI 변경
     const submitBtn = document.querySelector('#journal-form .btn-primary');
@@ -4078,7 +4103,7 @@ function setJournalEditMode(rowIndex, data) {
     // 폼으로 스크롤
     document.getElementById('journal-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
     
-    showToast(`${data['Unnamed: 1']} (${data['Unnamed: 0']}) 데이터를 수정합니다.`, 'info');
+    showToast(`${getJournalField(data, 'stock')} (${getJournalField(data, 'date')}) 데이터를 수정합니다.`, 'info');
 }
 
 /**
