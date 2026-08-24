@@ -11,7 +11,7 @@ import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from pathlib import Path
 
 import openpyxl
@@ -185,12 +185,24 @@ def sheet_to_json(file_data: bytes, sheet_name: str, sheet_names: list) -> dict:
                 df = df.iloc[i + 1:].reset_index(drop=True)
                 break
 
-    # 숫자형 컬럼 강제 변환
+    # 숫자형 컬럼 강제 변환 (server.py read_excel과 동일하게 날짜 컬럼은 제외)
     for col in df.columns:
-        if '연도' in str(col):
+        col_str = str(col)
+        if '연도' in col_str:
             continue
+        if 'date' in col_str.lower() or '날짜' in col_str:
+            continue  # 날짜 컬럼은 숫자 변환 제외 (엑셀 시리얼이 되지 않도록)
         try:
-            temp_numeric = pd.to_numeric(df[col].replace('', pd.NA), errors='coerce')
+            series = df[col]
+            non_empty = series.dropna()
+            try:
+                non_empty = non_empty[non_empty != '']
+            except Exception:
+                pass
+            # 날짜 값이 들어있는 컬럼은 숫자 변환 제외
+            if len(non_empty) > 0 and isinstance(non_empty.iloc[0], (datetime, date)):
+                continue
+            temp_numeric = pd.to_numeric(series.replace('', pd.NA), errors='coerce')
             if temp_numeric.notna().any():
                 if temp_numeric.notna().sum() / len(df) > 0.2:
                     df[col] = temp_numeric.fillna(0)
@@ -222,6 +234,8 @@ def sheet_to_json(file_data: bytes, sheet_name: str, sheet_names: list) -> dict:
                 col_name = columns[i]
                 if pd.isna(val):
                     row_data[col_name] = ''
+                elif isinstance(val, (datetime, date)):
+                    row_data[col_name] = val.strftime('%Y-%m-%d')
                 elif isinstance(val, (int, float)):
                     row_data[col_name] = val
                 else:
