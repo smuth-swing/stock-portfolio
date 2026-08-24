@@ -529,16 +529,16 @@ def read_excel():
         # NaN 값 처리
         df = df.fillna('')
 
-        # --- 실적 시트 특수 처리 (헤더 자동 탐색) ---
+        # --- 헤더 자동 탐색 및 승격 (첫 행이 빈 줄이거나 Unnamed인 경우) ---
         header_row_idx = 0
-        if "실적" in target_sheet and not df.empty:
-            # 첫 10행 내에서 '연도' 또는 '수익율' 키워드 찾기
+        is_unnamed_header = any(str(c).startswith('Unnamed:') for c in df.columns)
+        if not df.empty and (is_unnamed_header or "실적" in target_sheet or "매매" in target_sheet):
             found_header = False
+            keywords = ["Date", "종목", "날짜", "수량", "가격", "매매유형", "연도", "수익율", "종목명"]
             for i in range(min(10, len(df))):
                 row_vals = [str(x).strip() for x in df.iloc[i].values]
-                if any("연도" in val or "수익율" in val for val in row_vals):
+                if any(any(k in val for k in keywords) for val in row_vals if val):
                     header_row_idx = i
-                    # 현재 행을 컬럼명으로 승격
                     new_cols = []
                     for j, val in enumerate(row_vals):
                         if val and val != 'nan':
@@ -549,11 +549,6 @@ def read_excel():
                     df = df.iloc[i+1:].reset_index(drop=True)
                     found_header = True
                     break
-            
-            # 만약 못 찾았더라도 '연도' 컬럼이 B열(1번 인덱스)에 있는 경우가 많으므로 보정
-            if not found_header and len(df.columns) > 1:
-                # B4가 15년이면 B3가 헤더일 가능성 높음 (pandas 0-indexed 기준 Row 2)
-                pass
 
         # 숫자형 컬럼 감지 (강제 변환 시도 포함)
         for col in df.columns:

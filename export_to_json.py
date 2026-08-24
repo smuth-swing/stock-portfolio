@@ -166,12 +166,14 @@ def sheet_to_json(file_data: bytes, sheet_name: str, sheet_names: list) -> dict:
     df = pd.read_excel(io.BytesIO(file_data), sheet_name=sheet_name, engine='openpyxl')
     df = df.fillna('')
 
-    # --- 실적 시트 특수 처리 (헤더 자동 탐색) ---
+    # --- 헤더 자동 탐색 및 승격 (첫 행이 빈 줄이거나 Unnamed인 경우) ---
     header_row_idx = 0
-    if '실적' in sheet_name and not df.empty:
+    is_unnamed_header = any(str(c).startswith('Unnamed:') for c in df.columns)
+    if not df.empty and (is_unnamed_header or '실적' in sheet_name or '매매' in sheet_name):
+        keywords = ['Date', '종목', '날짜', '수량', '가격', '매매유형', '연도', '수익율', '종목명']
         for i in range(min(10, len(df))):
             row_vals = [str(x).strip() for x in df.iloc[i].values]
-            if any('연도' in val or '수익율' in val for val in row_vals):
+            if any(any(k in val for k in keywords) for val in row_vals if val):
                 header_row_idx = i
                 new_cols = []
                 for j, val in enumerate(row_vals):
