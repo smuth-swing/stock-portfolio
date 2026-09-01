@@ -2667,6 +2667,142 @@ async function handleInvestigationCellBlur(event) {
     saveInvestigationRow(rowIndex, row);
 }
 
+function getEffectiveInvestment() {
+    const investTotal = getTotalInvestAccounts();
+    if (investTotal > 0) return investTotal;
+
+    // 1) 포트폴리오 맵 캐시가 있으면 합산 (만원 단위 -> 백만원 단위로 변환)
+    const cacheEntries = Object.values(portfolioMapCache);
+    if (cacheEntries.length > 0) {
+        const totalManwon = cacheEntries.reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
+        if (totalManwon > 0) {
+            return Math.round(totalManwon / 100);
+        }
+    }
+
+    // 2) DOM stat-total 요소 참조
+    const statTotal = document.getElementById('stat-total');
+    const domVal = statTotal ? parseFloat(statTotal.textContent.replace(/,/g, '')) || 0 : 0;
+    if (domVal > 0) return domVal;
+
+    // 3) 과거 스냅샷 중 0보다 큰 최신 투자금 fallback
+    if (monthlyCashSnapshots && monthlyCashSnapshots.length > 0) {
+        for (let i = monthlyCashSnapshots.length - 1; i >= 0; i--) {
+            if (monthlyCashSnapshots[i].investment > 0) {
+                return monthlyCashSnapshots[i].investment;
+            }
+        }
+    }
+
+    return 0;
+}
+
+/**
+ * 투자금 계좌 목록 렌더링
+ */
+function renderInvestAccounts() {
+    const container = document.getElementById('invest-accounts-list');
+    if (!container) return;
+
+    container.innerHTML = '';
+    investAccounts.forEach((acc, idx) => {
+        const row = document.createElement('div');
+        row.className = 'cash-account-row';
+        row.innerHTML = `
+            <input type="text" value="${acc.name || ''}" placeholder="계좌명 (예: 위탁계좌)" 
+                   onchange="updateInvestAccount(${idx}, 'name', this.value)" />
+            <input type="number" value="${acc.amount || ''}" placeholder="0" step="1" min="0"
+                   onchange="updateInvestAccount(${idx}, 'amount', this.value)"
+                   class="cash-amount-input" />
+            <span class="cash-unit-label">백만원</span>
+            <button type="button" onclick="removeInvestAccount(${idx})" class="cash-remove-btn" title="삭제">✕</button>
+        `;
+        container.appendChild(row);
+    });
+}
+
+/**
+ * 새 투자금 계좌 추가
+ */
+function addInvestAccount() {
+    investAccounts.push({ name: '', amount: 0 });
+    renderInvestAccounts();
+    saveInvestAccountsToExcel();
+    updateCashSummary();
+}
+
+/**
+ * 투자금 계좌 값 업데이트 (계좌명 또는 금액)
+ */
+function updateInvestAccount(index, field, value) {
+    if (!investAccounts[index]) return;
+    if (field === 'amount') {
+        investAccounts[index].amount = parseFloat(value) || 0;
+    } else {
+        investAccounts[index].name = String(value).trim();
+    }
+    saveInvestAccountsToExcel();
+    updateCashSummary();
+}
+
+/**
+ * 특정 투자금 계좌 삭제
+ */
+function removeInvestAccount(index) {
+    investAccounts.splice(index, 1);
+    renderInvestAccounts();
+    saveInvestAccountsToExcel();
+    updateCashSummary();
+}
+
+/**
+ * 투자금 계좌 데이터를 엑셀(서버)에 저장
+ */
+async function saveInvestAccountsToExcel() {
+    if (IS_GITHUB_PAGES) return;
+    const pcIp = localStorage.getItem('pc_ip') || window.location.hostname || '192.168.0.2';
+    try {
+        const res = await fetch(`http://${pcIp}:5000/api/invest-accounts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(investAccounts)
+        });
+        const data = await res.json();
+        if (data.success) {
+            console.log('📤 투자금 계좌 → 엑셀 저장 완료');
+        } else {
+            console.warn('⚠️ 투자금 계좌 엑셀 저장 실패:', data.error);
+        }
+    } catch (e) {
+        console.warn('⚠️ 투자금 계좌 엑셀 저장 실패 (서버 연결 안 됨):', e.message);
+    }
+}
+
+/**
+ * 투자금 합계 및 현금 합계 표시 업데이트
+ */
+function updateInvestSummaryDisplay() {
+    // 현금 합계 표시
+    const cashTotalDisplay = document.getElementById('cash-total-display');
+    if (cashTotalDisplay) cashTotalDisplay.textContent = getTotalCash().toLocaleString();
+
+    // 투자금 합계 표시
+    const investTotalDisplay = document.getElementById('invest-total-display');
+    const investSourceLabel = document.getElementById('invest-source-label');
+    const investAccountTotal = getTotalInvestAccounts();
+
+    if (investTotalDisplay) {
+        if (investAccountTotal > 0) {
+            investTotalDisplay.textContent = investAccountTotal.toLocaleString();
+            if (investSourceLabel) investSourceLabel.textContent = '(계좌 입력 기준)';
+        } else {
+            const effectiveInv = getEffectiveInvestment();
+            investTotalDisplay.textContent = effectiveInv.toLocaleString();
+            if (investSourceLabel) investSourceLabel.textContent = '(포트폴리오 맵 기준)';
+        }
+    }
+}
+
 async function saveInvestigationRow(rowIndex, rowData) {
     const sheetName = currentData.current_sheet;
     const filePath = currentData._filePath;
