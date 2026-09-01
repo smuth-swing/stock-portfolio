@@ -286,7 +286,7 @@ export default function InvestigationScreen() {
   // 데이터 추출 로직 — 원본 인덱스(_realIndex) 보존
   const allData = investigation?.data || [];
   const allItems = allData
-    .map((r: any, idx: number) => ({ ...r, _realIndex: idx }))
+    .map((r: any, idx: number) => ({ ...r, _realIndex: r._realIndex !== undefined ? r._realIndex : idx }))
     .filter((r: any) => r._realIndex === editingIndex || getStockName(r));
   
   const items = allItems.filter((item: any) => {
@@ -365,7 +365,7 @@ export default function InvestigationScreen() {
       const editTask = { 
         file: filePath, 
         sheet: sheetName, 
-        rowIndex: rowData._excelRowIndex !== undefined ? rowData._excelRowIndex : realIndex,
+        rowIndex: rowData._realIndex !== undefined ? rowData._realIndex : (rowData._excelRowIndex !== undefined ? rowData._excelRowIndex : realIndex),
         stockName: newRowData['종목명'] || newRowData['Unnamed: 1'] || '',
         values,
         timestamp: new Date().toISOString()

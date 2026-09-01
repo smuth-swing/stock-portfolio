@@ -2671,11 +2671,12 @@ async function saveInvestigationRow(rowIndex, rowData) {
     const sheetName = currentData.current_sheet;
     const filePath = currentData._filePath;
     const values = currentData.columns.map(col => rowData[col] !== undefined && rowData[col] !== null ? rowData[col] : '');
+    const stockName = rowData['종목명'] || rowData['Unnamed: 1'] || (values.length > 1 ? values[1] : '');
     try {
         const res = await fetch(`${API}/update-row`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ file: filePath, sheet: sheetName, rowIndex, values })
+            body: JSON.stringify({ file: filePath, sheet: sheetName, rowIndex, values, stockName })
         });
         const payload = await res.json();
         if (!res.ok || !payload.success) {

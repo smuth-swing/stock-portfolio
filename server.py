@@ -1054,8 +1054,6 @@ def sync_receive():
                 try: wb.close()
                 except: pass
                 _excel_write_lock.release()
-                except: pass
-                _excel_write_lock.release()
 
         # ★ 모바일 동기화: JSON 내보내기 + Git Push를 동기적으로 실행
         push_success = trigger_export_and_push_sync()
