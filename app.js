@@ -291,7 +291,7 @@ async function init() {
             badge.querySelector('.status-text').textContent = 'OneDrive 연결됨';
             await loadExcel(TARGET_FILE);
             // 엑셀에서 현금 관련 데이터 로드 (localStorage 대신 엑셀이 Source of Truth)
-            fetchAllCashDataFromExcel();
+            await fetchAllCashDataFromExcel();
         } else {
             badge.className = 'connection-badge disconnected';
             badge.querySelector('.status-text').textContent = '연결 안됨';
@@ -368,7 +368,7 @@ function startReconnectPolling() {
                 overlay.classList.remove('hidden');
                 await loadExcel(TARGET_FILE);
                 // 엑셀에서 현금 관련 데이터 로드 (localStorage 대신 엑셀이 Source of Truth)
-                fetchAllCashDataFromExcel();
+                await fetchAllCashDataFromExcel();
             } else {
                 badge.className = 'connection-badge disconnected';
                 badge.querySelector('.status-text').textContent = '연결 안됨';
@@ -2667,142 +2667,6 @@ async function handleInvestigationCellBlur(event) {
     saveInvestigationRow(rowIndex, row);
 }
 
-function getEffectiveInvestment() {
-    const investTotal = getTotalInvestAccounts();
-    if (investTotal > 0) return investTotal;
-
-    // 1) 포트폴리오 맵 캐시가 있으면 합산 (만원 단위 -> 백만원 단위로 변환)
-    const cacheEntries = Object.values(portfolioMapCache);
-    if (cacheEntries.length > 0) {
-        const totalManwon = cacheEntries.reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
-        if (totalManwon > 0) {
-            return Math.round(totalManwon / 100);
-        }
-    }
-
-    // 2) DOM stat-total 요소 참조
-    const statTotal = document.getElementById('stat-total');
-    const domVal = statTotal ? parseFloat(statTotal.textContent.replace(/,/g, '')) || 0 : 0;
-    if (domVal > 0) return domVal;
-
-    // 3) 과거 스냅샷 중 0보다 큰 최신 투자금 fallback
-    if (monthlyCashSnapshots && monthlyCashSnapshots.length > 0) {
-        for (let i = monthlyCashSnapshots.length - 1; i >= 0; i--) {
-            if (monthlyCashSnapshots[i].investment > 0) {
-                return monthlyCashSnapshots[i].investment;
-            }
-        }
-    }
-
-    return 0;
-}
-
-/**
- * 투자금 계좌 목록 렌더링
- */
-function renderInvestAccounts() {
-    const container = document.getElementById('invest-accounts-list');
-    if (!container) return;
-
-    container.innerHTML = '';
-    investAccounts.forEach((acc, idx) => {
-        const row = document.createElement('div');
-        row.className = 'cash-account-row';
-        row.innerHTML = `
-            <input type="text" value="${acc.name || ''}" placeholder="계좌명 (예: 위탁계좌)" 
-                   onchange="updateInvestAccount(${idx}, 'name', this.value)" />
-            <input type="number" value="${acc.amount || ''}" placeholder="0" step="1" min="0"
-                   onchange="updateInvestAccount(${idx}, 'amount', this.value)"
-                   class="cash-amount-input" />
-            <span class="cash-unit-label">백만원</span>
-            <button type="button" onclick="removeInvestAccount(${idx})" class="cash-remove-btn" title="삭제">✕</button>
-        `;
-        container.appendChild(row);
-    });
-}
-
-/**
- * 새 투자금 계좌 추가
- */
-function addInvestAccount() {
-    investAccounts.push({ name: '', amount: 0 });
-    renderInvestAccounts();
-    saveInvestAccountsToExcel();
-    updateCashSummary();
-}
-
-/**
- * 투자금 계좌 값 업데이트 (계좌명 또는 금액)
- */
-function updateInvestAccount(index, field, value) {
-    if (!investAccounts[index]) return;
-    if (field === 'amount') {
-        investAccounts[index].amount = parseFloat(value) || 0;
-    } else {
-        investAccounts[index].name = String(value).trim();
-    }
-    saveInvestAccountsToExcel();
-    updateCashSummary();
-}
-
-/**
- * 특정 투자금 계좌 삭제
- */
-function removeInvestAccount(index) {
-    investAccounts.splice(index, 1);
-    renderInvestAccounts();
-    saveInvestAccountsToExcel();
-    updateCashSummary();
-}
-
-/**
- * 투자금 계좌 데이터를 엑셀(서버)에 저장
- */
-async function saveInvestAccountsToExcel() {
-    if (IS_GITHUB_PAGES) return;
-    const pcIp = localStorage.getItem('pc_ip') || window.location.hostname || '192.168.0.2';
-    try {
-        const res = await fetch(`http://${pcIp}:5000/api/invest-accounts`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(investAccounts)
-        });
-        const data = await res.json();
-        if (data.success) {
-            console.log('📤 투자금 계좌 → 엑셀 저장 완료');
-        } else {
-            console.warn('⚠️ 투자금 계좌 엑셀 저장 실패:', data.error);
-        }
-    } catch (e) {
-        console.warn('⚠️ 투자금 계좌 엑셀 저장 실패 (서버 연결 안 됨):', e.message);
-    }
-}
-
-/**
- * 투자금 합계 및 현금 합계 표시 업데이트
- */
-function updateInvestSummaryDisplay() {
-    // 현금 합계 표시
-    const cashTotalDisplay = document.getElementById('cash-total-display');
-    if (cashTotalDisplay) cashTotalDisplay.textContent = getTotalCash().toLocaleString();
-
-    // 투자금 합계 표시
-    const investTotalDisplay = document.getElementById('invest-total-display');
-    const investSourceLabel = document.getElementById('invest-source-label');
-    const investAccountTotal = getTotalInvestAccounts();
-
-    if (investTotalDisplay) {
-        if (investAccountTotal > 0) {
-            investTotalDisplay.textContent = investAccountTotal.toLocaleString();
-            if (investSourceLabel) investSourceLabel.textContent = '(계좌 입력 기준)';
-        } else {
-            const effectiveInv = getEffectiveInvestment();
-            investTotalDisplay.textContent = effectiveInv.toLocaleString();
-            if (investSourceLabel) investSourceLabel.textContent = '(포트폴리오 맵 기준)';
-        }
-    }
-}
-
 async function saveInvestigationRow(rowIndex, rowData) {
     const sheetName = currentData.current_sheet;
     const filePath = currentData._filePath;
@@ -3120,8 +2984,31 @@ function getTotalInvestAccounts() {
 function getEffectiveInvestment() {
     const investTotal = getTotalInvestAccounts();
     if (investTotal > 0) return investTotal;
+
+    // 1) 포트폴리오 맵 캐시가 있으면 합산 (만원 단위 -> 백만원 단위로 변환)
+    const cacheEntries = Object.values(portfolioMapCache);
+    if (cacheEntries.length > 0) {
+        const totalManwon = cacheEntries.reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
+        if (totalManwon > 0) {
+            return Math.round(totalManwon / 100);
+        }
+    }
+
+    // 2) DOM stat-total 요소 참조
     const statTotal = document.getElementById('stat-total');
-    return statTotal ? parseFloat(statTotal.textContent.replace(/,/g, '')) || 0 : 0;
+    const domVal = statTotal ? parseFloat(statTotal.textContent.replace(/,/g, '')) || 0 : 0;
+    if (domVal > 0) return domVal;
+
+    // 3) 과거 스냅샷 중 0보다 큰 최신 투자금 fallback
+    if (monthlyCashSnapshots && monthlyCashSnapshots.length > 0) {
+        for (let i = monthlyCashSnapshots.length - 1; i >= 0; i--) {
+            if (monthlyCashSnapshots[i].investment > 0) {
+                return monthlyCashSnapshots[i].investment;
+            }
+        }
+    }
+
+    return 0;
 }
 
 /**
@@ -3228,9 +3115,8 @@ function updateInvestSummaryDisplay() {
             investTotalDisplay.textContent = investAccountTotal.toLocaleString();
             if (investSourceLabel) investSourceLabel.textContent = '(계좌 입력 기준)';
         } else {
-            const statTotal = document.getElementById('stat-total');
-            const mapTotal = statTotal ? parseFloat(statTotal.textContent.replace(/,/g, '')) || 0 : 0;
-            investTotalDisplay.textContent = mapTotal.toLocaleString();
+            const effectiveInv = getEffectiveInvestment();
+            investTotalDisplay.textContent = effectiveInv.toLocaleString();
             if (investSourceLabel) investSourceLabel.textContent = '(포트폴리오 맵 기준)';
         }
     }
@@ -3275,6 +3161,14 @@ function autoUpdateCurrentMonthSnapshot() {
 
     const investment = getEffectiveInvestment();
     const cash = getTotalCash();
+
+    // 안전 가드: 데이터가 아직 로드되지 않았거나 유효 투자금이 0인 비정상 상태(포트폴리오 캐시 미로드 등)에서는 자동 저장 방지
+    if (investment === 0 && cash === 0) return;
+    if (investment === 0 && Object.keys(portfolioMapCache).length === 0 && getTotalInvestAccounts() === 0) {
+        console.warn('⚠️ 포트폴리오 데이터 로드 전이므로 이번 달 스냅샷 자동 저장을 건너뜁니다.');
+        return;
+    }
+
     const totalAsset = investment + cash;
     const ratio = totalAsset > 0 ? parseFloat((cash / totalAsset * 100).toFixed(1)) : 0;
 
@@ -3295,7 +3189,7 @@ function autoUpdateCurrentMonthSnapshot() {
     // silent=true: 토스트 메시지 없이 조용히 저장
     saveSnapshotsToExcel(true);
     renderSnapshotTable();
-    console.log(`🔄 [${currentMonthKey}] 현금 비중 자동 갱신: ${ratio}% (현금 ${cash}백만 / 총자산 ${totalAsset}백만)`);
+    console.log(`🔄 [${currentMonthKey}] 현금 비중 자동 갱신: ${ratio}% (투자금 ${investment}백만 / 현금 ${cash}백만 / 총자산 ${totalAsset}백만)`);
 }
 
 /**
@@ -3438,6 +3332,9 @@ async function fetchInvestAccountsFromExcel() {
  * (localStorage 대신 엑셀이 유일한 Source of Truth)
  */
 async function fetchAllCashDataFromExcel() {
+    if (Object.keys(portfolioMapCache).length === 0) {
+        await fetchPortfolioMapData();
+    }
     await Promise.all([
         fetchCashSnapshotsFromExcel(),
         fetchCashAccountsFromExcel(),
