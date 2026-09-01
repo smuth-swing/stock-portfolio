@@ -873,6 +873,46 @@ def save_journal():
         return jsonify({'error': f'저장 오류: {str(e)}'}), 500
 
 
+def _resolve_target_row(ws, row_index, stock_name=""):
+    """
+    엑셀 시트에서 수정 대상 행 번호(openpyxl 1-based row)를 안전하게 결정합니다.
+    1. stock_name이 제공된 경우 종목명 컬럼에서 정확히 일치하는 행을 우선 탐색합니다.
+    2. 일치하는 행이 없을 때, row_index + 2 위치에 다른 종목이 이미 존재하면 덮어쓰지 않고 새 행(ws.max_row + 1)을 사용합니다.
+    """
+    default_row = row_index + 2
+    clean_stock = str(stock_name or '').strip().replace(' ', '')
+
+    # 1. 헤더에서 '종목명' 컬럼 인덱스 찾기 (1~4행 탐색)
+    name_col_idx = None
+    for r in range(1, min(5, ws.max_row + 1)):
+        for c in range(1, ws.max_column + 1):
+            val = str(ws.cell(row=r, column=c).value or '').strip()
+            if val in ['종목명', '종목', 'Unnamed: 1']:
+                name_col_idx = c
+                break
+        if name_col_idx:
+            break
+    if not name_col_idx:
+        name_col_idx = 2  # 기본 B열
+
+    if clean_stock:
+        # 해당 컬럼에서 종목명이 일치하는 행 탐색
+        for r in range(1, ws.max_row + 1):
+            cell_val = str(ws.cell(row=r, column=name_col_idx).value or '').strip().replace(' ', '')
+            if cell_val and cell_val == clean_stock:
+                print(f'[_resolve_target_row] 종목명 "{clean_stock}" 매칭 성공! -> 엑셀 {r}행 업데이트')
+                return r
+
+        # 일치하는 종목이 없는 경우: default_row에 다른 종목이 이미 존재하는지 검사
+        if default_row <= ws.max_row:
+            existing_stock = str(ws.cell(row=default_row, column=name_col_idx).value or '').strip().replace(' ', '')
+            if existing_stock and existing_stock != clean_stock and existing_stock not in ['종목명', '종목']:
+                print(f'⚠️ [_resolve_target_row] {default_row}행에 다른 종목("{existing_stock}")이 이미 존재합니다! 덮어쓰기 방지를 위해 새 행({ws.max_row + 1}행)에 추가합니다.')
+                return ws.max_row + 1
+
+    return default_row
+
+
 @app.route('/api/update-row', methods=['POST'])
 def update_row():
     if not ONEDRIVE_PATH:
@@ -883,6 +923,9 @@ def update_row():
     sheet_name = data.get('sheet')
     row_index = int(data.get('rowIndex', 0))
     values = data.get('values', [])
+    stock_name = data.get('stockName', '')
+    if not stock_name and len(values) > 1:
+        stock_name = str(values[1] or '').strip()
 
     if not sheet_name:
         return jsonify({'error': 'sheet 값이 필요합니다.'}), 400
@@ -904,7 +947,7 @@ def update_row():
                 return jsonify({'error': f'시트를 찾을 수 없습니다: {sheet_name}'}), 404
 
             ws = wb[sheet_name]
-            target_row = row_index + 2
+            target_row = _resolve_target_row(ws, row_index, stock_name)
             for col_idx, value in enumerate(values, start=1):
                 cell = ws.cell(row=target_row, column=col_idx)
                 # 취소선 처리
@@ -918,10 +961,10 @@ def update_row():
             # 매매일지인 경우 포트폴리오 맵 동기화
             if sheet_name == '매매일지':
                 try:
-                    stock_name = values[1] if len(values) > 1 else ""
+                    s_name = values[1] if len(values) > 1 else ""
                     amount = float(values[5]) if len(values) > 5 else 0
-                    if stock_name:
-                        sync_portfolio_map(wb, stock_name, amount)
+                    if s_name:
+                        sync_portfolio_map(wb, s_name, amount)
                 except: pass
 
             save_workbook_safely(wb, full_path)
@@ -988,44 +1031,15 @@ def sync_receive():
                     sheet_name = edit.get('sheet')
                     row_index = int(edit.get('rowIndex', 0))
                     values = edit.get('values', [])
+                    stock_name = edit.get('stockName', '').strip()
+                    if not stock_name and len(values) > 1:
+                        stock_name = str(values[1] or '').strip()
 
                     if sheet_name not in wb.sheetnames:
                         continue
 
                     ws = wb[sheet_name]
-                    # 기본값: pandas iloc[N] → openpyxl row = N+2
-                    target_row = row_index + 2
-                    
-                    stock_name = edit.get('stockName', '').strip().replace(' ', '')
-                    if stock_name:
-                        # 1. 헤더에서 '종목명' 컬럼 인덱스 찾기 (보통 1~3행 사이)
-                        name_col_idx = None
-                        for r in range(1, 4):
-                            for c in range(1, ws.max_column + 1):
-                                val = str(ws.cell(row=r, column=c).value or '').strip()
-                                if val == '종목명' or val == 'Unnamed: 1':
-                                    name_col_idx = c
-                                    break
-                            if name_col_idx:
-                                break
-                        
-                        # 2. 헤더를 못 찾았으면 기본 B열(2)로 가정
-                        if not name_col_idx:
-                            name_col_idx = 2
-                            
-                        # 3. 해당 컬럼에서 종목명이 일치하는 행 찾기
-                        found_row = None
-                        for r in range(1, ws.max_row + 1):
-                            cell_val = str(ws.cell(row=r, column=name_col_idx).value or '').strip().replace(' ', '')
-                            if cell_val and cell_val == stock_name:
-                                found_row = r
-                                break
-                        
-                        if found_row:
-                            target_row = found_row
-                            print(f'[sync-receive] 종목명 "{stock_name}" 매칭 성공! -> 엑셀 {target_row}행 덮어쓰기 진행')
-                        else:
-                            print(f'[sync-receive] 종목명 "{stock_name}" 매칭 실패! -> 기존 로직대로 {target_row}행에 덮어씁니다.')
+                    target_row = _resolve_target_row(ws, row_index, stock_name)
 
                     for col_idx, value in enumerate(values, start=1):
                         cell = ws.cell(row=target_row, column=col_idx)
@@ -1038,6 +1052,8 @@ def sync_receive():
                 save_workbook_safely(wb, full_path)
             finally:
                 try: wb.close()
+                except: pass
+                _excel_write_lock.release()
                 except: pass
                 _excel_write_lock.release()
 
