@@ -877,17 +877,28 @@ def _resolve_target_row(ws, row_index, stock_name=""):
     """
     엑셀 시트에서 수정 대상 행 번호(openpyxl 1-based row)를 안전하게 결정합니다.
     1. stock_name이 제공된 경우 종목명 컬럼에서 정확히 일치하는 행을 우선 탐색합니다.
-    2. 일치하는 행이 없을 때, row_index + 2 위치에 다른 종목이 이미 존재하면 덮어쓰지 않고 새 행(ws.max_row + 1)을 사용합니다.
+       (취소선 ~~, 공백, 줄바꿈 등 정규화 비교)
+    2. 일치하는 행이 있으면 해당 행(1-based)을 반환합니다.
+    3. 일치하는 행이 여러 개 존재하는 경우(중복 행), 첫 번째 행을 대상으로 반환하고
+       나머지 중복 행은 빈 행으로 정리하여 중복을 해소합니다.
+    4. 일치하는 행이 없는 경우:
+       - default_row (row_index + 2) 위치의 종목명을 확인하여,
+         - 빈 행이거나 동일 종목이면 default_row 사용
+         - 다른 종목이 이미 있으면 새 행(ws.max_row + 1) 사용
     """
     default_row = row_index + 2
-    clean_stock = str(stock_name or '').strip().replace(' ', '')
+    
+    def _normalize_name(val):
+        return str(val or '').replace('~~', '').strip().replace(' ', '').replace('\n', '')
 
-    # 1. 헤더에서 '종목명' 컬럼 인덱스 찾기 (1~4행 탐색)
+    clean_stock = _normalize_name(stock_name)
+
+    # 1. 헤더에서 '종목명' 컬럼 인덱스 찾기 (1~5행 탐색)
     name_col_idx = None
-    for r in range(1, min(5, ws.max_row + 1)):
+    for r in range(1, min(6, ws.max_row + 1)):
         for c in range(1, ws.max_column + 1):
             val = str(ws.cell(row=r, column=c).value or '').strip()
-            if val in ['종목명', '종목', 'Unnamed: 1']:
+            if val in ['종목명', '종목', 'Unnamed: 1', 'stock']:
                 name_col_idx = c
                 break
         if name_col_idx:
@@ -895,17 +906,28 @@ def _resolve_target_row(ws, row_index, stock_name=""):
     if not name_col_idx:
         name_col_idx = 2  # 기본 B열
 
-    if clean_stock:
-        # 해당 컬럼에서 종목명이 일치하는 행 탐색
+    if clean_stock and clean_stock not in ['종목명', '종목', '신규종목', '신규종목추가']:
+        matched_rows = []
         for r in range(1, ws.max_row + 1):
-            cell_val = str(ws.cell(row=r, column=name_col_idx).value or '').strip().replace(' ', '')
+            raw_val = ws.cell(row=r, column=name_col_idx).value
+            cell_val = _normalize_name(raw_val)
             if cell_val and cell_val == clean_stock:
-                print(f'[_resolve_target_row] 종목명 "{clean_stock}" 매칭 성공! -> 엑셀 {r}행 업데이트')
-                return r
+                matched_rows.append(r)
+
+        if matched_rows:
+            target_r = matched_rows[0]
+            print(f'[_resolve_target_row] 종목명 "{clean_stock}" 매칭 성공! -> 엑셀 {target_r}행 업데이트 (총 {len(matched_rows)}건 발견)')
+            # 만약 중복 행이 여러 개 있으면 나머지 중복 행을 비움 (데이터 중복 방지)
+            if len(matched_rows) > 1:
+                for extra_r in matched_rows[1:]:
+                    print(f'⚠️ [_resolve_target_row] 중복 종목 행 발견: {extra_r}행 데이터 초기화')
+                    for col_i in range(1, ws.max_column + 1):
+                        ws.cell(row=extra_r, column=col_i).value = None
+            return target_r
 
         # 일치하는 종목이 없는 경우: default_row에 다른 종목이 이미 존재하는지 검사
         if default_row <= ws.max_row:
-            existing_stock = str(ws.cell(row=default_row, column=name_col_idx).value or '').strip().replace(' ', '')
+            existing_stock = _normalize_name(ws.cell(row=default_row, column=name_col_idx).value)
             if existing_stock and existing_stock != clean_stock and existing_stock not in ['종목명', '종목']:
                 print(f'⚠️ [_resolve_target_row] {default_row}행에 다른 종목("{existing_stock}")이 이미 존재합니다! 덮어쓰기 방지를 위해 새 행({ws.max_row + 1}행)에 추가합니다.')
                 return ws.max_row + 1
