@@ -40,9 +40,10 @@ interface AppState {
   syncQueue: any[];
   addToSyncQueue: (editData: any) => Promise<void>;
   clearSyncQueue: () => Promise<void>;
+  clearSyncedQueue: () => Promise<void>;
   loadSyncQueue: () => Promise<void>;
-  markQueueAsSynced: () => Promise<void>;
-  cleanupSyncQueue: () => Promise<void>;
+  markQueueAsSynced: (serverTime?: string) => Promise<void>;
+  cleanupSyncQueue: (customServerTime?: string) => Promise<void>;
 
   // 목표가 저장소 (로컬)
   targetPrices: Record<string, number>;
@@ -396,42 +397,74 @@ export const useDataStore = create<AppState>((set, get) => ({
   clearSyncQueue: async () => {
     set({ syncQueue: [] });
     await AsyncStorage.removeItem('@sync_queue');
+    console.log('[useDataStore] 🗑️ 동기화 큐 전체 삭제 완료');
   },
 
-  markQueueAsSynced: async () => {
+  clearSyncedQueue: async () => {
     const { syncQueue } = get();
-    // ★ PC 서버 전송 완료: isPendingSync를 false로, sentAt에 전송 시각 기록
+    // 아직 PC로 전송되지 않은(isPendingSync !== false) 항목만 남기고, 전송 완료된 항목은 모두 제거
+    const remaining = syncQueue.filter(item => item.isPendingSync !== false);
+    set({ syncQueue: remaining });
+    await AsyncStorage.setItem('@sync_queue', JSON.stringify(remaining));
+    console.log(`[useDataStore] 🧹 전송 완료 큐 정리: ${syncQueue.length - remaining.length}건 삭제, ${remaining.length}건 대기`);
+  },
+
+  markQueueAsSynced: async (serverTime?: string) => {
+    const { syncQueue } = get();
+    // ★ PC 서버 전송 완료: isPendingSync를 false로, sentAt 및 serverConfirmedTime 기록
     const now = new Date().toISOString();
-    const newQueue = syncQueue.map(item => ({ ...item, isPendingSync: false, sentAt: now }));
+    const newQueue = syncQueue.map(item => ({
+      ...item,
+      isPendingSync: false,
+      sentAt: now,
+      serverConfirmedTime: serverTime || now,
+    }));
     set({ syncQueue: newQueue });
     await AsyncStorage.setItem('@sync_queue', JSON.stringify(newQueue));
     console.log(`[useDataStore] 📤 큐 ${newQueue.length}건 PC 전송 완료 표시`);
   },
 
-  cleanupSyncQueue: async () => {
+  cleanupSyncQueue: async (customServerTime?: string) => {
     const { syncQueue, meta } = get();
     if (!syncQueue || syncQueue.length === 0) return;
-    if (!meta || !meta.updated_at) return;
+
+    // 서버 시간 결정 (파라미터 > meta.updated_at)
+    const effectiveServerTimeStr = customServerTime || meta?.updated_at;
+    const nowMs = Date.now();
     
-    const serverTime = new Date(meta.updated_at).getTime();
     const newQueue = syncQueue.filter(edit => {
       if (!edit.timestamp) return false;
       
       // 아직 PC로 전송하지 않은 항목은 무조건 유지
       if (edit.isPendingSync !== false) return true;
       
-      // ★ 수정 시각(timestamp) 기준으로 서버 반영 여부 확인
-      // 서버의 meta.updated_at이 수정 시각(edit.timestamp)보다 이후이면,
-      // 서버 데이터가 우리 편집 이후에 갱신된 것이므로 편집이 반영됨 → 삭제 가능
-      // 기기 간 미세한 클럭 오차 방지를 위해 3초의 보정 시간을 적용
-      const editTime = new Date(edit.timestamp).getTime();
-      return serverTime < (editTime - 3000); // 서버가 수정 시각(보정치 적용) 이전에 갱신됨 → 아직 미반영 → 유지
+      // 1. 이미 전송 완료된 항목이고 전송 후 45초 이상 경과한 경우:
+      //    서버/CDN 반영이 끝났을 가능성이 매우 높으므로 안전하게 제거
+      if (edit.sentAt) {
+        const sentTime = new Date(edit.sentAt).getTime();
+        if (nowMs - sentTime > 45 * 1000) {
+          return false; // 삭제
+        }
+      }
+
+      // 2. 서버 시각과 비교 (기기 간 시계 오차 최대 5분 보정)
+      if (effectiveServerTimeStr) {
+        const serverTime = new Date(effectiveServerTimeStr).getTime();
+        const editTime = new Date(edit.timestamp).getTime();
+        // 서버 갱신 시각이 편집 시각의 5분 전 이후이면 반영된 것으로 판단 (스마트폰 시계가 PC보다 최대 5분 빠른 경우까지 완벽 커버)
+        const isServerNewer = serverTime >= (editTime - 5 * 60 * 1000);
+        if (isServerNewer) {
+          return false; // 서버에 반영됨 → 삭제
+        }
+      }
+      
+      return true; // 아직 대기
     });
     
     if (newQueue.length !== syncQueue.length) {
       set({ syncQueue: newQueue });
       await AsyncStorage.setItem('@sync_queue', JSON.stringify(newQueue));
-      console.log(`[useDataStore] 🧹 서버에 이미 반영된 큐 ${syncQueue.length - newQueue.length}개 정리 완료 (남은 큐: ${newQueue.length}건)`);
+      console.log(`[useDataStore] 🧹 서버 반영 큐 ${syncQueue.length - newQueue.length}개 정리 완료 (남은 큐: ${newQueue.length}건)`);
     }
   }
 }));

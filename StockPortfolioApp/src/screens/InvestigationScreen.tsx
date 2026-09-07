@@ -103,7 +103,25 @@ const computeWebHeight = (text: string | undefined | null): number => {
 };
 
 export default function InvestigationScreen() {
-  const { investigation, isLoading, isSyncing, refreshData, syncQueue, addToSyncQueue, markQueueAsSynced, meta, targetPrices, targetDates, setTargetPrice, setTargetDate, customServerIp, setCustomServerIp } = useDataStore();
+  const {
+    investigation,
+    isLoading,
+    isSyncing,
+    refreshData,
+    syncQueue,
+    addToSyncQueue,
+    markQueueAsSynced,
+    cleanupSyncQueue,
+    clearSyncedQueue,
+    clearSyncQueue,
+    meta,
+    targetPrices,
+    targetDates,
+    setTargetPrice,
+    setTargetDate,
+    customServerIp,
+    setCustomServerIp,
+  } = useDataStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'priority' | 'signal'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -215,20 +233,20 @@ export default function InvestigationScreen() {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('sync') === 'success') {
+        const serverTs = urlParams.get('ts') || undefined;
         // URL 파라미터 즉시 정리 (새로고침 시 중복 처리 방지)
         window.history.replaceState({}, document.title, window.location.pathname);
         
-        // ★ PC 전송 완료: 큐를 "전송 완료" 상태로 표시 (삭제하지 않음!)
-        // 큐를 유지하여 서버 데이터가 GitHub Pages에 반영되기 전까지
-        // applyQueueToData 오버레이로 편집 내용을 화면에 유지합니다.
-        // 서버 데이터가 반영되면 cleanupSyncQueue에서 자동으로 큐가 정리됩니다.
-        markQueueAsSynced().then(() => {
+        // ★ PC 전송 완료: 큐를 "전송 완료" 상태로 표시하고 서버 시각 기록
+        markQueueAsSynced(serverTs).then(() => {
           setToastMessage('✅ PC 서버에 성공적으로 전송 및 반영되었습니다.');
           setTimeout(() => {
             setToastMessage(null);
           }, 3500);
-          // 서버 데이터 새로고침 (큐 오버레이가 적용되므로 편집 내용 유지됨)
-          refreshDataRef.current();
+          // 서버 데이터 새로고침 (큐 오버레이 적용) 및 서버 반영 큐 정리
+          refreshDataRef.current().then(() => {
+            cleanupSyncQueue(serverTs);
+          });
         });
       }
     }
@@ -483,10 +501,12 @@ export default function InvestigationScreen() {
       });
 
       if (res.ok) {
-        await markQueueAsSynced();
+        const resJson = await res.json().catch(() => ({}));
+        await markQueueAsSynced(resJson?.server_time);
         setToastMessage(`✅ PC 서버(${effectiveIp})에 성공적으로 전송되었습니다!`);
         setTimeout(() => setToastMessage(null), 4000);
-        refreshData();
+        await refreshData();
+        await cleanupSyncQueue(resJson?.server_time);
       } else {
         const errText = await res.text().catch(() => '');
         alert(`❌ PC 서버 전송 실패 (${res.status}): ${errText}`);
@@ -497,6 +517,9 @@ export default function InvestigationScreen() {
       // Form submit 폴백 시도 (Platform.OS === 'web')
       if (Platform.OS === 'web' && typeof document !== 'undefined') {
         try {
+          // ★ 폼 제출 직전에도 기기 큐에 전송 완료 상태를 미리 기록
+          await markQueueAsSynced();
+
           const form = document.createElement('form');
           form.method = 'POST';
           form.action = targetUrl;
@@ -579,28 +602,40 @@ export default function InvestigationScreen() {
             <Text style={styles.syncBannerText}>
               {hasPendingSync
                 ? `🔄 PC 동기화 대기 중인 수정내역 (${syncQueue.length}건)`
-                : `⏳ GitHub 서버 반영 대기 중... (${syncQueue.length}건)`}
+                : `✅ PC 전송 완료 / 반영 대기 중 (${syncQueue.length}건)`}
             </Text>
-            {hasPendingSync && (
-              <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                <TouchableOpacity style={styles.syncBtn} onPress={handleSync} disabled={isSyncingPC}>
-                  {isSyncingPC ? (
-                    <ActivityIndicator size="small" color="#422006" />
-                  ) : (
-                    <Text style={styles.syncBtnText}>PC로 전송하기</Text>
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.syncBtn, { backgroundColor: '#475569' }]} 
-                  onPress={() => {
-                    setIpInput(effectiveIp);
-                    setShowIpModal(true);
-                  }}
-                >
-                  <Text style={[styles.syncBtnText, { color: '#FFFFFF' }]}>⚙️ IP</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+              {hasPendingSync && (
+                <>
+                  <TouchableOpacity style={styles.syncBtn} onPress={handleSync} disabled={isSyncingPC}>
+                    {isSyncingPC ? (
+                      <ActivityIndicator size="small" color="#422006" />
+                    ) : (
+                      <Text style={styles.syncBtnText}>PC로 전송하기</Text>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.syncBtn, { backgroundColor: '#475569' }]} 
+                    onPress={() => {
+                      setIpInput(effectiveIp);
+                      setShowIpModal(true);
+                    }}
+                  >
+                    <Text style={[styles.syncBtnText, { color: '#FFFFFF' }]}>⚙️ IP</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+              <TouchableOpacity 
+                style={[styles.syncBtn, { backgroundColor: hasPendingSync ? '#475569' : '#059669' }]} 
+                onPress={async () => {
+                  await clearSyncQueue();
+                  setToastMessage('🧹 동기화 대기 목록을 정리했습니다.');
+                  setTimeout(() => setToastMessage(null), 3000);
+                }}
+              >
+                <Text style={[styles.syncBtnText, { color: '#FFFFFF' }]}>비우기</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
         

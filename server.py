@@ -281,7 +281,27 @@ def trigger_export_and_push_sync():
                 timeout=120, env=env
             )
             if push_result.returncode == 0:
-                print("[SYNC-PUSH] ✅ GitHub push 완료!")
+                print("[SYNC-PUSH] ✅ GitHub push (main) 완료!")
+                
+                # gh-pages 브랜치 동기화 (GitHub Pages 배포용)
+                print("[SYNC-PUSH] gh-pages 브랜치 동기화 중...")
+                try:
+                    subprocess.run(["git", "checkout", "gh-pages"], cwd=BASE_DIR, capture_output=True, timeout=30, env=env)
+                    subprocess.run(["git", "merge", "main", "--no-edit"], cwd=BASE_DIR, capture_output=True, timeout=30, env=env)
+                    gh_push = subprocess.run(
+                        ["git", "push", "origin", "gh-pages"],
+                        cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                        timeout=120, env=env
+                    )
+                    if gh_push.returncode == 0:
+                        print("[SYNC-PUSH] ✅ gh-pages 브랜치 푸시 완료!")
+                    else:
+                        print(f"[SYNC-PUSH] ⚠️ gh-pages 푸시 실패 (무시): {gh_push.stderr[:200]}")
+                except Exception as e:
+                    print(f"[SYNC-PUSH] ⚠️ gh-pages 동기화 예외 (무시): {e}")
+                finally:
+                    subprocess.run(["git", "checkout", "main"], cwd=BASE_DIR, capture_output=True, timeout=30, env=env)
+
                 return True
             else:
                 print(f"[SYNC-PUSH] ❌ GitHub push 실패: {push_result.stderr[:300]}")
@@ -1080,32 +1100,38 @@ def sync_receive():
         # ★ 모바일 동기화: JSON 내보내기 + Git Push를 동기적으로 실행
         push_success = trigger_export_and_push_sync()
 
+        from datetime import datetime as dt, timezone
+        now_iso = dt.now(timezone.utc).isoformat()
+
         # AJAX / fetch 요청 (JSON) 인 경우 JSON 응답 반환
         if request.is_json or 'application/json' in request.headers.get('Accept', ''):
             return jsonify({
                 'success': True,
                 'push_success': push_success,
+                'server_time': now_iso,
                 'message': 'PC 엑셀 정상 반영 완료' if push_success else 'PC 엑셀 저장 완료 (GitHub 반영 진행 중)'
             })
 
+        redirect_url = f'https://smuth-swing.github.io/stock-portfolio/mobile/?sync=success&ts={now_iso}'
+
         if push_success:
-            return """
+            return f"""
             <html>
             <head>
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
               <script>
                 // GitHub Pages CDN 반영 대기 (약 5초) 후 리다이렉트
-                setTimeout(function() {
-                  window.location.href = 'https://smuth-swing.github.io/stock-portfolio/mobile/?sync=success';
-                }, 5000);
+                setTimeout(function() {{
+                  window.location.href = '{redirect_url}';
+                }}, 5000);
               </script>
               <style>
-                body { background: #0F172A; color: white; font-family: sans-serif; text-align: center; padding-top: 100px; }
-                h2 { color: #00F2FE; }
-                p { color: #94A3B8; font-size: 16px; margin-top: 20px; }
-                .spinner { display: inline-block; width: 40px; height: 40px; border: 4px solid rgba(0,242,254,0.2); border-top: 4px solid #00F2FE; border-radius: 50%; animation: spin 1s linear infinite; margin-top: 30px; }
-                @keyframes spin { to { transform: rotate(360deg); } }
-                button { background: #00F2FE; color: #0F172A; border: none; padding: 15px 30px; border-radius: 10px; font-size: 18px; font-weight: bold; margin-top: 30px; cursor: pointer; }
+                body {{ background: #0F172A; color: white; font-family: sans-serif; text-align: center; padding-top: 100px; }}
+                h2 {{ color: #00F2FE; }}
+                p {{ color: #94A3B8; font-size: 16px; margin-top: 20px; }}
+                .spinner {{ display: inline-block; width: 40px; height: 40px; border: 4px solid rgba(0,242,254,0.2); border-top: 4px solid #00F2FE; border-radius: 50%; animation: spin 1s linear infinite; margin-top: 30px; }}
+                @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
+                button {{ background: #00F2FE; color: #0F172A; border: none; padding: 15px 30px; border-radius: 10px; font-size: 18px; font-weight: bold; margin-top: 30px; cursor: pointer; }}
               </style>
             </head>
             <body>
@@ -1113,33 +1139,32 @@ def sync_receive():
               <p>GitHub Pages 반영 대기 중... (약 5초)</p>
               <div class="spinner"></div>
               <br>
-              <button onclick="window.location.href='https://smuth-swing.github.io/stock-portfolio/mobile/?sync=success'">바로 돌아가기</button>
+              <button onclick="window.location.href='{redirect_url}'">바로 돌아가기</button>
             </body>
             </html>
             """
         else:
             # Push 실패 시에도 엑셀에는 이미 저장되었으므로, 큐 정리를 위해 success로 리다이렉트
-            return """
+            return f"""
             <html>
             <head>
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
               <script>
-                setTimeout(function() {
-                  window.location.href = 'https://smuth-swing.github.io/stock-portfolio/mobile/?sync=success';
-                }, 3000);
+                setTimeout(function() {{
+                  window.location.href = '{redirect_url}';
+                }}, 3000);
               </script>
               <style>
-                body { background: #0F172A; color: white; font-family: sans-serif; text-align: center; padding-top: 100px; }
-                h2 { color: #EAB308; }
-                p { color: #94A3B8; font-size: 14px; margin-top: 15px; }
-                button { background: #EAB308; color: #422006; border: none; padding: 15px 30px; border-radius: 10px; font-size: 18px; font-weight: bold; margin-top: 30px; cursor: pointer; }
+                body {{ background: #0F172A; color: white; font-family: sans-serif; text-align: center; padding-top: 100px; }}
+                h2 {{ color: #EAB308; }}
+                p {{ color: #94A3B8; font-size: 14px; margin-top: 15px; }}
+                button {{ background: #EAB308; color: #422006; border: none; padding: 15px 30px; border-radius: 10px; font-size: 18px; font-weight: bold; margin-top: 30px; cursor: pointer; }}
               </style>
             </head>
             <body>
               <h2>⚠️ PC에 저장됨 (GitHub 반영은 잠시 후)</h2>
               <p>엑셀 파일에는 정상 저장되었습니다.</p>
-              <p>GitHub Pages 반영은 자동 업로더가 곧 처리합니다.</p>
-              <button onclick="window.location.href='https://smuth-swing.github.io/stock-portfolio/mobile/?sync=success'">돌아가기</button>
+              <button onclick="window.location.href='{redirect_url}'">바로 돌아가기</button>
             </body>
             </html>
             """
