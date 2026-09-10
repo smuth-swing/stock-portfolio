@@ -12,7 +12,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useDataStore } from '../store/useDataStore';
-import { getPortfolioMapInfo } from '../utils/excelFields';
+import { getPortfolioMapInfo, getField, JOURNAL_FIELDS, getJournalDataRows } from '../utils/excelFields';
 import { PieChart } from 'react-native-gifted-charts';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Rect, Line as SvgLine, Text as SvgText, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
@@ -29,7 +29,7 @@ const COLOR_EXCLUDING_BORDER = '#475569';
 const COLOR_AVG_LINE = '#EF4444';                       // 빨간색: 평균선
 
 export default function PortfolioScreen() {
-  const { portfolioMap, cashSnapshots, cashAccounts, isLoading } = useDataStore();
+  const { portfolioMap, cashSnapshots, cashAccounts, tradeJournal, isLoading } = useDataStore();
   const [currentPage, setCurrentPage] = useState(0);
   const [showFullChart, setShowFullChart] = useState(false);
   const navigation = useNavigation<BottomTabNavigationProp<any>>();
@@ -118,11 +118,34 @@ export default function PortfolioScreen() {
     };
   }, [portfolioMap]);
 
-  // 동기화된 현금 계좌 합계 (실시간 현금액 M)
+  // 매매일지 기반 당월 현금 변동 (PC와 동일: 매수 차감, 매도 가산, 백만 단위)
+  const journalDelta = useMemo(() => {
+    if (!tradeJournal || !tradeJournal.data) return { buy: 0, sell: 0, net: 0 };
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    let buy = 0;
+    let sell = 0;
+    getJournalDataRows(tradeJournal).forEach((row: any) => {
+      const dateStr = String(getField(row, JOURNAL_FIELDS.date) || '').trim();
+      const m = dateStr.match(/^(\d{4})-(\d{1,2})/);
+      if (!m || `${m[1]}-${String(parseInt(m[2], 10)).padStart(2, '0')}` !== monthKey) return;
+      const type = String(getField(row, JOURNAL_FIELDS.type) || '').trim();
+      if (type !== '매수' && type !== '매도') return;
+      const qty = parseFloat(String(getField(row, JOURNAL_FIELDS.qty)).replace(/[^0-9.\-]/g, '')) || 0;
+      const price = parseFloat(String(getField(row, JOURNAL_FIELDS.price)).replace(/[^0-9.\-]/g, '')) || 0;
+      const amount = qty * price;
+      if (type === '매도') sell += amount;
+      else buy += amount;
+    });
+    return { buy: buy / 1e6, sell: sell / 1e6, net: (sell - buy) / 1e6 };
+  }, [tradeJournal]);
+
+  // 동기화된 현금 계좌 합계 + 매매일지 순변동 (유효 현금액 M)
   const liveCash = useMemo(() => {
     if (!cashAccounts || !Array.isArray(cashAccounts)) return null;
-    return cashAccounts.reduce((sum: any, acc: any) => sum + (parseFloat(acc.amount) || 0), 0);
-  }, [cashAccounts]);
+    const base = cashAccounts.reduce((sum: any, acc: any) => sum + (parseFloat(acc.amount) || 0), 0);
+    return base + journalDelta.net; // 매매일지 매수/매도 변동 자동 반영 (PC와 동일)
+  }, [cashAccounts, journalDelta]);
 
   // 스토어의 cashSnapshots 사용 (실시간 현금 계좌 동기화 적용)
   const activeSnapshots = useMemo(() => {
