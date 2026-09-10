@@ -6,6 +6,16 @@ Format: `## YYYY-MM-DD — Summary`
 
 ---
 
+## 2026-09-10 — 9월 투자금액 입력란 추가 (보유 현금에서 차감)
+
+### Changes
+- **index.html**: 현금 패널 '계좌별 투자금액' 섹션 하단에 '📅 9월 투자금액' 수정 가능한 입력란 추가 (단위: 백만)
+- **app.js**: `septemberInvestment` 상태 + `updateSeptInvestment()`(localStorage 저장) + `getHeldCash()`(= 계좌 현금 합계 − 9월 투자금액) 추가
+- **app.js**: Summary 바 보유 현금(`stat-cash`), 전체 자산, 현금 비중, 월별 스냅샷 저장이 `getHeldCash()` 기준으로 계산되도록 변경
+- **styles.css**: `.sept-invest-row` 등 스타일 추가
+
+---
+
 ## 2026-08-24 — 포트폴리오 맵 컬럼 매핑 수정 (엑셀 헤더 변경 대응)
 
 ### Problem / Motivation

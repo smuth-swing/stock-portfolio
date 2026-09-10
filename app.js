@@ -47,6 +47,9 @@ let cashAccounts = [];
 // 엑셀이 유일한 데이터 소스 (Source of Truth) — localStorage 사용 안 함
 let investAccounts = [];
 
+// 9월 투자금액 (보유 현금에서 차감되는 값, 백만 단위) — localStorage에 저장
+let septemberInvestment = parseFloat(localStorage.getItem('sepInvestAmount')) || 0;
+
 // 월별 현금 & 투자금 스냅샷 데이터: [{ month: 'YYYY-MM', investment: 백만, cash: 백만, totalAsset: 백만, ratio: % }, ...]
 // 엑셀이 유일한 데이터 소스 (Source of Truth) — localStorage 사용 안 함
 let monthlyCashSnapshots = [];
@@ -1322,8 +1325,8 @@ function updateChart(data, columnName) {
             document.getElementById('stat-excluding-ratio').textContent = `(${(totalExAmount / totalInvestment * 100).toFixed(1)}%)`;
         }
 
-        // 현금 및 전체 자산 Summary 업데이트
-        const totalCash = getTotalCash(); // 백만 단위
+        // 현금 및 전체 자산 Summary 업데이트 (9월 투자금액 차감 반영)
+        const totalCash = getHeldCash(); // 백만 단위
         const effectiveInvestment = getEffectiveInvestment(); // 계좌 입력이 있으면 그것, 미입력이면 totalInvestment
         const totalAsset = effectiveInvestment + totalCash; // 백만 단위
         document.getElementById('stat-cash').textContent = totalCash.toLocaleString();
@@ -2886,6 +2889,14 @@ function getTotalCash() {
 }
 
 /**
+ * 보유 현금 반환 (백만 단위)
+ * 계좌 현금 합계에서 9월 투자금액을 뺀 값
+ */
+function getHeldCash() {
+    return getTotalCash() - septemberInvestment;
+}
+
+/**
  * 현금 계좌 목록 렌더링
  */
 function renderCashAccounts() {
@@ -3101,9 +3112,22 @@ async function saveInvestAccountsToExcel() {
 }
 
 /**
+ * 9월 투자금액 입력값 업데이트 (localStorage 저장 + 즉시 재계산)
+ */
+function updateSeptInvestment(value) {
+    septemberInvestment = parseFloat(value) || 0;
+    localStorage.setItem('sepInvestAmount', String(septemberInvestment));
+    updateCashSummary();
+}
+
+/**
  * 투자금 합계 및 현금 합계 표시 업데이트
  */
 function updateInvestSummaryDisplay() {
+    // 9월 투자금액 입력 동기화 (입력 중이 아닐 때만)
+    const septInput = document.getElementById('sept-invest-input');
+    if (septInput && document.activeElement !== septInput) septInput.value = septemberInvestment;
+
     // 현금 합계 표시
     const cashTotalDisplay = document.getElementById('cash-total-display');
     if (cashTotalDisplay) cashTotalDisplay.textContent = getTotalCash().toLocaleString();
@@ -3129,7 +3153,7 @@ function updateInvestSummaryDisplay() {
  * Summary 바의 현금/전체자산 영역만 즉시 업데이트
  */
 function updateCashSummary() {
-    const totalCash = getTotalCash();
+    const totalCash = getHeldCash(); // 9월 투자금액 차감 반영
     const effectiveInvestment = getEffectiveInvestment();
     const totalAsset = effectiveInvestment + totalCash;
 
@@ -3163,7 +3187,7 @@ function autoUpdateCurrentMonthSnapshot() {
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     const investment = getEffectiveInvestment();
-    const cash = getTotalCash();
+    const cash = getHeldCash();
 
     // 안전 가드: 데이터가 아직 로드되지 않았거나 유효 투자금이 0인 비정상 상태(포트폴리오 캐시 미로드 등)에서는 자동 저장 방지
     if (investment === 0 && cash === 0) return;
@@ -3204,7 +3228,7 @@ function saveCurrentMonthSnapshot() {
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     const investment = getEffectiveInvestment();
-    const cash = getTotalCash();
+    const cash = getHeldCash();
     const totalAsset = investment + cash;
     const ratio = totalAsset > 0 ? parseFloat((cash / totalAsset * 100).toFixed(1)) : 0;
 

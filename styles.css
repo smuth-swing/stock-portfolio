@@ -806,6 +806,57 @@ tr:hover { background: rgba(255,255,255,0.04); }
     min-width: 24px;
 }
 
+/* 9월 투자금액 행 (보유 현금에서 차감되는 입력란) */
+.sept-invest-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: rgba(56, 189, 248, 0.05);
+    border: 1px dashed rgba(56, 189, 248, 0.35);
+    border-radius: 6px;
+}
+
+.sept-invest-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #38bdf8;
+    white-space: nowrap;
+}
+
+.sept-invest-row input[type="number"] {
+    width: 110px;
+    padding: 7px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-glass);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    text-align: right;
+    transition: border-color 0.2s;
+}
+
+.sept-invest-row input[type="number"]:focus {
+    outline: none;
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
+}
+
+.sept-invest-row .cash-unit-label {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.sept-invest-hint {
+    font-size: 10px;
+    color: var(--text-muted);
+    opacity: 0.7;
+    margin-left: auto;
+    white-space: nowrap;
+}
+
 @media (max-width: 768px) {
     .cash-invest-columns {
         flex-direction: column;
