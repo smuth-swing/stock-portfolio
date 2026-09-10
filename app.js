@@ -49,8 +49,20 @@ let investAccounts = [];
 
 // 이번달 투자 금액 (보유 현금에서 차감되는 값, 백만 단위)
 // 매매일지 기준으로 자동 계산되며, 수동 수정 시 'monthInvestManual' 플래그로 자동 갱신 중지
+// 월이 바뀌면 이전 달 수동 입력은 초기화되고 새 달 기준으로 다시 계산됨
 let currentMonthInvestment = parseFloat(localStorage.getItem('monthInvestAmount'));
 if (isNaN(currentMonthInvestment)) currentMonthInvestment = parseFloat(localStorage.getItem('sepInvestAmount')) || 0;
+
+// 월이 바뀌었으면 이전 달 수동 입력을 초기화 (새 달부터 매매일지 자동 계산)
+(function resetMonthInvestOnMonthChange() {
+    const storedMonth = localStorage.getItem('monthInvestMonth');
+    if (storedMonth && storedMonth !== getCurrentMonthKey()) {
+        localStorage.removeItem('monthInvestManual');
+        localStorage.removeItem('monthInvestAmount');
+        currentMonthInvestment = 0;
+        console.log(`[투자금액] 새 달 감지 (${storedMonth} → ${getCurrentMonthKey()}) — 수동 입력 초기화`);
+    }
+})();
 
 // 매매일지 행 캐시 (이번달 투자 금액 자동 계산용)
 let tradeJournalRows = [];
@@ -3130,6 +3142,7 @@ function updateMonthInvestment(value) {
     currentMonthInvestment = parseFloat(value) || 0;
     localStorage.setItem('monthInvestAmount', String(currentMonthInvestment));
     localStorage.setItem('monthInvestManual', 'true');
+    localStorage.setItem('monthInvestMonth', getCurrentMonthKey());
     updateCashSummary();
 }
 
@@ -3151,8 +3164,7 @@ function getJournalInvestmentStats() {
     const rows = (currentData && currentData.current_sheet === '매매일지' && Array.isArray(currentData.data))
         ? currentData.data
         : tradeJournalRows;
-    const now = new Date();
-    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const monthKey = getCurrentMonthKey();
     let buy = 0;   // 백만 단위 (거래별 100만원 반올림 합산)
     let sell = 0;  // 백만 단위 (거래별 100만원 반올림 합산)
 
@@ -3186,11 +3198,12 @@ function getJournalInvestment() {
 function updateMonthInvestHint() {
     const hint = document.getElementById('month-invest-hint');
     if (!hint) return;
+    const m = parseInt(getCurrentMonthKey().split('-')[1], 10);
     if (localStorage.getItem('monthInvestManual') === 'true') {
-        hint.textContent = '수동 입력';
+        hint.textContent = `${m}월 · 수동 입력`;
     } else {
         const stats = getJournalInvestmentStats();
-        hint.textContent = `매수 ${stats.buy} − 매도 ${stats.sell} 자동 계산`;
+        hint.textContent = `${m}월 · 매수 ${stats.buy} − 매도 ${stats.sell} 자동 계산`;
     }
 }
 
@@ -3220,9 +3233,17 @@ async function fetchTradeJournalData() {
 
 /**
  * 이번달 투자 금액 자동 갱신 (수동 수정 중이면 유지)
+ * 월이 바뀌면 이전 달 수동 입력을 해제하고 새 달 기준으로 재계산
  * @param {boolean} force - true이면 수동 수정 여부와 무관하게 강제 재계산
  */
 async function refreshJournalInvestment(force = false) {
+    // 월이 바뀌었으면 이전 달 수동 입력 해제 → 새 달 기준 자동 계산
+    const storedMonth = localStorage.getItem('monthInvestMonth');
+    if (storedMonth && storedMonth !== getCurrentMonthKey()) {
+        localStorage.removeItem('monthInvestManual');
+        localStorage.removeItem('monthInvestAmount');
+        console.log(`[투자금액] 새 달 감지 (${storedMonth} → ${getCurrentMonthKey()}) — 자동 재계산`);
+    }
     if (localStorage.getItem('monthInvestManual') === 'true' && !force) return;
     const hasJournalData = (currentData && currentData.current_sheet === '매매일지' && Array.isArray(currentData.data));
     if (!tradeJournalRows.length && !hasJournalData) {
@@ -3230,7 +3251,16 @@ async function refreshJournalInvestment(force = false) {
     }
     currentMonthInvestment = getJournalInvestment();
     localStorage.setItem('monthInvestAmount', String(currentMonthInvestment));
+    localStorage.setItem('monthInvestMonth', getCurrentMonthKey());
     updateCashSummary();
+}
+
+/**
+ * 현재 연월 키 반환 ('YYYY-MM')
+ */
+function getCurrentMonthKey() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
 /**
