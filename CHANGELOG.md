@@ -6,6 +6,36 @@ Format: `## YYYY-MM-DD — Summary`
 
 ---
 
+## 2026-09-10 — 매매일지 기반 현금 자동 계산 + 수동 수정 기능 구현
+
+### Problem / Motivation
+현금 비중 계산 시 계좌 현금이 입력값으로 고정되어 있어, 매매일지에서 매수(현금 지출)/매도(현금 유입)를 기록해도 현금이 변하지 않아 현금 비중이 왜곡됨.
+
+### Changes
+- **app.js**:
+  - `tradeJournalRows` 캐시 + `fetchTradeJournalData()` — 현금 변동 계산용 매매일지 행 로드 (`/api/read-excel?sheet=매매일지`, GitHub Pages는 `trade_journal.json`)
+  - `getJournalCashDelta()` — 기준일 이후 매수/매도 대금 합산 → 순변동(백만) 계산
+  - `getTradeCashBaseline()` — 기준일 (기본: 이전 달 말일 = 당월 전체, 합산 반영 시 오늘로 재설정)
+  - `getEffectiveCash()` — 유효 현금 = 계좌 합계 + 매매 순변동 + 수동 보정액
+  - `updateTradeCashPanel()` / `toggleTradeCashSync()` / `updateCashAdjustment()` / `applyTradeDeltaToAccount()` — 매매일지 연동 섹션 UI 및 상호작용 로직
+  - Summary 바(`stat-cash`/`stat-total-asset`/현금비중)와 월별 스냅샷이 유효 현금 기준으로 계산되도록 변경
+  - 매매일지 저장/수정/삭제/LS가져오기 성공 시 현금 자동 재계산 연동
+- **index.html**: 매매일지 기반 현금 자동 계산 섹션 완성 — 당월 매수/매도/순변동/유효현금 카드, 계산 내역 표시, 수동 보정액 입력, 대표 계좌 선택 + [변동액 합산 반영] 버튼
+- **styles.css**: `.trade-cash-month-label`, `.trade-cash-stat-card .sub`, `.trade-cash-controls`, `.trade-cash-adjust`, `.apply-account-select` 등 스타일 추가
+- **StockPortfolioApp/src/screens/PortfolioScreen.tsx**: 모바일 포트폴리오 화면의 `liveCash`에 매매일지 당월 순변동 반영 (PC와 일관)
+
+### Affected Flows
+- 포트폴리오 맵 탭 → 현금 패널 → 매매일지 변동 자동 반영 → Summary 바 현금/현금비중
+- 매매일지 CRUD → 현금 자동 재계산
+- 월별 현금비중 스냅샷 저장 (유효 현금 기준)
+
+### Verification
+- 2026-09 데이터: 매수 2,875,210원(-2.9백만) / 매도 6,364,700원(+6.4백만) / 순변동 +3.5백만
+- 계좌 223 + 순변동 3.5 = 226.5백만, 현금비중 48.9% (계획서 기대값과 일치)
+- 토글 OFF 시 223(고정), 보정액 +10 시 236.5, 합산 반영 시 계좌 156.5 + 기준일 오늘 초기화 확인
+
+---
+
 ## 2026-08-24 — 포트폴리오 맵 컬럼 매핑 수정 (엑셀 헤더 변경 대응)
 
 ### Problem / Motivation
