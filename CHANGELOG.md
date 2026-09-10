@@ -10,7 +10,7 @@ Format: `## YYYY-MM-DD — Summary`
 
 ### Changes
 - **index.html**: 현금 패널 '계좌별 투자금액' 섹션 하단에 '📅 이번달 투자 금액' 입력란 추가 (단위: 백만)
-- **app.js**: `getJournalInvestment()` — 매매일지의 이번달 매수 총액 − 매도 총액(최소 0)으로 자동 계산
+- **app.js**: `getJournalInvestment()` — 매매일지의 이번달 매수 − 매도로 자동 계산 (음수 허용: 매도가 많으면 마이너스 투자 → 보유 현금 증가). 거래금액(수량×단가)은 매매일지 작성 규칙대로 **100만원 단위 반올림**
 - **app.js**: `fetchTradeJournalData()`(매매일지 행 캐시) + `refreshJournalInvestment()`(자동 갱신) — 매매일지 저장/수정/삭제/가져오기 및 탭 로드 시 재계산
 - **app.js**: 수동 수정 시 `monthInvestManual` 플래그로 자동 갱신 중지, '↺ 자동' 버튼으로 매매일지 기준 값 복원 가능
 - **app.js**: `getHeldCash()`(= 계좌 현금 합계 − 이번달 투자 금액) 기준으로 Summary 바 보유 현금·전체 자산·현금 비중·월별 스냅샷 계산

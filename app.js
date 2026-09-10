@@ -3144,6 +3144,8 @@ async function resetMonthInvestment() {
 
 /**
  * 매매일지에서 이번달 매수/매도/순투자 계산 (백만 단위)
+ * 매매일지 작성 규칙과 동일하게 거래금액(수량×단가)을 100만원 단위로 반올림
+ * 순투자는 음수 허용 (매도가 많으면 마이너스 → 보유 현금 증가)
  */
 function getJournalInvestmentStats() {
     const rows = (currentData && currentData.current_sheet === '매매일지' && Array.isArray(currentData.data))
@@ -3151,8 +3153,8 @@ function getJournalInvestmentStats() {
         : tradeJournalRows;
     const now = new Date();
     const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    let buyWon = 0;
-    let sellWon = 0;
+    let buy = 0;   // 백만 단위 (거래별 100만원 반올림 합산)
+    let sell = 0;  // 백만 단위 (거래별 100만원 반올림 합산)
 
     (rows || []).forEach(row => {
         const dateStr = String(getJournalField(row, 'date') || '').trim();
@@ -3162,18 +3164,17 @@ function getJournalInvestmentStats() {
         if (type !== '매수' && type !== '매도') return;
         const qty = parseFloat(String(getJournalField(row, 'qty')).replace(/[^0-9.\-]/g, '')) || 0;
         const price = parseFloat(String(getJournalField(row, 'price')).replace(/[^0-9.\-]/g, '')) || 0;
-        const amount = qty * price;
-        if (type === '매도') sellWon += amount;
-        else buyWon += amount;
+        // 매매일지 기준: 거래금액은 100만원 단위로 반올림
+        const tradeOnes = Math.round((qty * price) / 1000000);
+        if (type === '매도') sell += tradeOnes;
+        else buy += tradeOnes;
     });
 
-    const buy = Math.round((buyWon / 1000000) * 10) / 10;
-    const sell = Math.round((sellWon / 1000000) * 10) / 10;
-    return { buy, sell, net: Math.max(0, buy - sell) };
+    return { buy, sell, net: buy - sell };
 }
 
 /**
- * 이번달 투자 금액 반환 (매수 총액 − 매도 총액, 최소 0, 백만 단위)
+ * 이번달 투자 금액 반환 (매수 총액 − 매도 총액, 음수 허용, 백만 단위)
  */
 function getJournalInvestment() {
     return getJournalInvestmentStats().net;
