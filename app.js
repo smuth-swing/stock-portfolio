@@ -47,8 +47,13 @@ let cashAccounts = [];
 // 엑셀이 유일한 데이터 소스 (Source of Truth) — localStorage 사용 안 함
 let investAccounts = [];
 
-// 9월 투자금액 (보유 현금에서 차감되는 값, 백만 단위) — localStorage에 저장
-let septemberInvestment = parseFloat(localStorage.getItem('sepInvestAmount')) || 0;
+// 이번달 투자 금액 (보유 현금에서 차감되는 값, 백만 단위)
+// 매매일지 기준으로 자동 계산되며, 수동 수정 시 'monthInvestManual' 플래그로 자동 갱신 중지
+let currentMonthInvestment = parseFloat(localStorage.getItem('monthInvestAmount'));
+if (isNaN(currentMonthInvestment)) currentMonthInvestment = parseFloat(localStorage.getItem('sepInvestAmount')) || 0;
+
+// 매매일지 행 캐시 (이번달 투자 금액 자동 계산용)
+let tradeJournalRows = [];
 
 // 월별 현금 & 투자금 스냅샷 데이터: [{ month: 'YYYY-MM', investment: 백만, cash: 백만, totalAsset: 백만, ratio: % }, ...]
 // 엑셀이 유일한 데이터 소스 (Source of Truth) — localStorage 사용 안 함
@@ -258,6 +263,7 @@ async function init() {
                     showToast(isEdit ? '매매일지가 수정되었습니다.' : '매매일지가 성공적으로 저장되었습니다.', 'success');
                     resetJournalForm(); // 폼 초기화 및 수정 모드 해제
                     refreshData(true); // 데이터 새로고침
+                    fetchTradeJournalData().then(() => refreshJournalInvestment()); // 이번달 투자 금액 자동 재계산
                 } else {
                     showToast('저장 실패: ' + result.error, 'error');
                     alert('저장 실패: ' + result.error);
@@ -459,6 +465,11 @@ async function loadExcel(filePath, sheetName = null) {
             updateInvestigationPriorityCache(data);
         } else if (investigationPriorityCache.size === 0) {
             await fetchInvestigationPriorityData();
+        }
+
+        // 매매일지 탭 로드 시 이번달 투자 금액 자동 계산
+        if (data.current_sheet === '매매일지') {
+            refreshJournalInvestment();
         }
     } catch (e) {
         showToast('데이터 로드 중 오류가 발생했습니다.', 'error');
@@ -2890,10 +2901,10 @@ function getTotalCash() {
 
 /**
  * 보유 현금 반환 (백만 단위)
- * 계좌 현금 합계에서 9월 투자금액을 뺀 값
+ * 계좌 현금 합계에서 이번달 투자 금액을 뺀 값
  */
 function getHeldCash() {
-    return getTotalCash() - septemberInvestment;
+    return getTotalCash() - currentMonthInvestment;
 }
 
 /**
@@ -3112,11 +3123,112 @@ async function saveInvestAccountsToExcel() {
 }
 
 /**
- * 9월 투자금액 입력값 업데이트 (localStorage 저장 + 즉시 재계산)
+ * 이번달 투자 금액 수동 입력 (localStorage 저장 + 즉시 재계산)
+ * 수동으로 입력하면 매매일지 자동 계산을 중지함
  */
-function updateSeptInvestment(value) {
-    septemberInvestment = parseFloat(value) || 0;
-    localStorage.setItem('sepInvestAmount', String(septemberInvestment));
+function updateMonthInvestment(value) {
+    currentMonthInvestment = parseFloat(value) || 0;
+    localStorage.setItem('monthInvestAmount', String(currentMonthInvestment));
+    localStorage.setItem('monthInvestManual', 'true');
+    updateCashSummary();
+}
+
+/**
+ * 수동 수정을 해제하고 매매일지 기준 값으로 되돌림
+ */
+async function resetMonthInvestment() {
+    localStorage.removeItem('monthInvestManual');
+    await refreshJournalInvestment(true);
+    showToast('✅ 이번달 투자 금액을 매매일지 기준으로 자동 계산했습니다.', 'success');
+}
+
+/**
+ * 매매일지에서 이번달 매수/매도/순투자 계산 (백만 단위)
+ */
+function getJournalInvestmentStats() {
+    const rows = (currentData && currentData.current_sheet === '매매일지' && Array.isArray(currentData.data))
+        ? currentData.data
+        : tradeJournalRows;
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    let buyWon = 0;
+    let sellWon = 0;
+
+    (rows || []).forEach(row => {
+        const dateStr = String(getJournalField(row, 'date') || '').trim();
+        const m = dateStr.match(/^(\d{4})[-./](\d{1,2})/);
+        if (!m || `${m[1]}-${String(parseInt(m[2], 10)).padStart(2, '0')}` !== monthKey) return;
+        const type = String(getJournalField(row, 'type') || '').trim();
+        if (type !== '매수' && type !== '매도') return;
+        const qty = parseFloat(String(getJournalField(row, 'qty')).replace(/[^0-9.\-]/g, '')) || 0;
+        const price = parseFloat(String(getJournalField(row, 'price')).replace(/[^0-9.\-]/g, '')) || 0;
+        const amount = qty * price;
+        if (type === '매도') sellWon += amount;
+        else buyWon += amount;
+    });
+
+    const buy = Math.round((buyWon / 1000000) * 10) / 10;
+    const sell = Math.round((sellWon / 1000000) * 10) / 10;
+    return { buy, sell, net: Math.max(0, buy - sell) };
+}
+
+/**
+ * 이번달 투자 금액 반환 (매수 총액 − 매도 총액, 최소 0, 백만 단위)
+ */
+function getJournalInvestment() {
+    return getJournalInvestmentStats().net;
+}
+
+/**
+ * 이번달 투자 금액 힌트 표시 (매수/매도 내역 또는 수동 입력 상태)
+ */
+function updateMonthInvestHint() {
+    const hint = document.getElementById('month-invest-hint');
+    if (!hint) return;
+    if (localStorage.getItem('monthInvestManual') === 'true') {
+        hint.textContent = '수동 입력';
+    } else {
+        const stats = getJournalInvestmentStats();
+        hint.textContent = `매수 ${stats.buy} − 매도 ${stats.sell} 자동 계산`;
+    }
+}
+
+/**
+ * 매매일지 행 캐시 로드 (이번달 투자 금액 자동 계산용)
+ * 로컬: /api/read-excel, GitHub Pages: trade_journal.json
+ */
+async function fetchTradeJournalData() {
+    try {
+        const timestamp = new Date().getTime();
+        let url;
+        if (IS_GITHUB_PAGES) {
+            url = `${API}/trade_journal.json?t=${timestamp}`;
+        } else {
+            url = `${API}/read-excel?file=${encodeURIComponent(TARGET_FILE)}&sheet=${encodeURIComponent('매매일지')}&t=${timestamp}`;
+        }
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data && !data.error && Array.isArray(data.data)) {
+            tradeJournalRows = data.data;
+            console.log('📥 매매일지 행 로드 완료 (투자 금액 계산용):', tradeJournalRows.length, '행');
+        }
+    } catch (e) {
+        console.warn('⚠️ 매매일지 로드 실패 (투자 금액 계산):', e.message);
+    }
+}
+
+/**
+ * 이번달 투자 금액 자동 갱신 (수동 수정 중이면 유지)
+ * @param {boolean} force - true이면 수동 수정 여부와 무관하게 강제 재계산
+ */
+async function refreshJournalInvestment(force = false) {
+    if (localStorage.getItem('monthInvestManual') === 'true' && !force) return;
+    const hasJournalData = (currentData && currentData.current_sheet === '매매일지' && Array.isArray(currentData.data));
+    if (!tradeJournalRows.length && !hasJournalData) {
+        await fetchTradeJournalData();
+    }
+    currentMonthInvestment = getJournalInvestment();
+    localStorage.setItem('monthInvestAmount', String(currentMonthInvestment));
     updateCashSummary();
 }
 
@@ -3124,9 +3236,10 @@ function updateSeptInvestment(value) {
  * 투자금 합계 및 현금 합계 표시 업데이트
  */
 function updateInvestSummaryDisplay() {
-    // 9월 투자금액 입력 동기화 (입력 중이 아닐 때만)
-    const septInput = document.getElementById('sept-invest-input');
-    if (septInput && document.activeElement !== septInput) septInput.value = septemberInvestment;
+    // 이번달 투자 금액 입력 동기화 (입력 중이 아닐 때만)
+    const monthInput = document.getElementById('month-invest-input');
+    if (monthInput && document.activeElement !== monthInput) monthInput.value = currentMonthInvestment;
+    updateMonthInvestHint();
 
     // 현금 합계 표시
     const cashTotalDisplay = document.getElementById('cash-total-display');
@@ -3367,6 +3480,9 @@ async function fetchAllCashDataFromExcel() {
         fetchCashAccountsFromExcel(),
         fetchInvestAccountsFromExcel()
     ]);
+    // 매매일지 기반 이번달 투자 금액 자동 계산
+    await fetchTradeJournalData();
+    await refreshJournalInvestment();
     // 데이터 로드 후 UI 업데이트
     updateCashSummary();
     renderCashAccounts();
@@ -4243,6 +4359,7 @@ async function deleteJournalEntry(e) {
             showToast('매매 기록이 삭제되고 포트폴리오가 업데이트되었습니다.', 'success');
             resetJournalForm();
             refreshData(true);
+            fetchTradeJournalData().then(() => refreshJournalInvestment()); // 이번달 투자 금액 자동 재계산
         } else {
             showToast('삭제 실패: ' + result.error, 'error');
         }
@@ -4841,6 +4958,7 @@ async function importLsTrades() {
             
             // 테이블 데이터 새로고침
             refreshData(true);
+            fetchTradeJournalData().then(() => refreshJournalInvestment()); // 이번달 투자 금액 자동 재계산
         } else {
             alert(`저장 실패: ${result.error}`);
         }

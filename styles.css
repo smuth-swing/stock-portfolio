@@ -806,8 +806,8 @@ tr:hover { background: rgba(255,255,255,0.04); }
     min-width: 24px;
 }
 
-/* 9월 투자금액 행 (보유 현금에서 차감되는 입력란) */
-.sept-invest-row {
+/* 이번달 투자 금액 행 (매매일지 기준 자동 계산, 보유 현금에서 차감) */
+.month-invest-row {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -818,14 +818,14 @@ tr:hover { background: rgba(255,255,255,0.04); }
     border-radius: 6px;
 }
 
-.sept-invest-label {
+.month-invest-label {
     font-size: 12px;
     font-weight: 600;
     color: #38bdf8;
     white-space: nowrap;
 }
 
-.sept-invest-row input[type="number"] {
+.month-invest-row input[type="number"] {
     width: 110px;
     padding: 7px 12px;
     background: rgba(255, 255, 255, 0.04);
@@ -838,23 +838,38 @@ tr:hover { background: rgba(255,255,255,0.04); }
     transition: border-color 0.2s;
 }
 
-.sept-invest-row input[type="number"]:focus {
+.month-invest-row input[type="number"]:focus {
     outline: none;
     border-color: #38bdf8;
     box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
 }
 
-.sept-invest-row .cash-unit-label {
+.month-invest-row .cash-unit-label {
     font-size: 11px;
     color: var(--text-muted);
 }
 
-.sept-invest-hint {
+.month-invest-hint {
     font-size: 10px;
     color: var(--text-muted);
     opacity: 0.7;
     margin-left: auto;
     white-space: nowrap;
+}
+
+.btn-month-invest-reset {
+    padding: 3px 8px;
+    background: rgba(56, 189, 248, 0.1);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    color: #38bdf8;
+    border-radius: 5px;
+    font-size: 10px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-month-invest-reset:hover {
+    background: rgba(56, 189, 248, 0.2);
 }
 
 @media (max-width: 768px) {
