@@ -3296,6 +3296,13 @@ function updateCashSummary() {
 function autoUpdateCurrentMonthSnapshot() {
     if (IS_GITHUB_PAGES) return; // 로컬 PC 전용
 
+    // 안전 가드: 월별 스냅샷 히스토리가 로드되지 않았으면 자동 저장하지 않음
+    // (히스토리 로드 실패 상태에서 자동 저장하면 기존 기록이 이번 달 하나로 덮어써짐)
+    if (!Array.isArray(monthlyCashSnapshots) || monthlyCashSnapshots.length === 0) {
+        console.warn('⚠️ 월별 스냅샷 히스토리가 비어 있어 자동 저장을 건너뜁니다. (수동 저장은 가능)');
+        return;
+    }
+
     const now = new Date();
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 

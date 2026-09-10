@@ -14,6 +14,7 @@ Format: `## YYYY-MM-DD — Summary`
 - **app.js**: `fetchTradeJournalData()`(매매일지 행 캐시) + `refreshJournalInvestment()`(자동 갱신) — 매매일지 저장/수정/삭제/가져오기 및 탭 로드 시 재계산
 - **app.js**: 수동 수정 시 `monthInvestManual` 플래그로 자동 갱신 중지, '↺ 자동' 버튼으로 매매일지 기준 값 복원 가능
 - **app.js**: `getHeldCash()`(= 계좌 현금 합계 − 이번달 투자 금액) 기준으로 Summary 바 보유 현금·전체 자산·현금 비중·월별 스냅샷 계산
+- **app.js**: `autoUpdateCurrentMonthSnapshot()` 안전 가드 추가 — 월별 스냅샷 히스토리가 로드되지 않은 상태에서는 자동 저장 건너뜀 (기존 기록이 이번 달 하나로 덮어써지는 8월 데이터 삭제 사고 방지)
 - **styles.css**: `.month-invest-row` 등 스타일 추가
 
 ---
