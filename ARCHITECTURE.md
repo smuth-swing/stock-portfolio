@@ -69,18 +69,6 @@ auto_github_uploader.py (10-sec polling)
   → git checkout gh-pages && merge && push (optional)
 ```
 
-### 4. Cash Auto-Calculation Flow (매매일지 → 현금 비중)
-```
-app.js (web) / PortfolioScreen.tsx (mobile)
-  → fetch 매매일지 rows (read-excel or trade_journal.json)
-  → getJournalCashDelta(): 기준일(baseline) 이후 매수(-) / 매도(+) 합산 → 순변동(백만)
-  → 유효 현금 = 계좌 합계(_계좌정보 '현금계좌') + 순변동 + 수동 보정액
-  → Summary 바 / 월별 현금비중 스냅샷에 유효 현금 반영
-```
-- 기준일(baseline): 기본 = 이전 달 말일(당월 전체 거래). [변동액 합산 반영] 클릭 시 오늘로 재설정 (localStorage `tradeCashBaseline`)
-- 수동 보정액: localStorage `cashAdjustment` (배당·출금 등 매매일지 외 변동)
-- 자동 연동 토글: localStorage `tradeCashSyncEnabled` (OFF 시 입력값 고정)
-
 ## Key Components
 
 ### server.py — Flask API Server

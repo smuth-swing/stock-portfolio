@@ -51,15 +51,6 @@ let investAccounts = [];
 // 엑셀이 유일한 데이터 소스 (Source of Truth) — localStorage 사용 안 함
 let monthlyCashSnapshots = [];
 
-// 매매일지 기반 현금 변동 자동 연동 플래그 (localStorage에 저장)
-let tradeCashSyncEnabled = localStorage.getItem('tradeCashSyncEnabled') !== 'false'; // 기본값: true
-
-// 매매일지 행 캐시 (현금 변동 자동 계산용)
-let tradeJournalRows = [];
-
-// 수동 보정액 (백만) — 배당금 입금/생활비 출금 등 매매일지 외 현금 변동 (localStorage에 저장)
-let cashAdjustment = parseFloat(localStorage.getItem('cashAdjustment')) || 0;
-
 // ===== 구 localStorage 데이터 삭제 (1회성 정리) =====
 (function cleanupLegacyLocalStorage() {
     const keysToRemove = ['cashAccounts', 'investAccounts', 'monthlyCashSnapshots'];
@@ -264,9 +255,6 @@ async function init() {
                     showToast(isEdit ? '매매일지가 수정되었습니다.' : '매매일지가 성공적으로 저장되었습니다.', 'success');
                     resetJournalForm(); // 폼 초기화 및 수정 모드 해제
                     refreshData(true); // 데이터 새로고침
-                    // 매매일지 기반 현금 자동 계산 갱신
-                    await fetchTradeJournalData();
-                    updateCashSummary();
                 } else {
                     showToast('저장 실패: ' + result.error, 'error');
                     alert('저장 실패: ' + result.error);
@@ -1334,12 +1322,12 @@ function updateChart(data, columnName) {
             document.getElementById('stat-excluding-ratio').textContent = `(${(totalExAmount / totalInvestment * 100).toFixed(1)}%)`;
         }
 
-        // 현금 및 전체 자산 Summary 업데이트 (매매일지 변동이 반영된 유효 현금 사용)
-        const totalCash = getEffectiveCash(); // 백만 단위
+        // 현금 및 전체 자산 Summary 업데이트
+        const totalCash = getTotalCash(); // 백만 단위
         const effectiveInvestment = getEffectiveInvestment(); // 계좌 입력이 있으면 그것, 미입력이면 totalInvestment
         const totalAsset = effectiveInvestment + totalCash; // 백만 단위
-        document.getElementById('stat-cash').textContent = totalCash.toLocaleString(undefined, { maximumFractionDigits: 1 });
-        document.getElementById('stat-total-asset').textContent = totalAsset.toLocaleString(undefined, { maximumFractionDigits: 1 });
+        document.getElementById('stat-cash').textContent = totalCash.toLocaleString();
+        document.getElementById('stat-total-asset').textContent = totalAsset.toLocaleString();
         if (totalAsset > 0) {
             document.getElementById('stat-cash-ratio').textContent = `(${(totalCash / totalAsset * 100).toFixed(1)}%)`;
         } else {
@@ -1350,7 +1338,6 @@ function updateChart(data, columnName) {
         // 현금 계좌 및 투자금 계좌 목록 렌더링
         renderCashAccounts();
         renderInvestAccounts();
-        updateTradeCashPanel();
 
         const avgValue = values.length > 0 ? totalInvestment / values.length : 0;
 
@@ -3142,8 +3129,7 @@ function updateInvestSummaryDisplay() {
  * Summary 바의 현금/전체자산 영역만 즉시 업데이트
  */
 function updateCashSummary() {
-    // 매매일지 변동이 반영된 유효 현금 사용
-    const totalCash = getEffectiveCash();
+    const totalCash = getTotalCash();
     const effectiveInvestment = getEffectiveInvestment();
     const totalAsset = effectiveInvestment + totalCash;
 
@@ -3151,8 +3137,8 @@ function updateCashSummary() {
     const statCashRatio = document.getElementById('stat-cash-ratio');
     const statTotalAsset = document.getElementById('stat-total-asset');
 
-    if (statCash) statCash.textContent = totalCash.toLocaleString(undefined, { maximumFractionDigits: 1 });
-    if (statTotalAsset) statTotalAsset.textContent = totalAsset.toLocaleString(undefined, { maximumFractionDigits: 1 });
+    if (statCash) statCash.textContent = totalCash.toLocaleString();
+    if (statTotalAsset) statTotalAsset.textContent = totalAsset.toLocaleString();
     if (statCashRatio) {
         statCashRatio.textContent = totalAsset > 0
             ? `(${(totalCash / totalAsset * 100).toFixed(1)}%)`
@@ -3160,8 +3146,6 @@ function updateCashSummary() {
     }
 
     updateInvestSummaryDisplay();
-    // 매매일지 현금 변동 섹션 UI 갱신
-    updateTradeCashPanel();
     // 이번 달 스냅샷 자동 갱신 (버튼 없이 자동 계산)
     autoUpdateCurrentMonthSnapshot();
     // 트렌드 차트 및 스냅샷 업데이트
@@ -3179,7 +3163,7 @@ function autoUpdateCurrentMonthSnapshot() {
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     const investment = getEffectiveInvestment();
-    const cash = getEffectiveCash();
+    const cash = getTotalCash();
 
     // 안전 가드: 데이터가 아직 로드되지 않았거나 유효 투자금이 0인 비정상 상태(포트폴리오 캐시 미로드 등)에서는 자동 저장 방지
     if (investment === 0 && cash === 0) return;
@@ -3220,7 +3204,7 @@ function saveCurrentMonthSnapshot() {
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     const investment = getEffectiveInvestment();
-    const cash = getEffectiveCash();
+    const cash = getTotalCash();
     const totalAsset = investment + cash;
     const ratio = totalAsset > 0 ? parseFloat((cash / totalAsset * 100).toFixed(1)) : 0;
 
@@ -3357,235 +3341,12 @@ async function fetchAllCashDataFromExcel() {
     await Promise.all([
         fetchCashSnapshotsFromExcel(),
         fetchCashAccountsFromExcel(),
-        fetchInvestAccountsFromExcel(),
-        fetchTradeJournalData()
+        fetchInvestAccountsFromExcel()
     ]);
     // 데이터 로드 후 UI 업데이트
     updateCashSummary();
     renderCashAccounts();
     renderInvestAccounts();
-}
-
-// ===== 매매일지 기반 현금 자동 계산 =====
-
-/**
- * 매매일지 날짜 값에서 'YYYY-MM-DD' 추출
- * 문자열('2026-09-04', '2026-09-04 00:00:00')과 엑셀 시리얼 숫자 모두 지원
- */
-function parseJournalDate(v) {
-    if (v === undefined || v === null || v === '') return '';
-    if (typeof v === 'number' && isFinite(v)) {
-        const d = new Date(Math.round((v - 25569) * 86400 * 1000));
-        if (isNaN(d.getTime())) return '';
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    }
-    const s = String(v).trim();
-    const m = s.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
-    if (m) {
-        return `${m[1]}-${String(parseInt(m[2], 10)).padStart(2, '0')}-${String(parseInt(m[3], 10)).padStart(2, '0')}`;
-    }
-    return '';
-}
-
-/** Date 객체를 'YYYY-MM-DD' 문자열로 변환 */
-function formatDateKey(d) {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-/**
- * 매매 변동 기준일 반환 ('YYYY-MM-DD')
- * - 사용자가 [변동액 합산 반영]으로 확정한 기준일이 있으면 그 날짜 이후 거래만 계산
- * - 없으면 이전 달 말일(= 당월 전체 거래) 기준
- */
-function getTradeCashBaseline() {
-    const stored = localStorage.getItem('tradeCashBaseline');
-    if (stored && /^\d{4}-\d{2}-\d{2}$/.test(stored)) return stored;
-    const now = new Date();
-    return formatDateKey(new Date(now.getFullYear(), now.getMonth(), 0)); // 이전 달 말일
-}
-
-/**
- * 매매일지 행 캐시 로드 (현금 변동 계산용)
- * 로컬: /api/read-excel, GitHub Pages: trade_journal.json
- */
-async function fetchTradeJournalData() {
-    try {
-        const timestamp = new Date().getTime();
-        let url;
-        if (IS_GITHUB_PAGES) {
-            url = `${API}/trade_journal.json?t=${timestamp}`;
-        } else {
-            url = `${API}/read-excel?file=${encodeURIComponent(TARGET_FILE)}&sheet=${encodeURIComponent('매매일지')}&t=${timestamp}`;
-        }
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data && !data.error && Array.isArray(data.data)) {
-            tradeJournalRows = data.data;
-            console.log('📥 매매일지 행 로드 완료 (현금 변동 계산용):', tradeJournalRows.length, '행');
-        }
-    } catch (e) {
-        console.warn('⚠️ 매매일지 로드 실패 (현금 변동 계산):', e.message);
-    }
-}
-
-/**
- * 기준일 이후 매수/매도 합계 및 순변동 계산 (백만 단위)
- * 매수 = 현금 유출(-), 매도 = 현금 유입(+)
- */
-function getJournalCashDelta() {
-    // 현재 매매일지 탭을 보고 있으면 최신 currentData를 우선 사용
-    const rows = (currentData && currentData.current_sheet === '매매일지' && Array.isArray(currentData.data))
-        ? currentData.data
-        : tradeJournalRows;
-    const baseline = getTradeCashBaseline();
-    let buyWon = 0;
-    let sellWon = 0;
-
-    (rows || []).forEach(row => {
-        const dateKey = parseJournalDate(getJournalField(row, 'date'));
-        if (!dateKey || dateKey <= baseline) return; // 기준일 이전(당일 포함) 거래는 제외
-        const type = String(getJournalField(row, 'type') || '').trim();
-        if (type !== '매수' && type !== '매도') return;
-        const qty = parseFloat(String(getJournalField(row, 'qty')).replace(/[^0-9.\-]/g, '')) || 0;
-        const price = parseFloat(String(getJournalField(row, 'price')).replace(/[^0-9.\-]/g, '')) || 0;
-        const amountWon = qty * price;
-        if (type === '매도') sellWon += amountWon;
-        else buyWon += amountWon;
-    });
-
-    return {
-        baseline,
-        buy: buyWon / 1000000,
-        sell: sellWon / 1000000,
-        net: (sellWon - buyWon) / 1000000
-    };
-}
-
-/**
- * 유효 현금 = 계좌 합계 + (연동 시 매매 순변동) + 수동 보정액 (백만 단위)
- */
-function getEffectiveCash() {
-    const base = getTotalCash();
-    const delta = tradeCashSyncEnabled ? getJournalCashDelta().net : 0;
-    const adj = parseFloat(cashAdjustment) || 0;
-    return base + delta + adj;
-}
-
-/**
- * 매매일지 기반 현금 자동 계산 섹션 UI 갱신
- */
-function updateTradeCashPanel() {
-    const setText = (id, text) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = text;
-    };
-
-    const toggleEl = document.getElementById('trade-cash-sync-toggle');
-    if (toggleEl) toggleEl.checked = tradeCashSyncEnabled;
-
-    const { baseline, buy, sell, net } = getJournalCashDelta();
-    const base = getTotalCash();
-    const adj = parseFloat(cashAdjustment) || 0;
-    const effective = getEffectiveCash();
-
-    setText('trade-cash-buy', `-${buy.toFixed(1)} 백만`);
-    setText('trade-cash-sell', `+${sell.toFixed(1)} 백만`);
-
-    const netEl = document.getElementById('trade-cash-net');
-    if (netEl) {
-        netEl.textContent = `${net >= 0 ? '+' : ''}${net.toFixed(1)} 백만`;
-        netEl.style.color = net > 0.0001 ? '#4ade80' : (net < -0.0001 ? '#f87171' : '');
-    }
-
-    setText('trade-cash-effective', `${effective.toFixed(1)} 백만`);
-
-    // 계산 내역 (계좌 + 매매 + 보정 = 유효 현금)
-    const parts = [`계좌 ${base.toFixed(1)}`];
-    if (tradeCashSyncEnabled) parts.push(`매매 ${net >= 0 ? '+' : ''}${net.toFixed(1)}`);
-    if (Math.abs(adj) > 0.0001) parts.push(`보정 ${adj >= 0 ? '+' : ''}${adj.toFixed(1)}`);
-    setText('trade-cash-breakdown', `${parts.join(' + ')} = ${effective.toFixed(1)} 백만`);
-
-    setText('trade-cash-month-label', `기준: ${baseline} 이후`);
-
-    // 수동 보정액 입력 반영 (입력 중에는 덮어쓰지 않음)
-    const adjInput = document.getElementById('cash-adjustment-input');
-    if (adjInput && document.activeElement !== adjInput) adjInput.value = cashAdjustment;
-
-    // 대표 매매 계좌 선택 옵션 갱신
-    const sel = document.getElementById('trade-cash-apply-account');
-    if (sel) {
-        const prev = sel.value;
-        sel.innerHTML = cashAccounts.map((acc, i) =>
-            `<option value="${i}">${(acc.name || '').trim() || ('계좌 ' + (i + 1))}</option>`
-        ).join('') || '<option value="-1">계좌 없음</option>';
-        if (prev !== '' && prev !== '-1' && cashAccounts.length > 0) sel.value = prev;
-    }
-
-    // GitHub Pages(보기 전용)에서는 합산 반영 버튼 비활성화
-    const applyBtn = document.getElementById('btn-apply-trade-delta');
-    if (applyBtn) applyBtn.disabled = IS_GITHUB_PAGES;
-}
-
-/**
- * 매매일지 변동 자동 반영 토글
- */
-function toggleTradeCashSync(enabled) {
-    tradeCashSyncEnabled = !!enabled;
-    localStorage.setItem('tradeCashSyncEnabled', enabled ? 'true' : 'false');
-    updateCashSummary();
-    updateTradeCashPanel();
-    showToast(enabled
-        ? '✅ 매매일지 매수/매도 변동이 현금에 자동 반영됩니다.'
-        : '⏸️ 매매일지 변동 자동 반영 해제 — 계좌 입력값 기준으로 고정됩니다.', 'info');
-}
-
-/**
- * 수동 보정액 입력 (배당금 입금, 출금 등 매매일지 외 현금 변동)
- */
-function updateCashAdjustment(value) {
-    cashAdjustment = parseFloat(value) || 0;
-    localStorage.setItem('cashAdjustment', String(cashAdjustment));
-    updateCashSummary();
-    updateTradeCashPanel();
-}
-
-/**
- * 계산된 매매 순변동액을 선택한 계좌 잔액에 합산 반영 (확정)
- * - 반영 후 기준일을 오늘로 재설정 → 같은 거래가 다시 계산되지 않음
- */
-async function applyTradeDeltaToAccount() {
-    if (IS_GITHUB_PAGES) {
-        showToast('GitHub Pages(보기 전용)에서는 사용할 수 없습니다.', 'error');
-        return;
-    }
-    const delta = getJournalCashDelta().net;
-    if (Math.abs(delta) < 0.001) {
-        showToast('반영할 매매 변동액이 없습니다.', 'info');
-        return;
-    }
-
-    if (cashAccounts.length === 0) {
-        cashAccounts.push({ name: '', amount: 0 });
-    }
-
-    const sel = document.getElementById('trade-cash-apply-account');
-    let idx = sel ? parseInt(sel.value, 10) : 0;
-    if (!(idx >= 0 && idx < cashAccounts.length)) idx = 0;
-
-    const prevAmount = parseFloat(cashAccounts[idx].amount) || 0;
-    cashAccounts[idx].amount = Math.round((prevAmount + delta) * 10) / 10;
-
-    await saveCashAccountsToExcel();
-
-    // 기준일 재설정: 오늘 이후의 거래부터 다시 누적
-    localStorage.setItem('tradeCashBaseline', formatDateKey(new Date()));
-
-    renderCashAccounts();
-    updateCashSummary();
-    updateTradeCashPanel();
-
-    const accName = (cashAccounts[idx].name || '').trim() || ('계좌 ' + (idx + 1));
-    showToast(`✅ ${accName}에 ${delta >= 0 ? '+' : ''}${delta.toFixed(1)}백만 반영 → ${cashAccounts[idx].amount.toFixed(1)}백만 (기준일 오늘로 초기화)`, 'success');
 }
 
 /**
@@ -4458,9 +4219,6 @@ async function deleteJournalEntry(e) {
             showToast('매매 기록이 삭제되고 포트폴리오가 업데이트되었습니다.', 'success');
             resetJournalForm();
             refreshData(true);
-            // 매매일지 기반 현금 자동 계산 갱신
-            await fetchTradeJournalData();
-            updateCashSummary();
         } else {
             showToast('삭제 실패: ' + result.error, 'error');
         }
@@ -5059,9 +4817,6 @@ async function importLsTrades() {
             
             // 테이블 데이터 새로고침
             refreshData(true);
-            // 매매일지 기반 현금 자동 계산 갱신
-            await fetchTradeJournalData();
-            updateCashSummary();
         } else {
             alert(`저장 실패: ${result.error}`);
         }
