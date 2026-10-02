@@ -185,6 +185,25 @@ def sheet_to_json(file_data: bytes, sheet_name: str, sheet_names: list) -> dict:
                 df = df.iloc[i + 1:].reset_index(drop=True)
                 break
 
+    # 실적 시트 수식 셀 값 보정 (캐시 누락 수식 자동 계산)
+    grid_data = None
+    if '실적' in sheet_name:
+        try:
+            from excel_formula import get_resolved_sheet_grid
+            grid_data, max_r, max_c = get_resolved_sheet_grid(file_data, sheet_name)
+            for i in range(len(df)):
+                excel_row_0based = header_row_idx + 2 + i
+                if excel_row_0based < len(grid_data):
+                    row_vals = grid_data[excel_row_0based]
+                    for j, col_name in enumerate(df.columns):
+                        curr_val = df.iat[i, j]
+                        if (curr_val == '' or pd.isna(curr_val)) and j < len(row_vals):
+                            g_val = row_vals[j]
+                            if g_val is not None:
+                                df.iat[i, j] = g_val
+        except Exception as e:
+            print(f'  [경고] 실적 수식 계산 중 오류: {e}')
+
     # 숫자형 컬럼 강제 변환 (server.py read_excel과 동일하게 날짜 컬럼은 제외)
     for col in df.columns:
         col_str = str(col)
@@ -223,7 +242,12 @@ def sheet_to_json(file_data: bytes, sheet_name: str, sheet_names: list) -> dict:
             row_data = {'_realIndex': r_idx - 2}
             for c_idx, col_name in enumerate(columns, start=1):
                 cell = ws.cell(row=r_idx, column=c_idx)
-                row_data[col_name] = extract_rich_text(cell)
+                val = extract_rich_text(cell)
+                if (val == '' or val is None) and grid_data and r_idx - 1 < len(grid_data) and c_idx - 1 < len(grid_data[r_idx - 1]):
+                    g_val = grid_data[r_idx - 1][c_idx - 1]
+                    if g_val is not None:
+                        val = g_val
+                row_data[col_name] = val
             data.append(row_data)
     else:
         data = []
