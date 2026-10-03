@@ -2362,6 +2362,18 @@ try {
             console.log('[신호] 구형/호환되지 않는 크로스 추적기 감지 → 초기화합니다.');
             localStorage.removeItem('_priceCrossTracker');
         } else {
+            // 잘못 일괄 부여된 crossedAt 정화 (실제 크로스가 아닌 종목들의 crossedAt 리셋)
+            const invalidStocks = ['한세실업', 'AJ네트웍스', '태광', '이노션', '드림텍', 'KG이니시스', '링네트', '씨이랩', '월덱스', '파크시스템스'];
+            let cleaned = false;
+            for (const stock of invalidStocks) {
+                if (parsed[stock] && parsed[stock].crossedAt) {
+                    parsed[stock].crossedAt = null;
+                    cleaned = true;
+                }
+            }
+            if (cleaned) {
+                localStorage.setItem('_priceCrossTracker', JSON.stringify(parsed));
+            }
             window._priceCrossTracker = parsed;
         }
     }
@@ -2376,7 +2388,8 @@ function _savePriceCrossTracker() {
 /**
  * 종목별 신호 상태 계산
  * - 목표일 신호: 오늘 >= 목표일
- * - 목표가 신호: 현재가가 목표가 이상이거나, 최근 1주일(7일) 내에 목표가 라인을 크로스했는지 여부
+ * - 목표가 신호: 최근 1주일(7일) 내에 현재가가 목표가 라인을 위↔아래로 크로스했는지 여부
+ *   (위로 돌파하든 아래로 깨든, 목표가 라인을 지나가면 모두 신호)
  * 반환: { hasSignal, signalType: 'date'|'price'|'both'|null }
  */
 function computeSignalStatus(row, cols) {
@@ -2407,7 +2420,7 @@ function computeSignalStatus(row, cols) {
         dateSignal = true;
     }
 
-    // 목표가 신호: 현재가가 목표가 이상이거나, 최근 1주일 내 목표가 라인 크로스 여부
+    // 목표가 신호: 최근 1주일 내 목표가 라인 크로스 여부 (위↔아래 양방향)
     if (targetPrice > 0 && stockName) {
         const currentPrice = window._investigationPrices[stockName];
         let tracker = window._priceCrossTracker[stockName];
@@ -2416,20 +2429,15 @@ function computeSignalStatus(row, cols) {
             const newState = currentPrice >= targetPrice ? 'above' : 'below';
 
             if (!tracker || tracker.targetPrice !== targetPrice) {
-                // 첫 진입 또는 목표가 변경:
-                // 이미 현재가가 목표가 이상이면 목표가 도달이므로 신호 발생 및 크로스 시간 기록
-                const isInitiallyAbove = newState === 'above';
+                // 첫 진입 또는 목표가 변경 → 초기 상태만 기록 (크로스 아님!)
                 window._priceCrossTracker[stockName] = {
                     state: newState,
-                    crossedAt: isInitiallyAbove ? new Date().toISOString() : null,
+                    crossedAt: null,  // null = 아직 크로스 없음
                     targetPrice: targetPrice
                 };
                 _savePriceCrossTracker();
-                if (isInitiallyAbove) {
-                    priceSignal = true;
-                }
             } else if (tracker.state !== newState) {
-                // 상태 변경 감지! above↔below 또는 below→above = 크로스 발생!
+                // 상태 변경 감지! above→below 또는 below→above = 크로스 발생!
                 window._priceCrossTracker[stockName] = {
                     state: newState,
                     crossedAt: new Date().toISOString(),  // 크로스 시점 기록
@@ -2442,13 +2450,8 @@ function computeSignalStatus(row, cols) {
                 const crossedMs = new Date(tracker.crossedAt).getTime();
                 if (nowMs - crossedMs <= SEVEN_DAYS_MS) {
                     priceSignal = true; // 7일 이내 크로스 → 신호 유지
-                } else if (newState === 'above') {
-                    // 7일 경과 후에도 현재가가 목표가 이상이면 도달 상태 유지
-                    priceSignal = true;
                 }
-            } else if (newState === 'above') {
-                // crossedAt이 없더라도 현재가가 목표가 이상이면 목표가 도달 신호
-                priceSignal = true;
+                // 7일 초과 or crossedAt 없음 → 신호 없음
             }
         }
     }

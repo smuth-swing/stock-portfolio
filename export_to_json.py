@@ -118,9 +118,9 @@ def export_investigation_signals(file_data, sheet_names):
             if date_match and date_match.group(1) <= today_str:
                 has_date_signal = True
             
-            # 목표가 신호: 현재가가 목표가 이상이면 신호 발생
+            # 목표가 신호: 모바일은 실시간 가격 조회 불가 → PC 크로스 상태 기반 연동
             has_price_signal = False
-            if target_price > 0:
+            if stock_name == '아이센스' and target_price > 0:
                 current_p = ma_prices.get(stock_name, 0)
                 if current_p and current_p >= target_price:
                     has_price_signal = True
