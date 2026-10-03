@@ -82,6 +82,22 @@ def export_investigation_signals(file_data, sheet_names):
         if not name_col:
             return {}
         
+        # moving_averages.json에서 현재가 참조 시도 (모바일 목표가 신호 판정용)
+        ma_prices = {}
+        ma_file = APP_DATA_DIR / 'moving_averages.json'
+        if ma_file.exists():
+            try:
+                with open(ma_file, 'r', encoding='utf-8') as f_ma:
+                    ma_data = json.load(f_ma)
+                    for k, v in ma_data.items():
+                        if isinstance(v, dict) and 'current' in v and v['current']:
+                            try:
+                                ma_prices[k] = float(v['current'])
+                            except (ValueError, TypeError):
+                                pass
+            except Exception:
+                pass
+
         for _, row in df.iterrows():
             stock_name = str(row.get(name_col, '')).replace('~~', '').strip()
             if not stock_name or stock_name in ('종목', 'stock'):
@@ -89,16 +105,25 @@ def export_investigation_signals(file_data, sheet_names):
             
             target_date = str(row.get(td_col, '')).strip() if td_col else ''
             target_price_raw = str(row.get(tp_col, '')).strip() if tp_col else ''
-            target_price = int(re.sub(r'[^0-9]', '', target_price_raw)) if target_price_raw else 0
+            target_price = 0
+            if target_price_raw:
+                try:
+                    clean_tp = re.sub(r'[^\d.]', '', target_price_raw)
+                    target_price = int(round(float(clean_tp))) if clean_tp else 0
+                except Exception:
+                    target_price = 0
             
             has_date_signal = False
             date_match = re.search(r'(\d{4}-\d{2}-\d{2})', target_date)
             if date_match and date_match.group(1) <= today_str:
                 has_date_signal = True
             
-            # 목표가 신호: 모바일은 실시간 가격 조회 불가 → PC에서 _priceCrossTracker 기반 판단
-            # 여기서는 일단 목표가 존재 여부만 기록 (실제 크로스 여부는 PC 웹앱에서만 판단 가능)
-            has_price_signal = False  # 모바일 단독으로는 판단 불가 → PC 연동 필요
+            # 목표가 신호: 현재가가 목표가 이상이면 신호 발생
+            has_price_signal = False
+            if target_price > 0:
+                current_p = ma_prices.get(stock_name, 0)
+                if current_p and current_p >= target_price:
+                    has_price_signal = True
             
             signals[stock_name] = {
                 'hasDateSignal': has_date_signal,

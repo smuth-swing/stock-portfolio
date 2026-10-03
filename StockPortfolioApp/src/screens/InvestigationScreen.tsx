@@ -22,7 +22,8 @@ const getTargetPrice = (item: any) => {
   const raw = item['목표가'] || item['targetPrice'] || item['Unnamed: 9'] || item['Unnamed: 10'] || '';
   if (raw === null || raw === undefined || raw === '') return '';
   const normalized = String(raw).replace(/,/g, '').trim();
-  return /^[0-9]+$/.test(normalized) ? Number(normalized) : normalized;
+  const parsed = parseFloat(normalized);
+  return !isNaN(parsed) && parsed > 0 ? Math.round(parsed) : normalized;
 };
 
 /**
@@ -66,10 +67,10 @@ const computeSignalStatusMobile = (item: any, signalData?: Record<string, any>):
  * PC의 _priceCrossTracker 기반으로 어떤 종목이 목표가를 크로스했는지 기록됨
  */
 let cachedSignalData: Record<string, any> | null = null;
-const loadSignalData = async (): Promise<Record<string, any>> => {
-  if (cachedSignalData) return cachedSignalData;
+const loadSignalData = async (forceRefresh = false): Promise<Record<string, any>> => {
+  if (cachedSignalData && !forceRefresh) return cachedSignalData;
   try {
-    const res = await fetch('data/investigation_signals.json');
+    const res = await fetch(`data/investigation_signals.json?t=${Date.now()}`);
     if (res.ok) {
       cachedSignalData = await res.json();
       return cachedSignalData || {};

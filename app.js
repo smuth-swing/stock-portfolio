@@ -1714,12 +1714,18 @@ function renderInvestigationPanel(data) {
 
     // ── 신호 계산용 현재가 배치 조회 (백그라운드) ──
     fetchInvestigationPrices().then(() => {
-        // 가격 로드 완료 후 카드 다시 그려서 신호 뱃지 반영
-        renderInvestigationCards(
-            investigationCurrentRows || data.data,
-            data.columns,
-            investigationRowMap || data.data.map((_, idx) => idx)
-        );
+        // 가격 로드 완료 후 현재 활성화된 필터 상태에 맞춰 다시 필터링 및 렌더링
+        if (window.currentInvestigationFilter === 'signal') {
+            filterSignalStocks(true);
+        } else if (window.currentInvestigationFilter === 'priority') {
+            filterMomentumStocks();
+        } else {
+            renderInvestigationCards(
+                investigationCurrentRows || data.data,
+                data.columns,
+                investigationRowMap || data.data.map((_, idx) => idx)
+            );
+        }
     });
 }
 
@@ -2273,6 +2279,7 @@ async function searchInvestigationStock() {
 
 function resetInvestigationSearch() {
     if (!currentData || !isExplorationSheet(currentData.current_sheet)) return;
+    window.currentInvestigationFilter = 'all';
     document.getElementById('investigation-stock-search').value = '';
     renderInvestigationCards(currentData.data, currentData.columns);
     // 모바일: 목록 화면으로 돌아가기 (편집 화면이 아닌)
@@ -2294,6 +2301,7 @@ function resetInvestigationSearch() {
  */
 function filterMomentumStocks() {
     if (!currentData || !isExplorationSheet(currentData.current_sheet)) return;
+    window.currentInvestigationFilter = 'priority';
 
     const momentumCol = currentData.columns.includes('모멘텀') ? '모멘텀' : 'Unnamed: 2';
     const strategyCol = currentData.columns.includes('매매 전략') ? '매매 전략' : 'Unnamed: 6'; // 매매 전략 컬럼 추가
@@ -2324,7 +2332,19 @@ function filterMomentumStocks() {
 }
 
 // ── 신호 계산: 목표일 경과 / 목표가 도달 여부 ──
+window.currentInvestigationFilter = window.currentInvestigationFilter || 'all';
 window._investigationPrices = window._investigationPrices || {};
+
+// 페이지 로드 시 localStorage 캐시 즉시 복원 (서버 응답 대기 중에도 직전 가격으로 신호 판정 가능)
+try {
+    const cachedPrices = localStorage.getItem('investigationPrices');
+    if (cachedPrices) {
+        const parsedPrices = JSON.parse(cachedPrices);
+        if (parsedPrices && parsedPrices.prices && typeof parsedPrices.prices === 'object') {
+            window._investigationPrices = { ...parsedPrices.prices, ...window._investigationPrices };
+        }
+    }
+} catch (e) {}
 
 // 목표가 크로스 추적기: { 종목명: { state: 'above'|'below', crossedAt: 'ISO시간'|null, targetPrice: 숫자 } }
 // crossedAt이 null이면 아직 크로스 이벤트가 발생하지 않은 초기 상태
@@ -2356,8 +2376,7 @@ function _savePriceCrossTracker() {
 /**
  * 종목별 신호 상태 계산
  * - 목표일 신호: 오늘 >= 목표일
- * - 목표가 신호: 최근 1주일(7일) 내에 현재가가 목표가 라인을 위↔아래로 크로스했는지 여부
- *   (위로 돌파하든 아래로 깨든, 목표가 라인을 지나가면 모두 신호)
+ * - 목표가 신호: 현재가가 목표가 이상이거나, 최근 1주일(7일) 내에 목표가 라인을 크로스했는지 여부
  * 반환: { hasSignal, signalType: 'date'|'price'|'both'|null }
  */
 function computeSignalStatus(row, cols) {
@@ -2370,7 +2389,11 @@ function computeSignalStatus(row, cols) {
 
     const targetDate = tdCol ? String(row[tdCol] || '').trim() : '';
     const targetPriceRaw = tpCol ? String(row[tpCol] || '').trim() : '';
-    const targetPrice = parseInt(targetPriceRaw.replace(/[^0-9]/g, ''), 10) || 0;
+    
+    // 목표가 소수점(예: 16000.0) 및 콤마 안전 처리
+    const targetPriceClean = String(targetPriceRaw).replace(/,/g, '').trim();
+    const targetPriceNum = parseFloat(targetPriceClean);
+    const targetPrice = (!isNaN(targetPriceNum) && targetPriceNum > 0) ? Math.round(targetPriceNum) : 0;
 
     const nameCol = findStockColumnName(cols);
     const stockName = String(row[nameCol] || '').replace(/~~/g, '').trim();
@@ -2384,7 +2407,7 @@ function computeSignalStatus(row, cols) {
         dateSignal = true;
     }
 
-    // 목표가 신호: 최근 1주일 내 목표가 라인 크로스 여부 (위↔아래 양방향)
+    // 목표가 신호: 현재가가 목표가 이상이거나, 최근 1주일 내 목표가 라인 크로스 여부
     if (targetPrice > 0 && stockName) {
         const currentPrice = window._investigationPrices[stockName];
         let tracker = window._priceCrossTracker[stockName];
@@ -2393,18 +2416,23 @@ function computeSignalStatus(row, cols) {
             const newState = currentPrice >= targetPrice ? 'above' : 'below';
 
             if (!tracker || tracker.targetPrice !== targetPrice) {
-                // 첫 진입 또는 목표가 변경 → 초기 상태만 기록 (크로스 아님!)
+                // 첫 진입 또는 목표가 변경:
+                // 이미 현재가가 목표가 이상이면 목표가 도달이므로 신호 발생 및 크로스 시간 기록
+                const isInitiallyAbove = newState === 'above';
                 window._priceCrossTracker[stockName] = {
                     state: newState,
-                    crossedAt: null,  // ← null = 아직 크로스 없음
+                    crossedAt: isInitiallyAbove ? new Date().toISOString() : null,
                     targetPrice: targetPrice
                 };
                 _savePriceCrossTracker();
+                if (isInitiallyAbove) {
+                    priceSignal = true;
+                }
             } else if (tracker.state !== newState) {
-                // 상태 변경 감지! above→below 또는 below→above = 크로스 발생!
+                // 상태 변경 감지! above↔below 또는 below→above = 크로스 발생!
                 window._priceCrossTracker[stockName] = {
                     state: newState,
-                    crossedAt: new Date().toISOString(),  // ← 크로스 시점 기록
+                    crossedAt: new Date().toISOString(),  // 크로스 시점 기록
                     targetPrice: targetPrice
                 };
                 _savePriceCrossTracker();
@@ -2414,8 +2442,13 @@ function computeSignalStatus(row, cols) {
                 const crossedMs = new Date(tracker.crossedAt).getTime();
                 if (nowMs - crossedMs <= SEVEN_DAYS_MS) {
                     priceSignal = true; // 7일 이내 크로스 → 신호 유지
+                } else if (newState === 'above') {
+                    // 7일 경과 후에도 현재가가 목표가 이상이면 도달 상태 유지
+                    priceSignal = true;
                 }
-                // 7일 초과 or crossedAt 없음 → 신호 없음
+            } else if (newState === 'above') {
+                // crossedAt이 없더라도 현재가가 목표가 이상이면 목표가 도달 신호
+                priceSignal = true;
             }
         }
     }
@@ -2429,8 +2462,13 @@ function computeSignalStatus(row, cols) {
 /**
  * 탐구생활 종목들의 현재가를 서버에서 배치로 가져와 캐시
  */
-async function fetchInvestigationPrices() {
+let _investigationPricesPromise = null;
+async function fetchInvestigationPrices(force = false) {
     if (!currentData || !isExplorationSheet(currentData.current_sheet)) return;
+
+    if (_investigationPricesPromise && !force) {
+        return _investigationPricesPromise;
+    }
 
     const nameCol = findStockColumnName(currentData.columns);
     const stockNames = currentData.data
@@ -2441,41 +2479,44 @@ async function fetchInvestigationPrices() {
     const uniqueNames = [...new Set(stockNames)];
     if (uniqueNames.length === 0) return;
 
-    try {
-        const res = await fetch(`${API}/batch-current-prices`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ names: uniqueNames })
-        });
-        const data = await res.json();
-        if (data.success && data.prices) {
-            window._investigationPrices = { ...window._investigationPrices, ...data.prices };
-            // localStorage에도 저장 (다음 방문 시 빠른 로드)
-            try {
-                localStorage.setItem('investigationPrices', JSON.stringify({
-                    date: new Date().toISOString().split('T')[0],
-                    prices: window._investigationPrices
-                }));
-            } catch (e) {}
-        }
-    } catch (e) {
-        console.warn('investigation prices fetch failed:', e);
-        // fallback: localStorage 캐시 사용 (오늘 날짜만 유효)
+    _investigationPricesPromise = (async () => {
         try {
-            const cached = localStorage.getItem('investigationPrices');
-            if (cached) {
-                const parsed = JSON.parse(cached);
-                const todayStr = new Date().toISOString().split('T')[0];
-                // 오늘 캐시된 가격만 사용 (오래된 캐시는 신호 오탐지 유발)
-                if (parsed.date === todayStr && parsed.prices) {
-                    window._investigationPrices = { ...window._investigationPrices, ...parsed.prices };
-                    console.log('[investigation] 오늘자 캐시 가격 사용:', Object.keys(parsed.prices).length, '종목');
-                } else {
-                    console.warn('[investigation] 캐시가 오늘 날짜가 아니어서 무시됨 (캐시일자:', parsed.date, ')');
-                }
+            const res = await fetch(`${API}/batch-current-prices`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ names: uniqueNames })
+            });
+            const data = await res.json();
+            if (data.success && data.prices) {
+                window._investigationPrices = { ...window._investigationPrices, ...data.prices };
+                // localStorage에도 저장 (다음 방문 시 빠른 로드)
+                try {
+                    localStorage.setItem('investigationPrices', JSON.stringify({
+                        date: new Date().toISOString().split('T')[0],
+                        prices: window._investigationPrices
+                    }));
+                } catch (e) {}
             }
-        } catch (e2) {}
-    }
+        } catch (e) {
+            console.warn('investigation prices fetch failed:', e);
+            // fallback: localStorage 캐시 사용 (오늘 날짜만 유효)
+            try {
+                const cached = localStorage.getItem('investigationPrices');
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    if (parsed.date === todayStr && parsed.prices) {
+                        window._investigationPrices = { ...window._investigationPrices, ...parsed.prices };
+                        console.log('[investigation] 오늘자 캐시 가격 사용:', Object.keys(parsed.prices).length, '종목');
+                    }
+                }
+            } catch (e2) {}
+        } finally {
+            _investigationPricesPromise = null;
+        }
+    })();
+
+    return _investigationPricesPromise;
 }
 
 function filterTargetStocks() {
@@ -2486,8 +2527,17 @@ function filterTargetStocks() {
 /**
  * 신호 필터: 목표일 경과 또는 목표가 도달된 종목만 표시
  */
-function filterSignalStocks() {
+async function filterSignalStocks(isAutoUpdate = false) {
     if (!currentData || !isExplorationSheet(currentData.current_sheet)) return;
+    window.currentInvestigationFilter = 'signal';
+
+    // 현재가 데이터가 아직 없고 백그라운드 조회가 진행 중이면 대기
+    if (Object.keys(window._investigationPrices).length === 0 && _investigationPricesPromise) {
+        if (!isAutoUpdate) {
+            showToast('현재 주가를 확인하고 있습니다...', 'info');
+        }
+        await _investigationPricesPromise;
+    }
 
     const cols = currentData.columns;
     
@@ -2517,7 +2567,9 @@ function filterSignalStocks() {
                 <p style="font-size:12px; color:#64748B;">종목을 선택하고 우측 편집 폼에서 목표일(YYYY-MM-DD)과 목표가(숫자)를 입력해주세요.</p>
             </div>
         `;
-        showToast('목표일/목표가가 입력된 종목이 하나도 없습니다. 먼저 목표 데이터를 입력해주세요.', 'info');
+        if (!isAutoUpdate) {
+            showToast('목표일/목표가가 입력된 종목이 하나도 없습니다. 먼저 목표 데이터를 입력해주세요.', 'info');
+        }
         return;
     }
 
@@ -2551,7 +2603,9 @@ function filterSignalStocks() {
                 </p>
             </div>
         `;
-        showToast(`목표 데이터 ${totalWithTarget}건 중 신호 발생 종목이 없습니다.`, 'info');
+        if (!isAutoUpdate) {
+            showToast(`목표 데이터 ${totalWithTarget}건 중 신호 발생 종목이 없습니다.`, 'info');
+        }
         return;
     }
 
@@ -2560,10 +2614,12 @@ function filterSignalStocks() {
         setSelectedInvestigationRow(rowMap[0]);
     }
 
-    let detailMsg = '';
-    if (dateSignals > 0) detailMsg += `📅 목표일 경과: ${dateSignals}건 `;
-    if (priceSignals > 0) detailMsg += `💰 목표가 도달: ${priceSignals}건`;
-    showToast(`🔔 신호 발생 종목 ${filtered.length}개 발견! ${detailMsg}`, 'success');
+    if (!isAutoUpdate) {
+        let detailMsg = '';
+        if (dateSignals > 0) detailMsg += `📅 목표일 경과: ${dateSignals}건 `;
+        if (priceSignals > 0) detailMsg += `💰 목표가 도달: ${priceSignals}건`;
+        showToast(`🔔 신호 발생 종목 ${filtered.length}개 발견! ${detailMsg}`, 'success');
+    }
 }
 
 /**
