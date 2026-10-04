@@ -1749,6 +1749,13 @@ function mapColumnLabel(columnName) {
 /**
  * 좌측 카드 목록 렌더링 (번호 + 종목명만 표시)
  */
+function handleInvestigationCardClick(event) {
+    const card = event.target.closest('.investigation-card');
+    if (!card) return;
+    const originalIndex = parseInt(card.dataset.originalIndex, 10);
+    if (!Number.isNaN(originalIndex)) setSelectedInvestigationRow(originalIndex);
+}
+
 function renderInvestigationCards(rows, cols, rowMap = null) {
     const container = document.getElementById('investigation-card-list');
     if (!container) return;
@@ -1849,10 +1856,12 @@ function renderInvestigationCards(rows, cols, rowMap = null) {
         `;
     }).join('');
 
-    container.querySelectorAll('.investigation-card').forEach(card => {
-        const originalIndex = parseInt(card.dataset.originalIndex, 10);
-        card.addEventListener('click', () => setSelectedInvestigationRow(originalIndex));
-    });
+    // 카드마다 클릭 핸들러를 새로 만들지 않고 목록 하나에서 위임한다.
+    // 신호 필터를 반복해서 눌러도 이벤트 핸들러가 누적되지 않아 렌더링 비용이 일정하다.
+    if (!container.dataset.clickDelegated) {
+        container.addEventListener('click', handleInvestigationCardClick);
+        container.dataset.clickDelegated = 'true';
+    }
 }
 
 /**
@@ -2340,7 +2349,8 @@ try {
     const cachedPrices = localStorage.getItem('investigationPrices');
     if (cachedPrices) {
         const parsedPrices = JSON.parse(cachedPrices);
-        if (parsedPrices && parsedPrices.prices && typeof parsedPrices.prices === 'object') {
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (parsedPrices && parsedPrices.date === todayStr && parsedPrices.prices && typeof parsedPrices.prices === 'object') {
             window._investigationPrices = { ...parsedPrices.prices, ...window._investigationPrices };
         }
     }
@@ -2474,13 +2484,78 @@ async function fetchInvestigationPrices(force = false) {
     }
 
     const nameCol = findStockColumnName(currentData.columns);
+    const targetPriceCol = currentData.columns.find(c =>
+        String(c).includes('목표가') || c === 'Unnamed: 9' || c === 'Unnamed: 10'
+    );
+
+    // 현재가는 목표가 신호를 계산할 때만 필요하므로, 목표가가 없는
+    // 종목까지 조회하지 않는다. (전체 109종목 → 현재 10종목 수준)
     const stockNames = currentData.data
+        .filter(row => targetPriceCol && String(row[targetPriceCol] || '').trim() !== '')
         .map(row => String(row[nameCol] || '').replace(/~~/g, '').trim())
         .filter(name => name && name !== '');
 
     // 중복 제거
     const uniqueNames = [...new Set(stockNames)];
     if (uniqueNames.length === 0) return;
+
+    // 서버가 시작될 때 미리 준비한 캐시를 먼저 사용한다.
+    // 캐시가 없거나 오래된 경우에도 실패하지 않고 기존 정적/실시간 경로로 진행한다.
+    const serverCachePromise = fetch(`${API}/investigation-signal-prices`)
+        .then(res => res.ok ? res.json() : {})
+        .catch(() => ({}));
+
+    serverCachePromise.then(snapshot => {
+        const cachedPrices = snapshot && snapshot.prices && typeof snapshot.prices === 'object'
+            ? snapshot.prices
+            : {};
+        const usablePrices = uniqueNames.reduce((result, name) => {
+            if (Object.prototype.hasOwnProperty.call(cachedPrices, name)) {
+                result[name] = cachedPrices[name];
+            }
+            return result;
+        }, {});
+        if (Object.keys(usablePrices).length === 0) return;
+        window._investigationPrices = { ...window._investigationPrices, ...usablePrices };
+        try {
+            localStorage.setItem('investigationPrices', JSON.stringify({
+                date: new Date().toISOString().split('T')[0],
+                prices: window._investigationPrices
+            }));
+        } catch (e) {}
+        if (window.currentInvestigationFilter === 'signal') {
+            filterSignalStocks(true);
+        }
+    });
+
+    const movingAverageUrl = IS_GITHUB_PAGES
+        ? `${API}/moving_averages.json?t=${Date.now()}`
+        : `/StockPortfolioApp/public/data/moving_averages.json?t=${Date.now()}`;
+    const staticPricesPromise = fetch(movingAverageUrl)
+        .then(res => res.ok ? res.json() : {})
+        .then(maData => {
+            const prices = {};
+            for (const name of uniqueNames) {
+                const current = Number(maData?.[name]?.current);
+                if (current > 0) prices[name] = current;
+            }
+            return prices;
+        })
+        .catch(() => ({}));
+
+    staticPricesPromise.then(staticPrices => {
+        if (Object.keys(staticPrices).length === 0) return;
+        window._investigationPrices = { ...window._investigationPrices, ...staticPrices };
+        try {
+            localStorage.setItem('investigationPrices', JSON.stringify({
+                date: new Date().toISOString().split('T')[0],
+                prices: window._investigationPrices
+            }));
+        } catch (e) {}
+        if (window.currentInvestigationFilter === 'signal') {
+            filterSignalStocks(true);
+        }
+    });
 
     _investigationPricesPromise = (async () => {
         try {
@@ -2490,8 +2565,44 @@ async function fetchInvestigationPrices(force = false) {
                 body: JSON.stringify({ names: uniqueNames })
             });
             const data = await res.json();
-            if (data.success && data.prices) {
-                window._investigationPrices = { ...window._investigationPrices, ...data.prices };
+            let fetchedPrices = (data.success && data.prices && typeof data.prices === 'object')
+                ? { ...data.prices }
+                : {};
+
+            // 배치 API가 종목 코드 매핑 실패로 일부 가격을 반환하지 못한 경우
+            // 당일 생성된 이동평균 데이터의 current 값으로 보완한다.
+            const missingNames = uniqueNames.filter(name => !Object.prototype.hasOwnProperty.call(fetchedPrices, name));
+            if (missingNames.length > 0) {
+                try {
+                    const staticPrices = await staticPricesPromise;
+                    for (const name of missingNames) {
+                        if (Object.prototype.hasOwnProperty.call(staticPrices, name)) {
+                            fetchedPrices[name] = staticPrices[name];
+                        }
+                    }
+                } catch (fallbackError) {
+                    console.warn('이동평균 데이터 fallback 조회 실패:', fallbackError);
+                }
+            }
+
+            // 서버 워밍업 캐시가 이미 채워져 있으면 빈/부분 응답이 기존 가격을
+            // 덮어쓰지 않도록 유지한다.
+            for (const name of uniqueNames) {
+                if (!Object.prototype.hasOwnProperty.call(fetchedPrices, name)
+                    && Object.prototype.hasOwnProperty.call(window._investigationPrices, name)) {
+                    fetchedPrices[name] = window._investigationPrices[name];
+                }
+            }
+
+            if (data.success || Object.keys(fetchedPrices).length > 0) {
+                // 서버/정적/실시간 중 확인된 값만 갱신하고, 빈 응답으로 캐시를 비우지 않는다.
+                window._investigationPrices = { ...window._investigationPrices, ...fetchedPrices };
+                for (const name of uniqueNames) {
+                    if (!Object.prototype.hasOwnProperty.call(fetchedPrices, name)) {
+                        delete window._priceCrossTracker[name];
+                    }
+                }
+                _savePriceCrossTracker();
                 // localStorage에도 저장 (다음 방문 시 빠른 로드)
                 try {
                     localStorage.setItem('investigationPrices', JSON.stringify({
@@ -2530,18 +2641,17 @@ function filterTargetStocks() {
 /**
  * 신호 필터: 목표일 경과 또는 목표가 도달된 종목만 표시
  */
-async function filterSignalStocks(isAutoUpdate = false) {
+function filterSignalStocks(isAutoUpdate = false) {
     if (!currentData || !isExplorationSheet(currentData.current_sheet)) return;
     window.currentInvestigationFilter = 'signal';
 
-    // 백그라운드 조회가 진행 중이면 캐시가 일부 있더라도 완료까지 대기한다.
-    // 일부 캐시가 먼저 존재하면 아이센스처럼 아직 조회되지 않은 종목이
-    // 첫 신호 필터 실행에서 누락되고, 이후 전체 → 신호에서만 나타날 수 있다.
+    // 백그라운드 조회가 진행 중이어도 먼저 현재 캐시/목표일 기준으로 즉시
+    // 화면을 갱신한다. 조회 완료 후 renderInvestigationPanel의 callback이
+    // 가격 신호를 포함해 한 번 더 자동 갱신한다.
     if (_investigationPricesPromise) {
         if (!isAutoUpdate) {
-            showToast('현재 주가를 확인하고 있습니다...', 'info');
+            showToast('현재가 확인 후 가격 신호를 자동 갱신합니다.', 'info');
         }
-        await _investigationPricesPromise;
     }
 
     const cols = currentData.columns;
@@ -2616,7 +2726,17 @@ async function filterSignalStocks(isAutoUpdate = false) {
 
     renderInvestigationCards(filtered, currentData.columns, rowMap);
     if (rowMap.length > 0) {
-        setSelectedInvestigationRow(rowMap[0]);
+        const selectFirst = () => {
+            if (window.currentInvestigationFilter === 'signal') {
+                setSelectedInvestigationRow(rowMap[0]);
+            }
+        };
+        // 카드 목록을 먼저 paint한 뒤 편집 폼을 그려 클릭 직후의 응답성을 확보한다.
+        if (!isAutoUpdate && typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(selectFirst);
+        } else {
+            selectFirst();
+        }
     }
 
     if (!isAutoUpdate) {

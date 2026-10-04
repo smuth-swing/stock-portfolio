@@ -100,6 +100,159 @@ EXCEL_FILE = '주식 체크 리스트_20220328.xlsx'
 # ==================== 자동 동기화 트리거 ====================
 _export_lock = threading.Lock()
 
+# 탐구생활 신호 가격 캐시.
+# 서버 시작 시 백그라운드에서 미리 채우고, 화면에서는 캐시를 먼저 사용한 뒤
+# 별도 가격 조회로 최신값을 반영한다.
+_signal_price_cache_lock = threading.Lock()
+_signal_price_refresh_lock = threading.Lock()
+_signal_price_cache = {
+    'date': None,
+    'updatedAt': None,
+    'loading': False,
+    'prices': {},
+    'names': [],
+    'error': None,
+}
+
+
+def _load_investigation_signal_names():
+    """탐구생활에서 현재가가 필요한 목표가 종목명을 읽는다."""
+    path = os.path.join(BASE_DIR, 'StockPortfolioApp', 'public', 'data', 'investigation.json')
+    if not os.path.exists(path):
+        return []
+
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            payload = json.load(f)
+        columns = payload.get('columns', [])
+        name_col = next(
+            (col for col in columns if '종목' in str(col) or str(col).lower().endswith('stock')),
+            columns[1] if len(columns) > 1 else None,
+        )
+        target_price_col = next(
+            (col for col in columns if '목표가' in str(col)),
+            columns[9] if len(columns) > 9 else None,
+        )
+        if not name_col or not target_price_col:
+            return []
+
+        names = []
+        for row in payload.get('data', []):
+            name = str(row.get(name_col, '')).replace('~~', '').strip()
+            target_price = str(row.get(target_price_col, '')).replace(',', '').strip()
+            if name and target_price and name not in names:
+                names.append(name)
+        return names
+    except Exception as e:
+        print(f'[SIGNAL-CACHE] 종목 목록 로드 실패: {e}')
+        return []
+
+
+def _load_static_signal_prices(names):
+    """실시간 조회 전 정적 이동평균 데이터에서 당일 가격을 읽는다."""
+    path = os.path.join(BASE_DIR, 'StockPortfolioApp', 'public', 'data', 'moving_averages.json')
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            payload = json.load(f)
+        prices = {}
+        for name in names:
+            current = float(payload.get(name, {}).get('current', 0) or 0)
+            if current > 0:
+                prices[name] = int(current)
+        return prices
+    except Exception:
+        return {}
+
+
+def _fetch_signal_prices_from_ls(names):
+    """LS API에서 신호 종목 현재가를 조회한다."""
+    from ls_api import fetch_current_prices, get_stock_codes_by_names, load_config, get_access_token
+
+    cfg = load_config()
+    token = get_access_token(cfg.get('app_key', ''), cfg.get('app_secret', ''))
+    if not token:
+        return {}
+
+    name_to_code = get_stock_codes_by_names(token, names)
+    if not name_to_code:
+        return {}
+
+    code_prices = fetch_current_prices(list(name_to_code.values()))
+    return {
+        name: int(code_prices[code])
+        for name, code in name_to_code.items()
+        if code in code_prices
+    }
+
+
+def _set_signal_price_cache(prices=None, names=None, loading=None, error=None):
+    from datetime import datetime
+
+    with _signal_price_cache_lock:
+        if names is not None:
+            _signal_price_cache['names'] = list(names)
+        if prices:
+            _signal_price_cache['prices'].update(prices)
+        if loading is not None:
+            _signal_price_cache['loading'] = loading
+        if error is not None:
+            _signal_price_cache['error'] = error
+        elif loading is False:
+            _signal_price_cache['error'] = None
+        _signal_price_cache['date'] = datetime.now().strftime('%Y-%m-%d')
+        if prices:
+            _signal_price_cache['updatedAt'] = datetime.now().isoformat(timespec='seconds')
+
+
+def refresh_investigation_signal_price_cache(names=None):
+    """서버 시작/갱신 시 탐구생활 목표가 종목의 현재가를 캐시에 저장한다."""
+    if not _signal_price_refresh_lock.acquire(blocking=False):
+        return False
+
+    try:
+        names = names or _load_investigation_signal_names()
+        _set_signal_price_cache(names=names, loading=True, error=None)
+
+        # 서버가 시작되자마자 화면에 보여줄 수 있도록 정적 가격을 먼저 넣는다.
+        static_prices = _load_static_signal_prices(names)
+        _set_signal_price_cache(prices=static_prices)
+
+        try:
+            live_prices = _fetch_signal_prices_from_ls(names)
+            _set_signal_price_cache(prices=live_prices)
+        except Exception as e:
+            _set_signal_price_cache(error=str(e))
+            print(f'[SIGNAL-CACHE] 실시간 가격 갱신 실패: {e}')
+
+        _set_signal_price_cache(loading=False)
+        print(
+            f"[SIGNAL-CACHE] 준비 완료: {len(_signal_price_cache['prices'])}/"
+            f"{len(names)}종목"
+        )
+        return True
+    finally:
+        _signal_price_refresh_lock.release()
+
+
+@app.route('/api/investigation-signal-prices', methods=['GET'])
+def get_investigation_signal_prices():
+    """탐구생활 신호 버튼이 즉시 사용할 서버 캐시를 반환한다."""
+    refresh = request.args.get('refresh') == '1'
+    with _signal_price_cache_lock:
+        snapshot = dict(_signal_price_cache)
+        snapshot['prices'] = dict(_signal_price_cache['prices'])
+        snapshot['names'] = list(_signal_price_cache['names'])
+
+    # 서버가 import되어 실행되는 환경에서도 첫 요청으로 워밍업을 시작한다.
+    if (not snapshot['names'] or refresh) and not snapshot['loading']:
+        threading.Thread(
+            target=refresh_investigation_signal_price_cache,
+            daemon=True,
+            name='signal-price-refresh',
+        ).start()
+
+    return jsonify(snapshot)
+
 # ==================== 엑셀 쓰기 직렬화 ====================
 # 여러 쓰기 엔드포인트가 동시에 wb.save()를 호출하면 zip 스트림이 뒤섞여
 # 파일이 손상(CRC 오류)되는 문제 방지: 모든 쓰기를 락으로 직렬화하고
@@ -1892,6 +2045,8 @@ def batch_current_prices():
         if code and code in code_prices:
             prices[name] = int(code_prices[code])
 
+    _set_signal_price_cache(prices=prices, names=names, loading=False)
+
     return jsonify({
         'success': True,
         'prices': prices
@@ -2315,6 +2470,11 @@ def refresh_signals():
 
 
 if __name__ == '__main__':
+    threading.Thread(
+        target=refresh_investigation_signal_price_cache,
+        daemon=True,
+        name='signal-price-warmup',
+    ).start()
     print("=" * 60)
     print("  Stock Portfolio Analysis Server")
     print("=" * 60)
