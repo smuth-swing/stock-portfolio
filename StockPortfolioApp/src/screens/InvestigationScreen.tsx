@@ -30,7 +30,7 @@ const getTargetPrice = (item: any) => {
  * 종목 신호 상태 계산 (PC 버전 computeSignalStatus와 동일한 로직)
  * - 목표일 신호: 오늘 >= 목표일 (YYYY-MM-DD)
  * - 목표가 신호: 모바일은 실시간 현재가 조회 불가 → 신호 데이터 파일에서 읽음
- *   (PC에서 export_signals.py 가 생성하는 investigation_signals.json 사용)
+ *   (매수 목표가 이하 여부를 PC에서 계산해 investigation_signals.json으로 전달)
  * 반환: { hasSignal, signalType: 'date'|'price'|'both'|null, targetDate, targetPrice }
  */
 const computeSignalStatusMobile = (item: any, signalData?: Record<string, any>): { hasSignal: boolean; signalType: string | null; targetDate: string; targetPrice: any } => {
@@ -47,7 +47,7 @@ const computeSignalStatusMobile = (item: any, signalData?: Record<string, any>):
     dateSignal = true;
   }
 
-  // 목표가 신호: signalData(PC에서 export한 크로스 상태) 확인
+  // 목표가 신호: signalData(PC에서 계산한 목표가 이하 상태) 확인
   if (signalData && tp) {
     const stockName = getStockName(item);
     const sig = signalData[stockName];

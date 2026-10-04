@@ -2388,8 +2388,8 @@ function _savePriceCrossTracker() {
 /**
  * 종목별 신호 상태 계산
  * - 목표일 신호: 오늘 >= 목표일
- * - 목표가 신호: 최근 1주일(7일) 내에 현재가가 목표가 라인을 위↔아래로 크로스했는지 여부
- *   (위로 돌파하든 아래로 깨든, 목표가 라인을 지나가면 모두 신호)
+ * - 목표가 신호: 최근 1주일(7일) 내에 현재가가 목표가 아래로 진입했는지 여부
+ *   (탐구생활의 목표가는 매수 가능 가격이므로, 목표가 이하로 내려올 때만 신호)
  * 반환: { hasSignal, signalType: 'date'|'price'|'both'|null }
  */
 function computeSignalStatus(row, cols) {
@@ -2420,13 +2420,14 @@ function computeSignalStatus(row, cols) {
         dateSignal = true;
     }
 
-    // 목표가 신호: 최근 1주일 내 목표가 라인 크로스 여부 (위↔아래 양방향)
+    // 목표가 신호: 최근 1주일 내 목표가 이하로 진입했는지 여부
     if (targetPrice > 0 && stockName) {
         const currentPrice = window._investigationPrices[stockName];
         let tracker = window._priceCrossTracker[stockName];
 
         if (currentPrice && currentPrice > 0) {
-            const newState = currentPrice >= targetPrice ? 'above' : 'below';
+            // 목표가는 매수 가능 가격이므로 현재가가 목표가 이하인 상태를 신호 구간으로 본다.
+            const newState = currentPrice <= targetPrice ? 'below' : 'above';
 
             if (!tracker || tracker.targetPrice !== targetPrice) {
                 // 첫 진입 또는 목표가 변경 → 초기 상태만 기록 (크로스 아님!)
@@ -2437,21 +2438,20 @@ function computeSignalStatus(row, cols) {
                 };
                 _savePriceCrossTracker();
             } else if (tracker.state !== newState) {
-                // 상태 변경 감지! above→below 또는 below→above = 크로스 발생!
+                // 목표가 위에서 아래로 진입한 경우에만 매수 신호를 발생시킨다.
                 window._priceCrossTracker[stockName] = {
                     state: newState,
-                    crossedAt: new Date().toISOString(),  // 크로스 시점 기록
+                    crossedAt: newState === 'below' ? new Date().toISOString() : null,
                     targetPrice: targetPrice
                 };
                 _savePriceCrossTracker();
-                priceSignal = true; // 크로스 발생 → 신호!
-            } else if (tracker.crossedAt) {
-                // 상태 유지 중 + 이전에 크로스 기록 있음 → 7일 이내인지 확인
+                priceSignal = newState === 'below';
+            } else if (tracker.state === 'below' && tracker.crossedAt) {
+                // 목표가 이하 상태를 유지하는 동안에는 진입 후 7일까지만 신호를 유지한다.
                 const crossedMs = new Date(tracker.crossedAt).getTime();
                 if (nowMs - crossedMs <= SEVEN_DAYS_MS) {
-                    priceSignal = true; // 7일 이내 크로스 → 신호 유지
+                    priceSignal = true;
                 }
-                // 7일 초과 or crossedAt 없음 → 신호 없음
             }
         }
     }
@@ -2534,8 +2534,10 @@ async function filterSignalStocks(isAutoUpdate = false) {
     if (!currentData || !isExplorationSheet(currentData.current_sheet)) return;
     window.currentInvestigationFilter = 'signal';
 
-    // 현재가 데이터가 아직 없고 백그라운드 조회가 진행 중이면 대기
-    if (Object.keys(window._investigationPrices).length === 0 && _investigationPricesPromise) {
+    // 백그라운드 조회가 진행 중이면 캐시가 일부 있더라도 완료까지 대기한다.
+    // 일부 캐시가 먼저 존재하면 아이센스처럼 아직 조회되지 않은 종목이
+    // 첫 신호 필터 실행에서 누락되고, 이후 전체 → 신호에서만 나타날 수 있다.
+    if (_investigationPricesPromise) {
         if (!isAutoUpdate) {
             showToast('현재 주가를 확인하고 있습니다...', 'info');
         }
@@ -2599,7 +2601,7 @@ async function filterSignalStocks(isAutoUpdate = false) {
                 <p>🔔 아직 신호가 발생한 종목이 없습니다.</p>
                 <p style="font-size:12px; color:#64748B;">
                     📅 목표일 신호: 오늘(${new Date().toISOString().split('T')[0]}) 기준으로 목표일이 지난 종목<br/>
-                    💰 목표가 신호: 현재 주가가 목표가 이상인 종목
+                    💰 목표가 신호: 현재 주가가 목표가 이하로 내려온 종목
                 </p>
                 <p style="font-size:11px; color:#475569; margin-top:8px;">
                     (목표 데이터 입력된 종목: ${totalWithTarget}건 / 신호: 0건)
