@@ -12,7 +12,7 @@ $daily = New-ScheduledTaskTrigger -Daily -At '09:00'
 $logon = New-ScheduledTaskTrigger -AtLogOn
 $logon.Delay = 'PT10M'
 $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Hours 2) -StartWhenAvailable -MultipleInstances IgnoreNew -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
-$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType InteractiveToken -RunLevel Limited
+$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
 
 Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger @($daily,$logon) -Settings $settings -Principal $principal -Description 'Daily health report and incremental backup for Stock Portfolio' -Force | Out-Null
 Write-Host "Registered: $TaskName (daily 09:00 + logon delay 10m)" -ForegroundColor Green

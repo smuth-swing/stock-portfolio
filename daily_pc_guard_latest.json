@@ -1,0 +1,85 @@
+﻿{
+    "timestamp":  "2026-10-05T11:26:52.7123089+09:00",
+    "computer":  "DESKTOP-G7F107R",
+    "os":  {
+               "product":  "Windows 10 Pro",
+               "displayVersion":  "25H2",
+               "build":  "26200",
+               "ubr":  9550
+           },
+    "storage":  {
+
+                },
+    "performance":  {
+                        "cpuPercent":  15.7,
+                        "availableMemoryMB":  6404
+                    },
+    "services":  [
+                     {
+                         "url":  "http://127.0.0.1:5000/",
+                         "ok":  true,
+                         "status":  200,
+                         "ms":  50.7
+                     },
+                     {
+                         "url":  "http://127.0.0.1:5000/api/onedrive-status",
+                         "ok":  true,
+                         "status":  200,
+                         "ms":  11.7
+                     },
+                     {
+                         "url":  "http://127.0.0.1:8000/",
+                         "ok":  true,
+                         "status":  200,
+                         "ms":  16
+                     }
+                 ],
+    "startup":  [
+                    {
+                        "name":  "GoFullPageWatcher.lnk",
+                        "target":  "C:\\Users\\CodexSandboxOffline\\.antigravity\\test\\run_main.bat",
+                        "targetExists":  false
+                    },
+                    {
+                        "name":  "Synology Drive Client.lnk",
+                        "target":  "C:\\Program Files\\Synology\\SynologyDrive\\bin\\launcher.exe",
+                        "targetExists":  true
+                    }
+                ],
+    "logs":  [
+                 {
+                     "name":  "server_health.log",
+                     "sizeMB":  0.1,
+                     "lastWrite":  "2026-10-05T10:55:19.7530710+09:00"
+                 },
+                 {
+                     "name":  "resume_log.txt",
+                     "sizeMB":  0.1,
+                     "lastWrite":  "2026-10-05T10:54:49.3548101+09:00"
+                 },
+                 {
+                     "name":  "upload_log.txt",
+                     "sizeMB":  0.1,
+                     "lastWrite":  "2026-10-05T11:26:41.1988192+09:00"
+                 },
+                 {
+                     "name":  "restart_log.txt",
+                     "sizeMB":  0.1,
+                     "lastWrite":  "2026-10-05T09:09:17.8119111+09:00"
+                 }
+             ],
+    "backup":  [
+                   {
+                       "source":  "C:\\Users\\zerod\\OneDrive",
+                       "destination":  "F:\\Windows11_Backup_2026-10-05\\DailyMirror\\OneDrive",
+                       "robocopyCode":  16,
+                       "ok":  false
+                   },
+                   {
+                       "source":  "C:\\Users\\zerod\\.antigravity\\주식 포트폴리오 관리",
+                       "destination":  "F:\\Windows11_Backup_2026-10-05\\DailyMirror\\PortfolioProject",
+                       "robocopyCode":  16,
+                       "ok":  false
+                   }
+               ]
+}
