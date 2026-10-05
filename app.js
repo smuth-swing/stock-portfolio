@@ -87,6 +87,9 @@ let cashTrendChart = null; // 월별 현금 비중 트렌드 Chart.js 인스턴�
 let investigationRowMap = [];
 let selectedInvestigationRowIndex = null;
 let investigationCurrentRows = [];
+// 같은 행에서 발생한 여러 blur 저장 요청을 도착 순서가 아닌 입력 순서로 처리
+// WeakMap을 사용해 화면에서 제거된 행이 메모리에 남지 않도록 한다.
+const investigationSaveChains = new WeakMap();
 let journalTrendChart = null;
 let editingJournalRowIndex = null; // 수정 중인 매매일지 행 인덱스
 let autoRefreshEnabled = false;
@@ -1682,10 +1685,13 @@ function renderInvestigationPanel(data) {
         }
         return false; // 모든 필드가 비었으면 제외
     });
-    data.data = cleanData;
-
-    investigationRowMap = data.data.map((_, idx) => idx);
-    investigationCurrentRows = data.data;
+    // 원본 배열의 인덱스와 Excel의 _realIndex를 유지한다.
+    // 빈 행을 실제 데이터에서 제거하면 신규 행 저장 시 Excel 행 번호가
+    // 한 칸씩 당겨져 기존 종목을 덮어쓸 수 있다.
+    investigationRowMap = data.data
+        .map((_, idx) => idx)
+        .filter(idx => cleanData.includes(data.data[idx]));
+    investigationCurrentRows = cleanData;
 
     // 모바일: 좌측 목록 보이도록 초기화
     if (window.innerWidth <= 768) {
@@ -1701,9 +1707,14 @@ function renderInvestigationPanel(data) {
     renderInvestigationCards(data.data, data.columns);
 
     // 첫 번째 항목 선택 (편집 폼은 렌더링하되, 모바일에서는 목록 화면 유지)
-    if (data.data.length > 0) {
-        if (selectedInvestigationRowIndex === null || selectedInvestigationRowIndex >= data.data.length) {
-            selectedInvestigationRowIndex = 0;
+    if (cleanData.length > 0) {
+        const firstVisibleIndex = data.data.indexOf(cleanData[0]);
+        const selectedRow = selectedInvestigationRowIndex === null
+            ? null
+            : data.data[selectedInvestigationRowIndex];
+        const selectedIsVisible = selectedRow && cleanData.includes(selectedRow);
+        if (!selectedIsVisible) {
+            selectedInvestigationRowIndex = firstVisibleIndex >= 0 ? firstVisibleIndex : 0;
         }
         // 카드 하이라이트 + 편집 폼 렌더링 (모바일 전환은 하지 않음)
         document.querySelectorAll('#investigation-card-list .investigation-card').forEach(el => {
@@ -1721,9 +1732,9 @@ function renderInvestigationPanel(data) {
             filterMomentumStocks();
         } else {
             renderInvestigationCards(
-                investigationCurrentRows || data.data,
+                investigationCurrentRows || cleanData,
                 data.columns,
-                investigationRowMap || data.data.map((_, idx) => idx)
+                investigationRowMap || cleanData.map(row => data.data.indexOf(row))
             );
         }
     });
@@ -2116,7 +2127,6 @@ function saveSelectedInvestigationRow() {
         if (colKey) currentData.data[rIdx][colKey] = getTextFromEditable(ed);
     });
     saveInvestigationRow(rIdx, currentData.data[rIdx]);
-    showToast('저장되었습니다.', 'success');
 }
 
 function updateInvestigationStockList(data) {
@@ -2776,6 +2786,9 @@ function prepareNewInvestigationRow() {
     if (dateCol && dateCol !== currentData.columns[0]) {
         newRow[dateCol] = formatAutoSaveDate(new Date());
     }
+    // 종목명과 실제 Excel 행이 확정되기 전까지는 서버에 저장하지 않는다.
+    // 화면 배열의 길이는 빈 행 필터링 여부에 따라 Excel 행 번호와 달라질 수 있다.
+    newRow._isNew = true;
 
     // 3. 데이터 추가 및 UI 갱신
     const newIndex = currentData.data.length;
@@ -2788,10 +2801,8 @@ function prepareNewInvestigationRow() {
     // 새로 추가된 행 선택
     setSelectedInvestigationRow(newIndex);
 
-    // 4. 서버에 즉시 저장 (새 행 생성 반영)
-    saveInvestigationRow(newIndex, newRow);
-
-    showToast(`새 종목(번호: ${nextNum})이 추가되었습니다. 내용을 입력해주세요.`, 'success');
+    // 종목명을 입력한 뒤 첫 저장에서 서버가 실제 행을 append한다.
+    showToast(`새 종목(번호: ${nextNum})이 준비되었습니다. 종목명을 입력하면 저장됩니다.`, 'success');
 }
 
 /**
@@ -2874,29 +2885,84 @@ async function handleInvestigationCellBlur(event) {
     saveInvestigationRow(rowIndex, row);
 }
 
-async function saveInvestigationRow(rowIndex, rowData) {
-    const sheetName = currentData.current_sheet;
-    const filePath = currentData._filePath;
-    const values = currentData.columns.map(col => rowData[col] !== undefined && rowData[col] !== null ? rowData[col] : '');
-    const nameCol = findStockColumnName(currentData.columns);
-    const stockName = String(rowData[nameCol] || rowData['종목명'] || rowData['종목'] || rowData['Unnamed: 1'] || (values.length > 1 ? values[1] : '') || '').replace(/~~/g, '').trim();
-    const effectiveRowIndex = rowData && rowData._realIndex !== undefined ? rowData._realIndex : rowIndex;
-    try {
-        const res = await fetch(`${API}/update-row`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ file: filePath, sheet: sheetName, rowIndex: effectiveRowIndex, values, stockName })
+function saveInvestigationRow(rowIndex, rowData) {
+    if (!rowData || typeof rowData !== 'object') return Promise.resolve({ success: false });
+
+    // 같은 행의 blur 이벤트는 반드시 발생 순서대로 처리한다.
+    // 요청이 끝나기 전에 다음 셀을 수정해도 최신 전체 행이 마지막에 저장된다.
+    const previous = investigationSaveChains.get(rowData) || Promise.resolve();
+    const savePromise = previous
+        .catch(() => null)
+        .then(async () => {
+            if (!currentData) return { success: false, skipped: true };
+
+            const sheetName = currentData.current_sheet;
+            const filePath = currentData._filePath;
+            const columns = currentData.columns || [];
+            const values = columns.map(col => rowData[col] !== undefined && rowData[col] !== null ? rowData[col] : '');
+            const nameCol = findStockColumnName(columns);
+            const stockName = String(
+                rowData[nameCol] || rowData['종목명'] || rowData['종목'] ||
+                rowData['Unnamed: 1'] || (values.length > 1 ? values[1] : '') || ''
+            ).replace(/~~/g, '').trim();
+
+            const hasRealIndex = rowData._realIndex !== undefined && rowData._realIndex !== null;
+            const isNew = rowData._isNew === true && !hasRealIndex;
+
+            // 신규 행은 종목명이 정해지기 전까지 서버에 보내지 않는다.
+            if (isNew && !stockName) {
+                showToast('신규 종목의 종목명을 먼저 입력해주세요.', 'info');
+                return { success: false, skipped: true };
+            }
+
+            const effectiveRowIndex = isNew
+                ? -1
+                : (hasRealIndex ? rowData._realIndex : rowIndex);
+
+            try {
+                const res = await fetch(`${API}/update-row`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        file: filePath,
+                        sheet: sheetName,
+                        rowIndex: effectiveRowIndex,
+                        isNew,
+                        values,
+                        stockName
+                    })
+                });
+                const payload = await res.json().catch(() => ({}));
+
+                if (!res.ok || !payload.success || payload.verified === false) {
+                    showToast(`저장 실패: ${payload.error || '엑셀 저장 검증에 실패했습니다.'}`, 'error');
+                    return payload;
+                }
+
+                // 신규 행은 서버가 실제로 append한 행 번호를 받아 이후 수정에 사용한다.
+                const actualRowIndex = Number(payload.rowIndex);
+                if (Number.isInteger(actualRowIndex) && actualRowIndex >= 0) {
+                    rowData._realIndex = actualRowIndex;
+                    rowData._excelRowIndex = actualRowIndex;
+                    rowData._isNew = false;
+                }
+
+                showToast('수정 내용이 엑셀에 저장되었습니다.', 'success');
+                return payload;
+            } catch (e) {
+                console.error('Update row error:', e);
+                showToast('편집 저장 중 오류가 발생했습니다.', 'error');
+                return { success: false, error: String(e) };
+            }
         });
-        const payload = await res.json();
-        if (!res.ok || !payload.success) {
-            showToast(`저장 실패: ${payload.error || '알 수 없는 오류'}`, 'error');
-        } else {
-            showToast('수정 내용이 저장되었습니다.', 'success');
+
+    investigationSaveChains.set(rowData, savePromise);
+    savePromise.finally(() => {
+        if (investigationSaveChains.get(rowData) === savePromise) {
+            investigationSaveChains.delete(rowData);
         }
-    } catch (e) {
-        console.error('Update row error:', e);
-        showToast('편집 저장 중 오류가 발생했습니다.', 'error');
-    }
+    }).catch(() => {});
+    return savePromise;
 }
 
 
