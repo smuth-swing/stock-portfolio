@@ -99,6 +99,9 @@ EXCEL_FILE = '주식 체크 리스트_20220328.xlsx'
 
 # ==================== 자동 동기화 트리거 ====================
 _export_lock = threading.Lock()
+_export_request_lock = threading.Lock()
+_export_requested = False
+_export_worker_running = False
 
 # 탐구생활 신호 가격 캐시.
 # 서버 시작 시 백그라운드에서 미리 채우고, 화면에서는 캐시를 먼저 사용한 뒤
@@ -299,23 +302,39 @@ def load_workbook_retry(full_path, max_attempts=4, **kwargs):
     raise last_err
 
 def trigger_export():
-    """데이터 변경 시 export_to_json.py를 실행하여 앱용 JSON 갱신 (비동기)"""
-    def run():
-        # 이미 변환 중이면 새 요청 무시 (충돌 및 IO 과부하 방지)
-        if not _export_lock.acquire(blocking=False):
-            print("[AUTO-SYNC] 이미 JSON 변환 중입니다. 이번 요청은 건너뜁니다.")
-            return
-        try:
-            print("[AUTO-SYNC] JSON 변환 시작...")
-            subprocess.run([sys.executable, "export_to_json.py"], check=True)
-            print("[AUTO-SYNC] ✅ JSON 변환 완료!")
-        except Exception as e:
-            print(f"[AUTO-SYNC] ❌ 변환 실패: {e}")
-        finally:
-            _export_lock.release()
+    """데이터 변경 시 export_to_json.py를 실행하여 앱용 JSON 갱신.
 
-    # 서버 응답을 방해하지 않도록 별도 스레드에서 실행
-    threading.Thread(target=run).start()
+    저장 요청이 짧은 시간에 여러 번 들어오면 export 요청을 버리지 않고
+    현재 export가 끝난 뒤 한 번 더 실행한다. 같은 행의 연속 수정이 JSON에
+    누락되는 것을 막기 위한 간단한 coalescing worker이다.
+    """
+    global _export_requested, _export_worker_running
+
+    with _export_request_lock:
+        _export_requested = True
+        if _export_worker_running:
+            return
+        _export_worker_running = True
+
+    def run():
+        global _export_requested, _export_worker_running
+        with _export_lock:
+            while True:
+                with _export_request_lock:
+                    if not _export_requested:
+                        _export_worker_running = False
+                        return
+                    _export_requested = False
+
+                try:
+                    print("[AUTO-SYNC] JSON 변환 시작...")
+                    subprocess.run([sys.executable, "export_to_json.py"], check=True)
+                    print("[AUTO-SYNC] ✅ JSON 변환 완료!")
+                except Exception as e:
+                    print(f"[AUTO-SYNC] ❌ 변환 실패: {e}")
+
+    # 서버 응답을 방해하지 않도록 별도 데몬 스레드에서 실행
+    threading.Thread(target=run, daemon=True).start()
 
 
 def git_has_changes():
@@ -1070,66 +1089,78 @@ def save_journal():
         return jsonify({'error': f'저장 오류: {str(e)}'}), 500
 
 
-def _resolve_target_row(ws, row_index, stock_name=""):
+def _resolve_target_row(ws, row_index=None, stock_name="", is_new=False):
+    """엑셀 시트의 수정 대상 행을 결정합니다.
+
+    기존 행은 화면이 보낸 ``_realIndex``를 가장 신뢰합니다. 화면에서
+    종목명을 수정해도 같은 행을 계속 갱신해야 하므로 종목명 검색을
+    우선하지 않습니다. 신규 행은 반드시 ``is_new`` 또는 음수 인덱스로
+    표시하고 시트의 마지막 행 뒤에 추가합니다.
     """
-    엑셀 시트에서 수정 대상 행 번호(openpyxl 1-based row)를 안전하게 결정합니다.
-    1. stock_name이 제공된 경우 종목명 컬럼에서 정확히 일치하는 행을 우선 탐색합니다.
-       (취소선 ~~, 공백, 줄바꿈 등 정규화 비교)
-    2. 일치하는 행이 있으면 해당 행(1-based)을 반환합니다.
-    3. 일치하는 행이 여러 개 존재하는 경우(중복 행), 첫 번째 행을 대상으로 반환하고
-       나머지 중복 행은 빈 행으로 정리하여 중복을 해소합니다.
-    4. 일치하는 행이 없는 경우:
-       - default_row (row_index + 2) 위치의 종목명을 확인하여,
-         - 빈 행이거나 동일 종목이면 default_row 사용
-         - 다른 종목이 이미 있으면 새 행(ws.max_row + 1) 사용
-    """
-    default_row = row_index + 2
-    
+    try:
+        parsed_index = int(row_index) if row_index is not None else None
+    except (TypeError, ValueError):
+        parsed_index = None
+
+    # 신규 행은 기존 데이터와 인덱스가 섞이지 않도록 무조건 append한다.
+    if is_new or parsed_index is None or parsed_index < 0:
+        target_r = max(ws.max_row + 1, 2)
+        print(f'[_resolve_target_row] 신규 행 추가 -> 엑셀 {target_r}행')
+        return target_r
+
+    target_r = parsed_index + 2
+    if target_r >= 2 and target_r <= ws.max_row:
+        return target_r
+
+    # 이전 클라이언트가 잘못된 행 번호를 보낸 경우에만 이름을 보조 검색한다.
     def _normalize_name(val):
         return str(val or '').replace('~~', '').strip().replace(' ', '').replace('\n', '')
 
     clean_stock = _normalize_name(stock_name)
-
-    # 1. 헤더에서 '종목명' 컬럼 인덱스 찾기 (1~5행 탐색)
-    name_col_idx = None
-    for r in range(1, min(6, ws.max_row + 1)):
-        for c in range(1, ws.max_column + 1):
-            val = str(ws.cell(row=r, column=c).value or '').strip()
-            if val in ['종목명', '종목', 'Unnamed: 1', 'stock']:
-                name_col_idx = c
-                break
-        if name_col_idx:
-            break
-    if not name_col_idx:
-        name_col_idx = 2  # 기본 B열
-
     if clean_stock and clean_stock not in ['종목명', '종목', '신규종목', '신규종목추가']:
-        matched_rows = []
         for r in range(1, ws.max_row + 1):
-            raw_val = ws.cell(row=r, column=name_col_idx).value
-            cell_val = _normalize_name(raw_val)
-            if cell_val and cell_val == clean_stock:
-                matched_rows.append(r)
+            for c in range(1, min(ws.max_column, 5) + 1):
+                header = str(ws.cell(row=1, column=c).value or '').strip()
+                if header in ['종목명', '종목', 'Unnamed: 1', 'stock']:
+                    if _normalize_name(ws.cell(row=r, column=c).value) == clean_stock:
+                        return r
 
-        if matched_rows:
-            target_r = matched_rows[0]
-            print(f'[_resolve_target_row] 종목명 "{clean_stock}" 매칭 성공! -> 엑셀 {target_r}행 업데이트 (총 {len(matched_rows)}건 발견)')
-            # 만약 중복 행이 여러 개 있으면 나머지 중복 행을 비움 (데이터 중복 방지)
-            if len(matched_rows) > 1:
-                for extra_r in matched_rows[1:]:
-                    print(f'⚠️ [_resolve_target_row] 중복 종목 행 발견: {extra_r}행 데이터 초기화')
-                    for col_i in range(1, ws.max_column + 1):
-                        ws.cell(row=extra_r, column=col_i).value = None
-            return target_r
+        # 헤더가 승격되지 않은 탐구생활 시트는 B열을 기본 종목명 컬럼으로 사용한다.
+        for r in range(1, ws.max_row + 1):
+            if _normalize_name(ws.cell(row=r, column=2).value) == clean_stock:
+                return r
 
-        # 일치하는 종목이 없는 경우: default_row에 다른 종목이 이미 존재하는지 검사
-        if default_row <= ws.max_row:
-            existing_stock = _normalize_name(ws.cell(row=default_row, column=name_col_idx).value)
-            if existing_stock and existing_stock != clean_stock and existing_stock not in ['종목명', '종목']:
-                print(f'⚠️ [_resolve_target_row] {default_row}행에 다른 종목("{existing_stock}")이 이미 존재합니다! 덮어쓰기 방지를 위해 새 행({ws.max_row + 1}행)에 추가합니다.')
-                return ws.max_row + 1
+    return max(ws.max_row + 1, 2)
 
-    return default_row
+
+def _verify_saved_row(full_path, sheet_name, target_row, values):
+    """저장된 엑셀 파일을 다시 열어 요청한 행의 값을 검증합니다."""
+    verify_wb = None
+    try:
+        verify_wb = load_workbook_retry(full_path, rich_text=True, data_only=False)
+        if sheet_name not in verify_wb.sheetnames:
+            return False, [f'시트 없음: {sheet_name}']
+        verify_ws = verify_wb[sheet_name]
+        mismatches = []
+        for col_idx, expected in enumerate(values, start=1):
+            actual = extract_rich_text(verify_ws.cell(row=target_row, column=col_idx))
+            expected_text = '' if expected is None else str(expected)
+            actual_text = '' if actual is None else str(actual)
+            if actual_text != expected_text:
+                mismatches.append({
+                    'column': col_idx,
+                    'expected': expected_text,
+                    'actual': actual_text,
+                })
+        return len(mismatches) == 0, mismatches
+    except Exception as e:
+        return False, [f'저장 검증 오류: {e}']
+    finally:
+        if verify_wb is not None:
+            try:
+                verify_wb.close()
+            except Exception:
+                pass
 
 
 @app.route('/api/update-row', methods=['POST'])
@@ -1137,10 +1168,15 @@ def update_row():
     if not ONEDRIVE_PATH:
         return jsonify({'error': 'OneDrive 경로가 설정되지 않았습니다.'}), 400
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     file_path = data.get('file', '')
     sheet_name = data.get('sheet')
-    row_index = int(data.get('rowIndex', 0))
+    raw_row_index = data.get('rowIndex')
+    try:
+        row_index = int(raw_row_index) if raw_row_index not in (None, '') else None
+    except (TypeError, ValueError):
+        return jsonify({'error': 'rowIndex가 올바르지 않습니다.'}), 400
+    is_new = bool(data.get('isNew', False)) or (row_index is not None and row_index < 0)
     values = data.get('values', [])
     stock_name = data.get('stockName', '')
     if not stock_name and len(values) > 1:
@@ -1148,11 +1184,14 @@ def update_row():
 
     if not sheet_name:
         return jsonify({'error': 'sheet 값이 필요합니다.'}), 400
+    if row_index is None and not is_new:
+        return jsonify({'error': '기존 행 저장에는 rowIndex가 필요합니다.'}), 400
 
     full_path = os.path.join(ONEDRIVE_PATH, file_path)
     if not os.path.isfile(full_path):
         return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
 
+    target_row = None
     try:
         from openpyxl.styles import Alignment
         _excel_write_lock.acquire()
@@ -1166,7 +1205,7 @@ def update_row():
                 return jsonify({'error': f'시트를 찾을 수 없습니다: {sheet_name}'}), 404
 
             ws = wb[sheet_name]
-            target_row = _resolve_target_row(ws, row_index, stock_name)
+            target_row = _resolve_target_row(ws, row_index, stock_name, is_new=is_new)
             for col_idx, value in enumerate(values, start=1):
                 cell = ws.cell(row=target_row, column=col_idx)
                 # 취소선 처리
@@ -1191,11 +1230,31 @@ def update_row():
             try: wb.close()
             except: pass
             _excel_write_lock.release()
+
+        verified, verification_errors = _verify_saved_row(
+            full_path, sheet_name, target_row, values
+        )
+        if not verified:
+            print(f'[UPDATE-ROW] 저장 검증 실패: {verification_errors}')
+            return jsonify({
+                'success': False,
+                'verified': False,
+                'target_row': target_row,
+                'rowIndex': target_row - 2,
+                'error': '엑셀 저장 후 재확인에 실패했습니다.',
+                'details': verification_errors,
+            }), 500
         
         # 아이폰 앱용 데이터 자동 갱신
         trigger_export()
         
-        return jsonify({'success': True, 'message': '행이 업데이트되었습니다.'})
+        return jsonify({
+            'success': True,
+            'verified': True,
+            'target_row': target_row,
+            'rowIndex': target_row - 2,
+            'message': '행이 업데이트되었습니다.'
+        })
     except Exception as e:
         import traceback
         print(traceback.format_exc())
