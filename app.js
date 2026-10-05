@@ -1726,16 +1726,15 @@ function renderInvestigationPanel(data) {
     // ── 신호 계산용 현재가 배치 조회 (백그라운드) ──
     fetchInvestigationPrices().then(() => {
         // 가격 로드 완료 후 현재 활성화된 필터 상태에 맞춰 다시 필터링 및 렌더링
+        // 단, 사용자가 우측 편집 폼에서 입력 중이면 선택을 뺏지 않는다.
+        const editFocused = isInvestigationEditFormFocused();
         if (window.currentInvestigationFilter === 'signal') {
-            filterSignalStocks(true);
+            if (!editFocused) filterSignalStocks(true);
         } else if (window.currentInvestigationFilter === 'priority') {
-            filterMomentumStocks();
+            if (!editFocused) filterMomentumStocks();
         } else {
-            renderInvestigationCards(
-                investigationCurrentRows || cleanData,
-                data.columns,
-                investigationRowMap || cleanData.map(row => data.data.indexOf(row))
-            );
+            // 신규 행이 추가된 최신 배열을 기준으로 다시 렌더링 (빈 행은 자동 필터링)
+            renderInvestigationCards(currentData.data, data.columns);
         }
     });
 }
@@ -1873,6 +1872,16 @@ function renderInvestigationCards(rows, cols, rowMap = null) {
         container.addEventListener('click', handleInvestigationCardClick);
         container.dataset.clickDelegated = 'true';
     }
+}
+
+/**
+ * 현재 포커스가 우측 탐구생활 편집 폼 내부에 있는지 확인
+ */
+function isInvestigationEditFormFocused() {
+    const form = document.getElementById('investigation-edit-form');
+    if (!form) return false;
+    const active = document.activeElement;
+    return !!active && form.contains(active);
 }
 
 /**
@@ -2017,6 +2026,9 @@ function renderInvestigationEditForm(rowIndex) {
                 if (card) {
                     card.querySelector('.investigation-card-title').innerHTML = ed.innerHTML;
                     card.classList.toggle('cancelled', newValue.includes('~~'));
+                } else {
+                    // 신규 행: 종목명이 생기면서 카드가 새로 나타나야 하므로 목록을 다시 그린다.
+                    renderInvestigationCards(currentData.data, currentData.columns);
                 }
 
                 // ★ 종목명이 비어있고 다른 필드도 모두 비어있으면 행 삭제
@@ -2770,9 +2782,11 @@ function filterSignalStocks(isAutoUpdate = false) {
 
 /**
  * 탐구생활 신규 종목 추가 준비
- * 마지막 번호를 자동으로 계산하여 입력창을 초기화하고 새 행을 생성합니다.
+ * 마지막 번호를 자동으로 계산하여 새 행을 생성하고, 곧바로 엑셀에 append하여
+ * 실제 행 번호(_realIndex)를 확보합니다. 이후 모든 입력은 기존 행 수정 경로로
+ * 저장되므로 신규 종목이 유실되지 않습니다.
  */
-function prepareNewInvestigationRow() {
+async function prepareNewInvestigationRow() {
     if (!currentData || !isExplorationSheet(currentData.current_sheet)) return;
 
     // 1. 마지막 번호 찾기 (컬럼 0 기준)
@@ -2797,12 +2811,15 @@ function prepareNewInvestigationRow() {
     if (dateCol && dateCol !== currentData.columns[0]) {
         newRow[dateCol] = formatAutoSaveDate(new Date());
     }
-    // 종목명과 실제 Excel 행이 확정되기 전까지는 서버에 저장하지 않는다.
-    // 화면 배열의 길이는 빈 행 필터링 여부에 따라 Excel 행 번호와 달라질 수 있다.
-    newRow._isNew = true;
 
-    // 3. 데이터 추가 및 UI 갱신
+    // 서버에 append할 값 준비
+    const values = currentData.columns.map(col =>
+        newRow[col] !== undefined && newRow[col] !== null ? newRow[col] : ''
+    );
+
+    // 3. 데이터 추가 및 UI 갱신 (서버 응답 전에는 _isNew 상태로 화면에 먼저 표시)
     const newIndex = currentData.data.length;
+    newRow._isNew = true;
     currentData.data.push(newRow);
 
     // 검색창 초기화 (전체 목록 보기)
@@ -2812,8 +2829,36 @@ function prepareNewInvestigationRow() {
     // 새로 추가된 행 선택
     setSelectedInvestigationRow(newIndex);
 
-    // 종목명을 입력한 뒤 첫 저장에서 서버가 실제 행을 append한다.
-    showToast(`새 종목(번호: ${nextNum})이 준비되었습니다. 종목명을 입력하면 저장됩니다.`, 'success');
+    // 4. 곧바로 엑셀에 append하여 실제 행 번호를 확보한다.
+    //    성공하면 이후 모든 입력이 기존 행 수정 경로로 저장된다.
+    try {
+        const res = await fetch(`${API}/update-row`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                file: currentData._filePath,
+                sheet: currentData.current_sheet,
+                rowIndex: -1,
+                isNew: true,
+                values,
+                stockName: ''
+            })
+        });
+        const payload = await res.json().catch(() => ({}));
+        const actualRowIndex = Number(payload.rowIndex);
+        if (res.ok && payload.success !== false && Number.isInteger(actualRowIndex) && actualRowIndex >= 0) {
+            newRow._realIndex = actualRowIndex;
+            newRow._excelRowIndex = actualRowIndex;
+            newRow._isNew = false;
+            showToast(`새 종목(번호: ${nextNum})이 생성되었습니다. 종목명을 입력하면 자동 저장됩니다.`, 'success');
+        } else {
+            // append 실패 시에도 로컬 신규 행은 유지 (종목명 입력 시 재시도)
+            showToast(`새 종목(번호: ${nextNum})을 준비했습니다. 종목명 입력 시 저장됩니다.`, 'info');
+        }
+    } catch (e) {
+        console.warn('신규 행 생성 요청 실패:', e);
+        showToast(`새 종목(번호: ${nextNum})을 준비했습니다. 종목명 입력 시 저장됩니다.`, 'info');
+    }
 }
 
 /**
@@ -2953,9 +2998,14 @@ function saveInvestigationRow(rowIndex, rowData) {
                 // 신규 행은 서버가 실제로 append한 행 번호를 받아 이후 수정에 사용한다.
                 const actualRowIndex = Number(payload.rowIndex);
                 if (Number.isInteger(actualRowIndex) && actualRowIndex >= 0) {
+                    const wasNew = rowData._isNew === true;
                     rowData._realIndex = actualRowIndex;
                     rowData._excelRowIndex = actualRowIndex;
                     rowData._isNew = false;
+                    // 신규 행이 엑셀에 append된 뒤에는 좌측 카드 목록도 갱신한다.
+                    if (wasNew) {
+                        renderInvestigationCards(currentData.data, currentData.columns || []);
+                    }
                 }
 
                 showToast('수정 내용이 엑셀에 저장되었습니다.', 'success');

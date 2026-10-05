@@ -301,255 +301,6 @@ def load_workbook_retry(full_path, max_attempts=4, **kwargs):
                 time.sleep(0.4 * (attempt + 1))
     raise last_err
 
-
-# ==================== Gemini review for mobile sync ====================
-# The key is read from the PC environment or a per-user local file. It must
-# never be placed in the mobile bundle, GitHub Pages, or a committed file.
-GEMINI_DEFAULT_MODEL = 'gemini-2.5-flash'
-GEMINI_KEY_FILE = os.path.join(
-    os.environ.get('LOCALAPPDATA') or os.path.join(BASE_DIR, 'local_config'),
-    'StockPortfolioGemini',
-    'api_key.txt',
-)
-
-
-def _read_gemini_api_key():
-    env_key = str(os.environ.get('GEMINI_API_KEY') or '').strip()
-    if env_key:
-        return env_key
-
-    # Keep a repository-local fallback for manual development only. The normal
-    # production location is outside the repository under LOCALAPPDATA.
-    candidates = [
-        GEMINI_KEY_FILE,
-        os.path.join(BASE_DIR, 'secrets', 'gemini_api_key.txt'),
-    ]
-    for key_file in candidates:
-        try:
-            if os.path.isfile(key_file):
-                with open(key_file, 'r', encoding='utf-8') as f:
-                    key = f.read().strip()
-                if key:
-                    return key
-        except Exception as e:
-            print(f'[GEMINI] API key read failed: {e}')
-    return ''
-
-
-def _review_value(value):
-    if value is None:
-        return ''
-    if isinstance(value, float) and value.is_integer():
-        return str(int(value))
-    return str(value).replace('\r\n', '\n').replace('\r', '\n').strip()
-
-
-def _same_review_value(left, right):
-    return _review_value(left) == _review_value(right)
-
-
-def _deterministic_merge(base_values, server_values, mobile_values):
-    """Merge non-overlapping mobile changes without requiring AI."""
-    if not isinstance(base_values, list):
-        return None, list(range(max(len(server_values), len(mobile_values)))), 'base_missing'
-    if len(base_values) != len(mobile_values) or len(server_values) != len(mobile_values):
-        return None, list(range(len(mobile_values))), 'shape_mismatch'
-
-    merged = []
-    conflicts = []
-    for i, mobile_value in enumerate(mobile_values):
-        base_value = base_values[i]
-        server_value = server_values[i]
-        mobile_changed = not _same_review_value(mobile_value, base_value)
-        server_changed = not _same_review_value(server_value, base_value)
-
-        if mobile_changed and not server_changed:
-            merged.append(mobile_value)
-        else:
-            # Keep the verified server value when there is no mobile-only change.
-            merged.append(server_value)
-
-        if mobile_changed and server_changed and not _same_review_value(mobile_value, server_value):
-            conflicts.append(i)
-
-    return merged, conflicts, None
-
-
-def _call_gemini_review(columns, base_values, server_values, mobile_values, conflicts):
-    """Ask Gemini for a JSON merge decision. Returns (dict, error_code)."""
-    api_key = _read_gemini_api_key()
-    if not api_key:
-        return None, 'missing_api_key'
-
-    import urllib.error
-    import urllib.parse
-    import urllib.request
-
-    model = os.environ.get('GEMINI_MODEL', GEMINI_DEFAULT_MODEL).strip() or GEMINI_DEFAULT_MODEL
-    url = (
-        'https://generativelanguage.googleapis.com/v1beta/models/'
-        f'{urllib.parse.quote(model, safe="")}:generateContent?key={urllib.parse.quote(api_key, safe="")}'
-    )
-    review_payload = {
-        'columns': columns,
-        'base_values': base_values,
-        'current_server_values': server_values,
-        'mobile_proposed_values': mobile_values,
-        'conflict_columns': [columns[i] if i < len(columns) else f'column_{i + 1}' for i in conflicts],
-    }
-    prompt = (
-        '당신은 주식 탐구생활 데이터의 병합 검토자입니다.\n'
-        '목적은 투자 판단을 새로 만드는 것이 아니라, PC 원본과 모바일 수정 내용을 안전하게 병합하는 것입니다.\n'
-        'base_values는 모바일이 수정하기 전 확인한 값이고, current_server_values는 현재 PC 원본이며, '
-        'mobile_proposed_values는 모바일이 저장하려는 전체 행입니다.\n'
-        '변경되지 않은 값은 current_server_values를 유지합니다. 모바일만 바뀐 열은 모바일 값을 사용합니다. '
-        '양쪽이 같은 열을 다르게 바꾼 경우에는 근거 없이 내용을 만들지 말고, 보수적으로 판단합니다.\n'
-        '반드시 아래 JSON 형식만 반환하세요. final_values의 길이는 mobile_proposed_values와 같아야 합니다.\n'
-        '{"decision":"approve_mobile|approve_server|merge|needs_review",'
-        '"final_values":[],"conflict_fields":[],"reason":""}\n\n'
-        + json.dumps(review_payload, ensure_ascii=False, default=str)
-    )
-    body = {
-        'contents': [{'parts': [{'text': prompt}]}],
-        'generationConfig': {
-            'temperature': 0.1,
-            'responseMimeType': 'application/json',
-            'responseSchema': {
-                'type': 'OBJECT',
-                'properties': {
-                    'decision': {
-                        'type': 'STRING',
-                        'enum': ['approve_mobile', 'approve_server', 'merge', 'needs_review'],
-                    },
-                    'final_values': {'type': 'ARRAY', 'items': {'type': 'STRING'}},
-                    'conflict_fields': {'type': 'ARRAY', 'items': {'type': 'STRING'}},
-                    'reason': {'type': 'STRING'},
-                },
-                'required': ['decision', 'final_values', 'conflict_fields', 'reason'],
-            },
-        },
-    }
-    request_data = json.dumps(body, ensure_ascii=False).encode('utf-8')
-    req = urllib.request.Request(
-        url,
-        data=request_data,
-        headers={'Content-Type': 'application/json'},
-        method='POST',
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=30) as response:
-            response_data = json.loads(response.read().decode('utf-8'))
-        parts = (
-            response_data.get('candidates', [{}])[0]
-            .get('content', {})
-            .get('parts', [])
-        )
-        text = ''.join(str(part.get('text') or '') for part in parts).strip()
-        if text.startswith('```'):
-            text = re.sub(r'^```(?:json)?\s*|\s*```$', '', text, flags=re.IGNORECASE | re.DOTALL).strip()
-        parsed = json.loads(text)
-        if not isinstance(parsed, dict):
-            return None, 'invalid_response'
-        return parsed, None
-    except urllib.error.HTTPError as e:
-        # Do not log the URL because it contains the API key.
-        return None, f'http_{e.code}'
-    except Exception as e:
-        return None, f'{type(e).__name__}'
-
-
-def _coerce_review_values(values, reference_values):
-    """Preserve numeric Excel cells when Gemini returns JSON strings."""
-    if not isinstance(values, list):
-        return values
-    result = list(values)
-    for i, value in enumerate(result):
-        if i >= len(reference_values) or not isinstance(value, str):
-            continue
-        reference = reference_values[i]
-        if isinstance(reference, bool):
-            continue
-        if isinstance(reference, int):
-            try:
-                result[i] = int(value.replace(',', '').strip())
-            except (TypeError, ValueError):
-                pass
-        elif isinstance(reference, float):
-            try:
-                result[i] = float(value.replace(',', '').strip())
-            except (TypeError, ValueError):
-                pass
-    return result
-
-
-def _review_mobile_edit(columns, base_values, server_values, mobile_values, is_new=False):
-    """Return a safe final row and review metadata for one mobile edit."""
-    if is_new:
-        return {
-            'status': 'saved',
-            'values': mobile_values,
-            'review_mode': 'new_row',
-            'conflict_fields': [],
-            'reason': 'new row saved from the mobile proposal',
-        }
-    merged, conflicts, merge_error = _deterministic_merge(
-        base_values, server_values, mobile_values
-    )
-    if merged is not None and not conflicts:
-        return {
-            'status': 'saved',
-            'values': merged,
-            'review_mode': 'deterministic_merge',
-            'conflict_fields': [],
-            'reason': '서버 변경과 겹치지 않는 모바일 변경을 병합했습니다.',
-        }
-
-    ai_result, ai_error = _call_gemini_review(
-        columns, base_values, server_values, mobile_values, conflicts
-    )
-    if ai_result:
-        decision = str(ai_result.get('decision') or '').strip()
-        final_values = ai_result.get('final_values')
-        if decision == 'needs_review':
-            return {
-                'status': 'needs_review',
-                'values': None,
-                'review_mode': 'gemini',
-                'conflict_fields': ai_result.get('conflict_fields') or [],
-                'reason': str(ai_result.get('reason') or 'AI 검토 결과 확인이 필요합니다.'),
-            }
-        if decision in ('approve_mobile', 'approve_server', 'merge'):
-            if decision == 'approve_mobile':
-                final_values = mobile_values
-            elif decision == 'approve_server':
-                final_values = server_values
-            if isinstance(final_values, list) and len(final_values) == len(mobile_values):
-                final_values = _coerce_review_values(final_values, mobile_values)
-                return {
-                    'status': 'saved',
-                    'values': final_values,
-                    'review_mode': 'gemini',
-                    'conflict_fields': ai_result.get('conflict_fields') or [],
-                    'reason': str(ai_result.get('reason') or 'Gemini 검토 결과를 저장했습니다.'),
-                }
-
-    # AI is an enhancement, not a storage gate. If it is unavailable or its
-    # response is unusable, keep the latest verified server value for conflicts
-    # and still save mobile-only changes. This prevents stale mobile snapshots
-    # from overwriting newer PC edits.
-    fallback_values = list(server_values)
-    if merged is not None:
-        for i, value in enumerate(merged):
-            if i not in conflicts:
-                fallback_values[i] = value
-    return {
-        'status': 'saved',
-        'values': fallback_values,
-        'review_mode': 'fallback_server_latest',
-        'conflict_fields': [columns[i] if i < len(columns) else f'column_{i + 1}' for i in conflicts],
-        'reason': f'Gemini 검토 불가({ai_error or merge_error}); PC 최신값을 우선 저장했습니다.',
-    }
-
 def trigger_export():
     """데이터 변경 시 export_to_json.py를 실행하여 앱용 JSON 갱신.
 
@@ -1564,18 +1315,9 @@ def sync_receive():
                 full_path = os.path.join(ONEDRIVE_PATH, file_path)
             edits_by_file[full_path].append(edit)
 
-        sync_results = []
-        applied_count = 0
-
         for full_path, file_edits in edits_by_file.items():
             if not os.path.isfile(full_path):
-                print(f'[sync-receive] file not found: {full_path}')
-                for edit in file_edits:
-                    sync_results.append({
-                        'syncId': edit.get('syncId'),
-                        'status': 'error',
-                        'reason': 'source file not found',
-                    })
+                print(f'[sync-receive] 파일 없음: {full_path}')
                 continue
 
             _excel_write_lock.acquire()
@@ -1585,87 +1327,41 @@ def sync_receive():
                 _excel_write_lock.release()
                 raise
 
-            file_changed = False
             try:
                 for edit in file_edits:
-                    result_base = {'syncId': edit.get('syncId')}
                     sheet_name = edit.get('sheet')
                     raw_row_index = edit.get('rowIndex')
                     row_index = int(raw_row_index) if raw_row_index not in (None, '') else None
                     values = edit.get('values', [])
-                    if not isinstance(values, list):
-                        values = []
                     stock_name = str(edit.get('stockName') or '').strip()
                     is_new = bool(edit.get('isNew', False)) or (row_index is not None and row_index < 0)
                     if not stock_name and len(values) > 1:
                         stock_name = str(values[1] or '').strip()
 
                     if sheet_name not in wb.sheetnames:
-                        sync_results.append({
-                            **result_base,
-                            'status': 'error',
-                            'reason': f'sheet not found: {sheet_name}',
-                        })
                         continue
 
                     ws = wb[sheet_name]
                     target_row = _resolve_target_row(
                         ws, row_index, stock_name, is_new=is_new, prefer_index=False
                     )
-                    server_values = [
-                        extract_rich_text(ws.cell(row=target_row, column=col_idx))
-                        for col_idx in range(1, len(values) + 1)
-                    ]
-                    base_values = edit.get('baseValues')
-                    columns = edit.get('columns')
-                    if not isinstance(columns, list) or len(columns) != len(values):
-                        columns = [f'column_{i + 1}' for i in range(len(values))]
 
-                    review = _review_mobile_edit(
-                        columns,
-                        base_values,
-                        server_values,
-                        values,
-                        is_new=is_new,
-                    )
-                    if review.get('status') != 'saved':
-                        sync_results.append({
-                            **result_base,
-                            'status': review.get('status'),
-                            'review_mode': review.get('review_mode'),
-                            'conflict_fields': review.get('conflict_fields', []),
-                            'reason': review.get('reason', ''),
-                            'target_row': target_row,
-                        })
-                        continue
-
-                    final_values = review.get('values') or []
-                    for col_idx, value in enumerate(final_values, start=1):
+                    for col_idx, value in enumerate(values, start=1):
                         cell = ws.cell(row=target_row, column=col_idx)
                         processed_value = parse_strikethrough_text(value)
                         cell.value = processed_value
                         if isinstance(value, str) and '\n' in value:
                             cell.alignment = Alignment(wrap_text=True)
 
-                    file_changed = True
-                    applied_count += 1
-                    sync_results.append({
-                        **result_base,
-                        'status': 'saved',
-                        'review_mode': review.get('review_mode'),
-                        'conflict_fields': review.get('conflict_fields', []),
-                        'reason': review.get('reason', ''),
-                        'target_row': target_row,
-                    })
-
-                if file_changed:
-                    save_workbook_safely(wb, full_path)
+                # 파일당 1회만 저장/닫기
+                save_workbook_safely(wb, full_path)
             finally:
                 try: wb.close()
                 except: pass
                 _excel_write_lock.release()
 
-        push_success = True if applied_count == 0 else trigger_export_and_push_sync()
+        # ★ 모바일 동기화: JSON 내보내기 + Git Push를 동기적으로 실행
+        push_success = trigger_export_and_push_sync()
 
         from datetime import datetime as dt, timezone
         now_iso = dt.now(timezone.utc).isoformat()
@@ -1675,9 +1371,6 @@ def sync_receive():
             return jsonify({
                 'success': True,
                 'push_success': push_success,
-                'saved_count': applied_count,
-                'results': sync_results,
-                'review_model': os.environ.get('GEMINI_MODEL', GEMINI_DEFAULT_MODEL),
                 'server_time': now_iso,
                 'message': 'PC 엑셀 정상 반영 완료' if push_success else 'PC 엑셀 저장 완료 (GitHub 반영 진행 중)'
             })

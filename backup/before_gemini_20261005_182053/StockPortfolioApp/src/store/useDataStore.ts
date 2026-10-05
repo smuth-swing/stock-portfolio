@@ -43,7 +43,6 @@ interface AppState {
   clearSyncedQueue: () => Promise<void>;
   loadSyncQueue: () => Promise<void>;
   markQueueAsSynced: (serverTime?: string) => Promise<void>;
-  markQueueItemsAsSynced: (syncIds: string[], serverTime?: string) => Promise<void>;
   cleanupSyncQueue: (customServerTime?: string) => Promise<void>;
 
   // 목표가 저장소 (로컬)
@@ -87,29 +86,26 @@ const isValidData = (data: any): boolean => {
 
 const applyQueueToData = (dataKey: string, dataObj: any, queue: any[]) => {
   if (!queue || queue.length === 0 || !dataObj || !dataObj.data) return dataObj;
-
+  
   const newData = { ...dataObj, data: [...dataObj.data] };
+  // ★ columns는 dataObj에서 직접 참조 (스프레드 시 누락 방지)
   const columns = dataObj.columns || [];
-  const pendingQueue = queue.filter(edit => edit.isPendingSync !== false);
-
-  pendingQueue.forEach(edit => {
-    if (edit.sheet !== '????' || dataKey !== 'investigation') return;
-    const requestedIndex = Number(edit.rowIndex);
-    const stableIndex = Number.isFinite(requestedIndex)
-      ? newData.data.findIndex((row: any) => Number(row?._realIndex) === requestedIndex)
-      : -1;
-    const idx = stableIndex >= 0 ? stableIndex : requestedIndex;
-    if (!Number.isFinite(idx) || idx < 0) return;
-
-    if (!newData.data[idx]) {
-      newData.data[idx] = {};
-    } else {
-      newData.data[idx] = { ...newData.data[idx] };
-    }
-    (edit.values || []).forEach((val: any, i: number) => {
-      const colName = columns[i];
-      if (colName) newData.data[idx][colName] = val;
-    });
+  
+  queue.forEach(edit => {
+    if (edit.sheet === '탐구생활' && dataKey === 'investigation') {
+      const idx = edit.rowIndex;
+      if (!newData.data[idx]) {
+        newData.data[idx] = {};
+      } else {
+        newData.data[idx] = { ...newData.data[idx] };
+      }
+        edit.values.forEach((val: any, i: number) => {
+           const colName = columns[i];
+           if (colName) {
+               newData.data[idx][colName] = val;
+           }
+        });
+      }
   });
   return newData;
 };
@@ -117,8 +113,6 @@ const applyQueueToData = (dataKey: string, dataObj: any, queue: any[]) => {
 // ─────────────────────────────────────────────
 // Zustand 스토어
 // ─────────────────────────────────────────────
-const makeSyncId = () => `mobile-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-
 export const useDataStore = create<AppState>((set, get) => ({
   tradeJournal: null,
   portfolioMap: null,
@@ -388,20 +382,14 @@ export const useDataStore = create<AppState>((set, get) => ({
     try {
       const qStr = await AsyncStorage.getItem('@sync_queue');
       if (qStr) {
-        const parsed = JSON.parse(qStr);
-        const normalized = Array.isArray(parsed)
-          ? parsed.map(item => item.syncId ? item : { ...item, syncId: makeSyncId() })
-          : [];
-        set({ syncQueue: normalized });
-        await AsyncStorage.setItem('@sync_queue', JSON.stringify(normalized));
+        set({ syncQueue: JSON.parse(qStr) });
       }
     } catch (e) {}
   },
   
   addToSyncQueue: async (editData: any) => {
     const { syncQueue } = get();
-    const item = editData.syncId ? editData : { ...editData, syncId: makeSyncId() };
-    const newQueue = [...syncQueue, item];
+    const newQueue = [...syncQueue, editData];
     set({ syncQueue: newQueue });
     await AsyncStorage.setItem('@sync_queue', JSON.stringify(newQueue));
   },
@@ -419,18 +407,6 @@ export const useDataStore = create<AppState>((set, get) => ({
     set({ syncQueue: remaining });
     await AsyncStorage.setItem('@sync_queue', JSON.stringify(remaining));
     console.log(`[useDataStore] 🧹 전송 완료 큐 정리: ${syncQueue.length - remaining.length}건 삭제, ${remaining.length}건 대기`);
-  },
-
-  markQueueItemsAsSynced: async (syncIds: string[], serverTime?: string) => {
-    const { syncQueue } = get();
-    const ids = new Set(syncIds || []);
-    const now = new Date().toISOString();
-    const newQueue = syncQueue.map(item => ids.has(item.syncId)
-      ? { ...item, isPendingSync: false, sentAt: now, serverConfirmedTime: serverTime || now }
-      : item
-    );
-    set({ syncQueue: newQueue });
-    await AsyncStorage.setItem('@sync_queue', JSON.stringify(newQueue));
   },
 
   markQueueAsSynced: async (serverTime?: string) => {

@@ -33,3 +33,6 @@ StockPortfolioApp/node_modules/
 out_names.txt
 updateChart.txt
 .git_sync.lock
+
+# Local AI credentials (never commit)
+secrets/

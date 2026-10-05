@@ -112,7 +112,6 @@ export default function InvestigationScreen() {
     syncQueue,
     addToSyncQueue,
     markQueueAsSynced,
-    markQueueItemsAsSynced,
     cleanupSyncQueue,
     clearSyncedQueue,
     clearSyncQueue,
@@ -345,17 +344,13 @@ export default function InvestigationScreen() {
   };
 
   const cancelEditing = () => {
-    // ?? ???? ??? ??? ??? ?? ??
+    // 신규 종목이고 내용이 하나도 없으면 자동 삭제
     if (editingIndex !== null && investigation?.data) {
-      const item = investigation.data.find((row: any, index: number) => (
-        (row._realIndex !== undefined ? row._realIndex : index) === editingIndex
-      ));
-      const isNewStock = Boolean(item?._isNew) || getStockName(item || {}) === '?? ??' || editForm.stockName === '?? ??';
+      const item = investigation.data[editingIndex];
+      const isNewStock = getStockName(item) === '신규 종목' || editForm.stockName === '신규 종목';
       const isEmpty = !editForm.question && !editForm.reason && !editForm.risk && !editForm.momentum && !editForm.strategy && !editForm.ceo && !editForm.targetDate && !editForm.targetPrice;
       if (isNewStock && isEmpty) {
-        const updatedData = investigation.data.filter((row: any, index: number) => (
-          (row._realIndex !== undefined ? row._realIndex : index) !== editingIndex
-        ));
+        const updatedData = investigation.data.filter((_: any, i: number) => i !== editingIndex);
         useDataStore.setState({ investigation: { ...investigation, data: updatedData } });
       }
     }
@@ -386,21 +381,13 @@ export default function InvestigationScreen() {
         '목표가': editForm.targetPrice, 'Unnamed: 9': editForm.targetPrice,
       };
       const values = columns.map((col: string) => newRowData[col] !== undefined && newRowData[col] !== null ? newRowData[col] : '');
-      const baseValues = columns.map((col: string) => (
-        rowData[col] !== undefined && rowData[col] !== null ? rowData[col] : ''
-      ));
-      const editTask = {
-        file: filePath,
-        sheet: sheetName,
-        rowIndex: rowData._realIndex !== undefined
-          ? rowData._realIndex
-          : (rowData._excelRowIndex !== undefined ? rowData._excelRowIndex : realIndex),
-        stockName: getStockName(newRowData),
-        columns,
-        baseValues,
+      const editTask = { 
+        file: filePath, 
+        sheet: sheetName, 
+        rowIndex: rowData._realIndex !== undefined ? rowData._realIndex : (rowData._excelRowIndex !== undefined ? rowData._excelRowIndex : realIndex),
+        stockName: newRowData['종목명'] || newRowData['Unnamed: 1'] || '',
         values,
-        isNew: Boolean(rowData._isNew),
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString()
       };
       await addToSyncQueue(editTask);
       
@@ -415,10 +402,7 @@ export default function InvestigationScreen() {
 
       // ★ Zustand 상태를 불변 방식으로 업데이트 (직접 뮤테이션 금지)
       const updatedData = [...investigation.data];
-      const targetArrayIndex = updatedData.findIndex((row: any, index: number) => (
-        (row._realIndex !== undefined ? row._realIndex : index) === realIndex
-      ));
-      updatedData[targetArrayIndex >= 0 ? targetArrayIndex : realIndex] = newRowData;
+      updatedData[realIndex] = newRowData;
       useDataStore.setState({ investigation: { ...investigation, data: updatedData } });
     } catch (e) {
       console.error('Failed to queue content', e);
@@ -461,8 +445,6 @@ export default function InvestigationScreen() {
     const newRealIndex = allData.length;
     // 신규 행을 배열 맨 앞에 추가 (_excelRowIndex로 실제 엑셀 행 위치 보존)
     newRowData._excelRowIndex = allData.length;
-    newRowData._realIndex = newRealIndex;
-    newRowData._isNew = true;
     const updatedData = [newRowData, ...allData];
     
     // 모든 상태를 한 번에 업데이트 (React 18 자동 배치)
@@ -472,7 +454,7 @@ export default function InvestigationScreen() {
     setFilter('all');
     setSearchQuery('');
     setExpandedId(idStr);
-    setEditingIndex(newRealIndex); // 맨 위(인덱스 0)
+    setEditingIndex(0); // 맨 위(인덱스 0)
     setEditForm({
       stockName: defaultStockName,
       question: '',
@@ -488,71 +470,66 @@ export default function InvestigationScreen() {
     setTimeout(() => setToastMessage(null), 3500);
 
     // 오프라인 동기화 (백그라운드)
-    // Queue the new row only after the user presses Save.
+    const filePath = investigation._filePath || investigation.file_name || '';
+    const sheetName = investigation.current_sheet || '탐구생활';
+    const values = columns.map((col: string) => newRowData[col] !== undefined && newRowData[col] !== null ? newRowData[col] : '');
+    addToSyncQueue({
+      file: filePath,
+      sheet: sheetName,
+      rowIndex: newRealIndex,
+      stockName: defaultStockName,
+      values,
+      timestamp: new Date().toISOString()
+    });
   };
 
   const effectiveIp = customServerIp || meta?.server_ip || '192.168.0.2';
 
   const handleSync = async () => {
-    const pendingQueue = (syncQueue || []).filter(item => item.isPendingSync !== false);
-    if (pendingQueue.length === 0) return;
+    if (!syncQueue || syncQueue.length === 0) return;
     setIsSyncingPC(true);
     const targetUrl = `http://${effectiveIp}:5000/api/sync-receive`;
 
     try {
+      // 1. AJAX fetch JSON 전송 시도
       const res = await fetch(targetUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify(pendingQueue),
+        body: JSON.stringify(syncQueue),
       });
 
       if (res.ok) {
         const resJson = await res.json().catch(() => ({}));
-        if (resJson?.success !== true) {
-          throw new Error(resJson?.error || 'PC server rejected the sync request');
-        }
-        const results = Array.isArray(resJson?.results) ? resJson.results : [];
-        const savedIds = results.length > 0
-          ? results.filter((item: any) => item.status === 'saved' && item.syncId).map((item: any) => item.syncId)
-          : pendingQueue.map(item => item.syncId).filter(Boolean);
-        if (savedIds.length > 0) {
-          await markQueueItemsAsSynced(savedIds, resJson?.server_time);
-        }
-
-        const reviewPending = results.filter((item: any) => item.status === 'needs_review').length;
-        const fallbackSaved = results.filter((item: any) => item.review_mode === 'fallback_server_latest').length;
-        if (reviewPending > 0) {
-          setToastMessage(`AI ??? ??? ?? ${reviewPending}?? ?? ??? ?????.`);
-        } else if (fallbackSaved > 0) {
-          setToastMessage(`Gemini ??? ???? PC ???? ??? ${fallbackSaved}?? ??????.`);
-        } else {
-          setToastMessage(`PC ??(${effectiveIp})? ?? ? ??????.`);
-        }
-        setTimeout(() => setToastMessage(null), 5000);
+        await markQueueAsSynced(resJson?.server_time);
+        setToastMessage(`✅ PC 서버(${effectiveIp})에 성공적으로 전송되었습니다!`);
+        setTimeout(() => setToastMessage(null), 4000);
         await refreshData();
         await cleanupSyncQueue(resJson?.server_time);
       } else {
         const errText = await res.text().catch(() => '');
-        alert(`PC ?? ?? ?? (${res.status}): ${errText}`);
+        alert(`❌ PC 서버 전송 실패 (${res.status}): ${errText}`);
       }
     } catch (err: any) {
       console.warn('Fetch sync failed, trying form submit fallback:', err);
-
+      
+      // Form submit 폴백 시도 (Platform.OS === 'web')
       if (Platform.OS === 'web' && typeof document !== 'undefined') {
         try {
-          await markQueueItemsAsSynced(
-            pendingQueue.map(item => item.syncId).filter(Boolean),
-          );
+          // ★ 폼 제출 직전에도 기기 큐에 전송 완료 상태를 미리 기록
+          await markQueueAsSynced();
+
           const form = document.createElement('form');
           form.method = 'POST';
           form.action = targetUrl;
+          
           const input = document.createElement('input');
           input.type = 'hidden';
           input.name = 'payload';
-          input.value = JSON.stringify(pendingQueue);
+          input.value = JSON.stringify(syncQueue);
+          
           form.appendChild(input);
           document.body.appendChild(form);
           form.submit();
@@ -561,10 +538,11 @@ export default function InvestigationScreen() {
       }
 
       alert(
-        `PC ??(${effectiveIp}:5000) ?? ??!\n\n` +
-        '1. ???? PC? ?? Wi-Fi? ???? ??? ??????.\n' +
-        '2. PC?? server.py? ?? ??? ??????.\n' +
-        '3. PC IP? ?????? [?? IP] ???? ??????.'
+        `❌ PC 서버(${effectiveIp}:5000) 연결 실패!\n\n` +
+        `확인 사항:\n` +
+        `1. 핸드폰이 PC와 같은 와이파이(Wi-Fi)에 연결되어 있는지 확인해주세요. (LTE/5G 연결시 통신 불가)\n` +
+        `2. PC에서 서버(server.py)가 실행 중인지 확인해주세요.\n` +
+        `3. PC IP가 변경되었다면 옆의 [⚙️ IP] 버튼을 눌러 변경된 IP를 입력해주세요.`
       );
     } finally {
       setIsSyncingPC(false);
