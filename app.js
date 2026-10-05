@@ -2212,6 +2212,17 @@ async function deleteInvestigationRow() {
     const row = currentData.data[selectedInvestigationRowIndex];
     if (!row) return;
 
+    // 아직 종목명이 입력되지 않아 서버에 저장되지 않은 신규 행은
+    // 엑셀 API를 호출하지 않고 화면에서만 제거한다.
+    if (row._isNew === true && (row._realIndex === undefined || row._realIndex === null)) {
+        currentData.data.splice(selectedInvestigationRowIndex, 1);
+        selectedInvestigationRowIndex = null;
+        renderInvestigationCards(currentData.data, currentData.columns);
+        if (currentData.data.length > 0) setSelectedInvestigationRow(0);
+        showToast('저장되지 않은 신규 행을 삭제했습니다.', 'info');
+        return;
+    }
+
     const nameCol = findStockColumnName(currentData.columns);
     const stockName = String(row[nameCol] || '').replace(/~~/g, '').trim() || `번호 ${row['번호'] || ''}`.trim();
     const realIndex = row._realIndex;

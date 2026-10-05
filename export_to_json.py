@@ -11,6 +11,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 from datetime import datetime, timezone, date
 from pathlib import Path
 
@@ -56,6 +57,27 @@ EXPORT_SHEETS = {
     '실적':         'performance.json',
     '현금비중':     'cash_snapshots.json',
 }
+
+
+def write_json_atomic(path, payload, **dump_kwargs):
+    """JSON을 같은 폴더의 임시 파일에 쓴 뒤 원자적으로 교체한다."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(
+        prefix=f'.{path.name}.', suffix='.tmp', dir=str(path.parent)
+    )
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8', newline='') as f:
+            json.dump(payload, f, ensure_ascii=False, default=str, **dump_kwargs)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temp_name, path)
+    finally:
+        try:
+            if os.path.exists(temp_name):
+                os.remove(temp_name)
+        except OSError:
+            pass
 
 # 추가 내보내기: 신호 데이터 (PC에서 계산한 목표가 크로스 상태)
 # 모바일 앱이 PC와 동일한 신호를 표시하기 위해 사용
@@ -371,12 +393,18 @@ def export_all():
             app_path = APP_DATA_DIR / filename
             
             # OneDrive 폴더에 저장
-            with open(output_path, 'w', encoding='utf-8') as f:
-                json.dump(json_data, f, ensure_ascii=False, separators=(',', ':'), default=str)
+            write_json_atomic(
+                output_path,
+                json_data,
+                separators=(',', ':')
+            )
                 
             # 앱 public 폴더에도 복사 저장
-            with open(app_path, 'w', encoding='utf-8') as f:
-                json.dump(json_data, f, ensure_ascii=False, separators=(',', ':'), default=str)
+            write_json_atomic(
+                app_path,
+                json_data,
+                separators=(',', ':')
+            )
                 
             size_kb = output_path.stat().st_size / 1024
             print(f'완료! ({row_count}행, {size_kb:.1f} KB) -> {filename}')
@@ -391,12 +419,10 @@ def export_all():
             print(f'  현금 계좌 데이터 생성 중...', end=' ')
             cash_accs = export_cash_accounts(file_data, sheet_names)
             acc_path = APP_DATA_DIR / 'cash_accounts.json'
-            with open(acc_path, 'w', encoding='utf-8') as f:
-                json.dump(cash_accs, f, ensure_ascii=False, separators=(',', ':'), default=str)
+            write_json_atomic(acc_path, cash_accs, separators=(',', ':'))
             # OneDrive에도 복사
             acc_out = OUTPUT_DIR / 'cash_accounts.json'
-            with open(acc_out, 'w', encoding='utf-8') as f:
-                json.dump(acc_out_data if 'acc_out_data' in locals() else cash_accs, f, ensure_ascii=False, separators=(',', ':'), default=str)
+            write_json_atomic(acc_out, cash_accs, separators=(',', ':'))
             print(f'완료! ({len(cash_accs)}개 계좌) -> cash_accounts.json')
         except Exception as e:
             print(f'실패! 오류: {e}')
@@ -406,12 +432,10 @@ def export_all():
             print(f'  신호 데이터 생성 중...', end=' ')
             sig_data = export_investigation_signals(file_data, sheet_names)
             sig_path = APP_DATA_DIR / 'investigation_signals.json'
-            with open(sig_path, 'w', encoding='utf-8') as f:
-                json.dump(sig_data, f, ensure_ascii=False, separators=(',', ':'), default=str)
+            write_json_atomic(sig_path, sig_data, separators=(',', ':'))
             # OneDrive에도 복사
             sig_out = OUTPUT_DIR / 'investigation_signals.json'
-            with open(sig_out, 'w', encoding='utf-8') as f:
-                json.dump(sig_data, f, ensure_ascii=False, separators=(',', ':'), default=str)
+            write_json_atomic(sig_out, sig_data, separators=(',', ':'))
             print(f'완료! ({len(sig_data)}종목) -> investigation_signals.json')
         except Exception as e:
             print(f'실패!')
@@ -427,10 +451,8 @@ def export_all():
         'source_file': TARGET_FILE,
         'server_ip': get_local_ip(),
     }
-    with open(OUTPUT_DIR / 'meta.json', 'w', encoding='utf-8') as f:
-        json.dump(meta, f, ensure_ascii=False, indent=2)
-    with open(APP_DATA_DIR / 'meta.json', 'w', encoding='utf-8') as f:
-        json.dump(meta, f, ensure_ascii=False, indent=2)
+    write_json_atomic(OUTPUT_DIR / 'meta.json', meta, indent=2)
+    write_json_atomic(APP_DATA_DIR / 'meta.json', meta, indent=2)
 
     print('')
     print(f'[완료] {success_count}/{len(EXPORT_SHEETS)}개 시트 내보내기 성공')

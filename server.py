@@ -1089,7 +1089,7 @@ def save_journal():
         return jsonify({'error': f'저장 오류: {str(e)}'}), 500
 
 
-def _resolve_target_row(ws, row_index=None, stock_name="", is_new=False):
+def _resolve_target_row(ws, row_index=None, stock_name="", is_new=False, prefer_index=True):
     """엑셀 시트의 수정 대상 행을 결정합니다.
 
     기존 행은 화면이 보낸 ``_realIndex``를 가장 신뢰합니다. 화면에서
@@ -1097,6 +1097,28 @@ def _resolve_target_row(ws, row_index=None, stock_name="", is_new=False):
     우선하지 않습니다. 신규 행은 반드시 ``is_new`` 또는 음수 인덱스로
     표시하고 시트의 마지막 행 뒤에 추가합니다.
     """
+    def _normalize_name(val):
+        return str(val or '').replace('~~', '').strip().replace(' ', '').replace('\n', '')
+
+    clean_stock = _normalize_name(stock_name)
+
+    # 구형 모바일 동기화 요청은 종목명을 먼저 확인한다.
+    # PC 저장은 prefer_index=True로 실제 Excel 행 번호를 우선 사용한다.
+    if not prefer_index and clean_stock and clean_stock not in ['종목명', '종목', '신규종목', '신규종목추가']:
+        name_col_idx = None
+        for r in range(1, min(6, ws.max_row + 1)):
+            for c in range(1, ws.max_column + 1):
+                header = str(ws.cell(row=r, column=c).value or '').strip()
+                if header in ['종목명', '종목', 'Unnamed: 1', 'stock']:
+                    name_col_idx = c
+                    break
+            if name_col_idx:
+                break
+        name_col_idx = name_col_idx or 2
+        for r in range(1, ws.max_row + 1):
+            if _normalize_name(ws.cell(row=r, column=name_col_idx).value) == clean_stock:
+                return r
+
     try:
         parsed_index = int(row_index) if row_index is not None else None
     except (TypeError, ValueError):
@@ -1112,11 +1134,12 @@ def _resolve_target_row(ws, row_index=None, stock_name="", is_new=False):
     if target_r >= 2 and target_r <= ws.max_row:
         return target_r
 
-    # 이전 클라이언트가 잘못된 행 번호를 보낸 경우에만 이름을 보조 검색한다.
-    def _normalize_name(val):
-        return str(val or '').replace('~~', '').strip().replace(' ', '').replace('\n', '')
+    # 구형 모바일 신규 행은 잘못 계산된 rowIndex가 기존 종목을 가리킬 수 있다.
+    if not prefer_index and clean_stock and target_r <= ws.max_row:
+        existing_stock = _normalize_name(ws.cell(row=target_r, column=2).value)
+        if existing_stock and existing_stock != clean_stock:
+            return max(ws.max_row + 1, 2)
 
-    clean_stock = _normalize_name(stock_name)
     if clean_stock and clean_stock not in ['종목명', '종목', '신규종목', '신규종목추가']:
         for r in range(1, ws.max_row + 1):
             for c in range(1, min(ws.max_column, 5) + 1):
@@ -1307,9 +1330,11 @@ def sync_receive():
             try:
                 for edit in file_edits:
                     sheet_name = edit.get('sheet')
-                    row_index = int(edit.get('rowIndex', 0))
+                    raw_row_index = edit.get('rowIndex')
+                    row_index = int(raw_row_index) if raw_row_index not in (None, '') else None
                     values = edit.get('values', [])
-                    stock_name = edit.get('stockName', '').strip()
+                    stock_name = str(edit.get('stockName') or '').strip()
+                    is_new = bool(edit.get('isNew', False)) or (row_index is not None and row_index < 0)
                     if not stock_name and len(values) > 1:
                         stock_name = str(values[1] or '').strip()
 
@@ -1317,7 +1342,9 @@ def sync_receive():
                         continue
 
                     ws = wb[sheet_name]
-                    target_row = _resolve_target_row(ws, row_index, stock_name)
+                    target_row = _resolve_target_row(
+                        ws, row_index, stock_name, is_new=is_new, prefer_index=False
+                    )
 
                     for col_idx, value in enumerate(values, start=1):
                         cell = ws.cell(row=target_row, column=col_idx)
