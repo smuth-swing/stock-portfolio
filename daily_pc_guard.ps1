@@ -9,8 +9,15 @@ $BackupDir = Join-Path $BackupRoot 'DailyMirror'
 $LogDir = Join-Path $BackupRoot 'maintenance'
 $LogFile = Join-Path $LogDir 'daily_pc_guard.log'
 $ReportFile = Join-Path $ProjectDir 'daily_pc_guard_latest.json'
+$RunDate = Get-Date -Format 'yyyy-MM-dd'
+$SuccessMarker = Join-Path $LogDir "success_$RunDate.marker"
 
 New-Item -ItemType Directory -Path $BackupDir,$LogDir -Force | Out-Null
+
+if (Test-Path -LiteralPath $SuccessMarker) {
+    Write-GuardLog "Already completed for $RunDate; skipping duplicate run."
+    exit 0
+}
 
 function Write-GuardLog {
     param([string]$Message)
@@ -105,23 +112,38 @@ foreach ($logName in @('server_health.log','resume_log.txt','upload_log.txt','re
     }
 }
 
+$backupAllOk = $true
 if ((Test-Path -LiteralPath $OneDriveDir) -and (Test-Path -LiteralPath 'F:\')) {
     foreach ($pair in @(
         @{ Source=$OneDriveDir; Destination=(Join-Path $BackupDir 'OneDrive') },
         @{ Source=$ProjectDir; Destination=(Join-Path $BackupDir 'PortfolioProject') }
     )) {
         Write-GuardLog "Backup start: $($pair.Source)"
-        & robocopy.exe $pair.Source $pair.Destination /E /XO /FFT /Z /R:2 /W:5 /COPY:DAT /DCOPY:DAT /XJ /NP /NFL /NDL /LOG+:$LogFile | Out-Null
+        $roboArgs = @($pair.Source,$pair.Destination,'/E','/XO','/FFT','/Z','/R:2','/W:5','/COPY:DAT','/DCOPY:DAT','/XJ','/NP','/NFL','/NDL','/LOG+:$LogFile')
+        if ($pair.Source -eq $OneDriveDir) {
+            $lockedMarker = Get-ChildItem -LiteralPath $OneDriveDir -Force -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^\.[0-9A-F-]{20,}$' } | Select-Object -First 1
+            if ($lockedMarker) {
+                $roboArgs += @('/XF',$lockedMarker.FullName)
+                Write-GuardLog "Excluded OneDrive internal marker: $($lockedMarker.Name)"
+            }
+        }
+        & robocopy.exe @roboArgs | Out-Null
         $code = $LASTEXITCODE
         $ok = $code -le 7
         $result.backup += [ordered]@{ source=$pair.Source; destination=$pair.Destination; robocopyCode=$code; ok=$ok }
         if ($ok) { Write-GuardLog "Backup done: code $code" } else { Write-GuardLog "ERROR: backup failed with code $code" }
+        if (-not $ok) { $backupAllOk = $false }
     }
 } else {
     Write-GuardLog 'WARN: OneDrive or F drive is unavailable; backup skipped.'
     $result.backup += [ordered]@{ ok=$false; error='OneDrive or F drive unavailable' }
+    $backupAllOk = $false
 }
 
 $result | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $ReportFile -Encoding UTF8
 Write-GuardLog "Report written: $ReportFile"
+if ($backupAllOk) {
+    Set-Content -LiteralPath $SuccessMarker -Value (Get-Date -Format o) -Encoding UTF8
+    Write-GuardLog "Success marker written: $SuccessMarker"
+}
 Write-GuardLog '===== Daily PC guard done ====='

@@ -1,0 +1,56 @@
+
+-------------------------------------------------------------------------------
+   ROBOCOPY     ::     Robust File Copy for Windows                              
+-------------------------------------------------------------------------------
+
+  Started : 2026 10 5   11:31:41
+   Source : C:\Users\zerod\OneDrive\
+     Dest : F:\Windows11_Backup_2026-10-05\DailyMirror\OneDrive\
+
+    Files : *.*
+	    
+Exc Files : C:\Users\zerod\OneDrive\.849C9593-D756-4E56-8D6E-42412F2A707B
+	    
+  Options : *.* /FFT /NDL /NFL /S /E /DCOPY:DAT /COPY:DAT /Z /NP /XO /XJ /R:2 /W:5 
+
+------------------------------------------------------------------------------
+
+
+------------------------------------------------------------------------------
+
+               Total    Copied   Skipped  Mismatch    FAILED    Extras
+    Dirs :       259         0       259         0         0         0
+   Files :       723         0       723         0         0         0
+   Bytes :   1.922 g         0   1.922 g         0         0         0
+   Times :   0:00:00   0:00:00                       0:00:00   0:00:00
+   Ended : 2026 10 5   11:31:41
+
+
+-------------------------------------------------------------------------------
+   ROBOCOPY     ::     Robust File Copy for Windows                              
+-------------------------------------------------------------------------------
+
+  Started : 2026 10 5   11:31:41
+   Source : C:\Users\zerod\.antigravity\주식 포트폴리오 관리\
+     Dest : F:\Windows11_Backup_2026-10-05\DailyMirror\PortfolioProject\
+
+    Files : *.*
+	    
+  Options : *.* /FFT /NDL /NFL /S /E /DCOPY:DAT /COPY:DAT /Z /NP /XO /XJ /R:2 /W:5 
+
+------------------------------------------------------------------------------
+
+
+------------------------------------------------------------------------------
+
+               Total    Copied   Skipped  Mismatch    FAILED    Extras
+    Dirs :      6992         0      6992         0         0         0
+   Files :     51551        33     51518         0         0         1
+   Bytes :  572.27 m    1.17 m  571.10 m         0         0         5
+   Times :   0:00:15   0:00:00                       0:00:00   0:00:15
+
+
+   Speed :           33,175,567 Bytes/sec.
+   Speed :            1,898.321 MegaBytes/min.
+   Ended : 2026 10 5   11:31:56
+
