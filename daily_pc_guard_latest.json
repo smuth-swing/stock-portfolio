@@ -1,18 +1,18 @@
 ﻿{
-    "timestamp":  "2026-10-05T11:31:38.1778170+09:00",
+    "timestamp":  "2026-10-11T13:02:48.6486690+09:00",
     "computer":  "DESKTOP-G7F107R",
     "os":  {
                "product":  "Windows 10 Pro",
-               "displayVersion":  "25H2",
-               "build":  "26200",
+               "displayVersion":  "26H2",
+               "build":  "26300",
                "ubr":  9550
            },
     "storage":  {
                     "C":  {
                               "health":  "Healthy",
-                              "freeGB":  106,
+                              "freeGB":  107.2,
                               "totalGB":  237.5,
-                              "freePercent":  44.6
+                              "freePercent":  45.1
                           },
                     "F":  {
                               "health":  "Healthy",
@@ -22,33 +22,38 @@
                           }
                 },
     "performance":  {
-                        "cpuPercent":  13.3,
-                        "availableMemoryMB":  6081
+                        "cpuPercent":  14.4,
+                        "availableMemoryMB":  8036
                     },
     "services":  [
                      {
                          "url":  "http://127.0.0.1:5000/",
                          "ok":  true,
                          "status":  200,
-                         "ms":  43.3
+                         "ms":  1474.2
                      },
                      {
                          "url":  "http://127.0.0.1:5000/api/onedrive-status",
                          "ok":  true,
                          "status":  200,
-                         "ms":  10.9
+                         "ms":  12.6
                      },
                      {
                          "url":  "http://127.0.0.1:8000/",
                          "ok":  true,
                          "status":  200,
-                         "ms":  10.1
+                         "ms":  57.4
                      }
                  ],
     "startup":  [
                     {
                         "name":  "GoFullPageWatcher.lnk",
                         "target":  "C:\\Users\\zerod\\.antigravity\\test\\run_main.bat",
+                        "targetExists":  true
+                    },
+                    {
+                        "name":  "StockPortfolioDailyGuard.lnk",
+                        "target":  "C:\\Windows\\System32\\wscript.exe",
                         "targetExists":  true
                     },
                     {
@@ -60,30 +65,30 @@
     "logs":  [
                  {
                      "name":  "server_health.log",
-                     "sizeMB":  0.1,
-                     "lastWrite":  "2026-10-05T10:55:19.7530710+09:00"
+                     "sizeMB":  0.2,
+                     "lastWrite":  "2026-10-10T22:55:20.0600509+09:00"
                  },
                  {
                      "name":  "resume_log.txt",
                      "sizeMB":  0.1,
-                     "lastWrite":  "2026-10-05T10:54:49.3548101+09:00"
+                     "lastWrite":  "2026-10-11T13:01:15.1924764+09:00"
                  },
                  {
                      "name":  "upload_log.txt",
-                     "sizeMB":  0.1,
-                     "lastWrite":  "2026-10-05T11:28:32.3617712+09:00"
+                     "sizeMB":  0.3,
+                     "lastWrite":  "2026-10-11T13:01:08.0039992+09:00"
                  },
                  {
                      "name":  "restart_log.txt",
                      "sizeMB":  0.1,
-                     "lastWrite":  "2026-10-05T09:09:17.8119111+09:00"
+                     "lastWrite":  "2026-10-10T21:10:18.9409489+09:00"
                  }
              ],
     "backup":  [
                    {
                        "source":  "C:\\Users\\zerod\\OneDrive",
                        "destination":  "F:\\Windows11_Backup_2026-10-05\\DailyMirror\\OneDrive",
-                       "robocopyCode":  0,
+                       "robocopyCode":  1,
                        "ok":  true
                    },
                    {

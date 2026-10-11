@@ -36,3 +36,7 @@ updateChart.txt
 
 # Local AI credentials (never commit)
 secrets/
+
+# System files
+\$LogFile
+

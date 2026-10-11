@@ -191,6 +191,21 @@ def run_git_upload():
             log.error(f"락 파일 시간 확인 및 삭제 중 오류 발생: {e}")
             return False
 
+    # Git index.lock 방어 로직 (비정상 종료로 남은 잔여 락 자동 정리)
+    git_lock_file = os.path.join(PROJECT_DIR, ".git", "index.lock")
+    if os.path.exists(git_lock_file):
+        try:
+            mtime = os.path.getmtime(git_lock_file)
+            if time.time() - mtime > 60:  # 1분 초과 방치 락
+                log.warning("방치된 Git 락 파일(.git/index.lock, 1분 초과) 감지. 강제 삭제합니다.")
+                os.remove(git_lock_file)
+            else:
+                log.warning("Git 작업이 진행 중입니다 (.git/index.lock). 잠시 후 재시도합니다.")
+                return False
+        except Exception as e:
+            log.error(f".git/index.lock 처리 중 오류 발생: {e}")
+            return False
+
     _is_uploading = True
     
     try:
@@ -258,20 +273,36 @@ def run_git_upload():
         else:
             log.error(f"   소스 디렉토리 없음: {src}")
 
+        # Git index.lock 재확인
+        if os.path.exists(git_lock_file):
+            try:
+                if time.time() - os.path.getmtime(git_lock_file) > 60:
+                    os.remove(git_lock_file)
+            except Exception:
+                pass
+
         # 3단계: git add
         log.info("3. Git 스테이징 중...")
-        run_no_window(["git", "add", "."], cwd=PROJECT_DIR)
+        add_result = run_no_window(["git", "add", "."], cwd=PROJECT_DIR)
+        if add_result.returncode != 0:
+            log.error(f"   Git 스테이징 실패: {add_result.stderr[:300]}")
+            return False
 
         # 4단계: git commit
         log.info("4. Git 커밋 중...")
         commit_msg = f"Auto update data {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-        result = run_no_window(
+        commit_result = run_no_window(
             ["git", "commit", "-m", commit_msg],
             cwd=PROJECT_DIR,
         )
-        if result.returncode != 0 and "nothing to commit" in result.stdout:
-            log.info("   변경사항 없음, 커밋 건너뜀")
-            return True
+        if commit_result.returncode != 0:
+            combined = (commit_result.stdout + " " + commit_result.stderr).lower()
+            if "nothing to commit" in combined:
+                log.info("   변경사항 없음, 커밋 건너뜀")
+                return True
+            else:
+                log.error(f"   Git 커밋 실패: {(commit_result.stderr or commit_result.stdout)[:300]}")
+                return False
 
         # 5단계: git push (main)
         log.info("5. GitHub push (main) 중...")
