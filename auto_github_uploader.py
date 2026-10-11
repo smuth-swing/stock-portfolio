@@ -166,6 +166,7 @@ def run_no_window(cmd, **kwargs):
         capture_output=True,
         text=True,
         encoding="utf-8",
+        errors="replace",
         **kwargs
     )
 
