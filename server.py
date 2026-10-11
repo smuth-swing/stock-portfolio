@@ -314,7 +314,7 @@ GEMINI_KEY_FILE = os.path.join(
 
 
 def _read_gemini_api_key():
-    env_key = str(os.environ.get('GEMINI_API_KEY') or '').strip()
+    env_key = str(os.environ.get('GEMINI_API_KEY') or '').strip('\ufeff \r\n\t')
     if env_key:
         return env_key
 
@@ -327,8 +327,8 @@ def _read_gemini_api_key():
     for key_file in candidates:
         try:
             if os.path.isfile(key_file):
-                with open(key_file, 'r', encoding='utf-8') as f:
-                    key = f.read().strip()
+                with open(key_file, 'r', encoding='utf-8-sig') as f:
+                    key = f.read().strip('\ufeff \r\n\t')
                 if key:
                     return key
         except Exception as e:
@@ -337,40 +337,90 @@ def _read_gemini_api_key():
 
 
 def _review_value(value):
+    """비교 및 검토를 위한 값 정규화 (날짜, 숫자, 줄바꿈, 공백 통일)"""
     if value is None:
         return ''
+    from datetime import date, datetime
+    if isinstance(value, (datetime, date)):
+        return value.strftime('%Y-%m-%d')
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
-    return str(value).replace('\r\n', '\n').replace('\r', '\n').strip()
+    s = str(value).replace('\r\n', '\n').replace('\r', '\n').strip()
+    if s.lower() in ('none', 'nan', 'null'):
+        return ''
+    return s
 
 
 def _same_review_value(left, right):
-    return _review_value(left) == _review_value(right)
+    """Excel 셀 값과 모바일 JSON 값 간의 서식 차이를 보정하여 동일성 비교"""
+    l_str = _review_value(left)
+    r_str = _review_value(right)
+    if l_str == r_str:
+        return True
+
+    # 1. 숫자 비교 (예: "7,500" vs "7500" vs 7500)
+    try:
+        l_num = float(l_str.replace(',', ''))
+        r_num = float(r_str.replace(',', ''))
+        if l_num == r_num:
+            return True
+    except (ValueError, TypeError):
+        pass
+
+    # 2. 날짜 시간 비교 (예: "2029-03-01 00:00:00" vs "2029-03-01")
+    if len(l_str) >= 10 and len(r_str) >= 10:
+        if l_str[:10] == r_str[:10]:
+            if (l_str.endswith(' 00:00:00') or r_str.endswith(' 00:00:00') or
+                len(l_str) == 10 or len(r_str) == 10):
+                return True
+
+    return False
 
 
 def _deterministic_merge(base_values, server_values, mobile_values):
-    """Merge non-overlapping mobile changes without requiring AI."""
-    if not isinstance(base_values, list):
-        return None, list(range(max(len(server_values), len(mobile_values)))), 'base_missing'
-    if len(base_values) != len(mobile_values) or len(server_values) != len(mobile_values):
-        return None, list(range(len(mobile_values))), 'shape_mismatch'
+    """서버와 모바일의 변경 사항을 비충돌 우선으로 결정론적 병합"""
+    if not isinstance(mobile_values, list):
+        mobile_values = []
+    if not isinstance(server_values, list):
+        server_values = []
+
+    # base_values가 없거나 불일치할 경우 모바일 제안값을 우선 병합
+    if not isinstance(base_values, list) or len(base_values) != len(mobile_values):
+        merged = []
+        conflicts = []
+        for i, m_val in enumerate(mobile_values):
+            s_val = server_values[i] if i < len(server_values) else ''
+            if not _same_review_value(m_val, s_val):
+                merged.append(m_val)
+            else:
+                merged.append(s_val)
+        return merged, conflicts, None
 
     merged = []
     conflicts = []
     for i, mobile_value in enumerate(mobile_values):
-        base_value = base_values[i]
-        server_value = server_values[i]
+        base_value = base_values[i] if i < len(base_values) else ''
+        server_value = server_values[i] if i < len(server_values) else ''
         mobile_changed = not _same_review_value(mobile_value, base_value)
         server_changed = not _same_review_value(server_value, base_value)
 
         if mobile_changed and not server_changed:
+            # 모바일에서만 수정된 경우: 모바일 값 채택
             merged.append(mobile_value)
-        else:
-            # Keep the verified server value when there is no mobile-only change.
+        elif not mobile_changed and server_changed:
+            # 서버에서만 수정된 경우: 서버 최신값 유지
             merged.append(server_value)
-
-        if mobile_changed and server_changed and not _same_review_value(mobile_value, server_value):
-            conflicts.append(i)
+        elif mobile_changed and server_changed:
+            if _same_review_value(mobile_value, server_value):
+                # 양쪽이 동일한 내용으로 수정된 경우
+                merged.append(server_value)
+            else:
+                # 양쪽이 서로 다르게 수정한 경우: 충돌 감지
+                merged.append(mobile_value)
+                conflicts.append(i)
+        else:
+            # 양쪽 모두 변경 없음: 서버 값 유지
+            merged.append(server_value)
 
     return merged, conflicts, None
 
@@ -490,7 +540,7 @@ def _review_mobile_edit(columns, base_values, server_values, mobile_values, is_n
             'values': mobile_values,
             'review_mode': 'new_row',
             'conflict_fields': [],
-            'reason': 'new row saved from the mobile proposal',
+            'reason': '신규 행으로 모바일 데이터를 저장했습니다.',
         }
     merged, conflicts, merge_error = _deterministic_merge(
         base_values, server_values, mobile_values
@@ -504,6 +554,7 @@ def _review_mobile_edit(columns, base_values, server_values, mobile_values, is_n
             'reason': '서버 변경과 겹치지 않는 모바일 변경을 병합했습니다.',
         }
 
+    # 충돌이 발생한 경우에만 AI 검토 호출
     ai_result, ai_error = _call_gemini_review(
         columns, base_values, server_values, mobile_values, conflicts
     )
@@ -511,12 +562,13 @@ def _review_mobile_edit(columns, base_values, server_values, mobile_values, is_n
         decision = str(ai_result.get('decision') or '').strip()
         final_values = ai_result.get('final_values')
         if decision == 'needs_review':
+            # AI가 검토 필요로 판단한 경우라도, 사용자가 모바일에서 보낸 값을 저장하여 유실 방지
             return {
-                'status': 'needs_review',
-                'values': None,
-                'review_mode': 'gemini',
+                'status': 'saved',
+                'values': merged or mobile_values,
+                'review_mode': 'gemini_needs_review',
                 'conflict_fields': ai_result.get('conflict_fields') or [],
-                'reason': str(ai_result.get('reason') or 'AI 검토 결과 확인이 필요합니다.'),
+                'reason': str(ai_result.get('reason') or 'AI 검토 결과 확인이 필요하나 모바일 수정값을 저장했습니다.'),
             }
         if decision in ('approve_mobile', 'approve_server', 'merge'):
             if decision == 'approve_mobile':
@@ -533,21 +585,15 @@ def _review_mobile_edit(columns, base_values, server_values, mobile_values, is_n
                     'reason': str(ai_result.get('reason') or 'Gemini 검토 결과를 저장했습니다.'),
                 }
 
-    # AI is an enhancement, not a storage gate. If it is unavailable or its
-    # response is unusable, keep the latest verified server value for conflicts
-    # and still save mobile-only changes. This prevents stale mobile snapshots
-    # from overwriting newer PC edits.
-    fallback_values = list(server_values)
-    if merged is not None:
-        for i, value in enumerate(merged):
-            if i not in conflicts:
-                fallback_values[i] = value
+    # AI 검토가 불가능하거나 실패한 경우:
+    # 사용자가 모바일에서 보낸 수정사항이 날아가지 않도록 모바일 수정값을 우선 저장!
+    fallback_values = list(merged) if merged is not None else list(mobile_values)
     return {
         'status': 'saved',
         'values': fallback_values,
-        'review_mode': 'fallback_server_latest',
+        'review_mode': 'fallback_mobile_priority',
         'conflict_fields': [columns[i] if i < len(columns) else f'column_{i + 1}' for i in conflicts],
-        'reason': f'Gemini 검토 불가({ai_error or merge_error}); PC 최신값을 우선 저장했습니다.',
+        'reason': f'Gemini 검토 불가({ai_error or merge_error}); 모바일 수정값을 안전하게 저장했습니다.',
     }
 
 def trigger_export():
