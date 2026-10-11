@@ -523,20 +523,20 @@ export default function InvestigationScreen() {
         }
 
         const reviewPending = results.filter((item: any) => item.status === 'needs_review').length;
-        const fallbackSaved = results.filter((item: any) => item.review_mode === 'fallback_server_latest').length;
+        const fallbackSaved = results.filter((item: any) => item.review_mode === 'fallback_mobile_priority' || item.review_mode === 'fallback_server_latest').length;
         if (reviewPending > 0) {
-          setToastMessage(`AI ??? ??? ?? ${reviewPending}?? ?? ??? ?????.`);
+          setToastMessage(`AI 검토 결과 확인이 필요한 항목 ${reviewPending}건이 있습니다.`);
         } else if (fallbackSaved > 0) {
-          setToastMessage(`Gemini ??? ???? PC ???? ??? ${fallbackSaved}?? ??????.`);
+          setToastMessage(`모바일 수정 내용(${fallbackSaved}건)이 PC 엑셀에 안전하게 반영되었습니다.`);
         } else {
-          setToastMessage(`PC ??(${effectiveIp})? ?? ? ??????.`);
+          setToastMessage(`PC 서버(${effectiveIp})에 정상 반영되었습니다.`);
         }
         setTimeout(() => setToastMessage(null), 5000);
         await refreshData();
         await cleanupSyncQueue(resJson?.server_time);
       } else {
         const errText = await res.text().catch(() => '');
-        alert(`PC ?? ?? ?? (${res.status}): ${errText}`);
+        alert(`PC 서버 동기화 실패 (${res.status}): ${errText}`);
       }
     } catch (err: any) {
       console.warn('Fetch sync failed, trying form submit fallback:', err);

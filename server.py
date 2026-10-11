@@ -314,12 +314,7 @@ GEMINI_KEY_FILE = os.path.join(
 
 
 def _read_gemini_api_key():
-    env_key = str(os.environ.get('GEMINI_API_KEY') or '').strip('\ufeff \r\n\t')
-    if env_key:
-        return env_key
-
-    # Keep a repository-local fallback for manual development only. The normal
-    # production location is outside the repository under LOCALAPPDATA.
+    # 1. 전용 키 파일 우선 확인 (시스템 환경변수 오염 방지)
     candidates = [
         GEMINI_KEY_FILE,
         os.path.join(BASE_DIR, 'secrets', 'gemini_api_key.txt'),
@@ -329,10 +324,16 @@ def _read_gemini_api_key():
             if os.path.isfile(key_file):
                 with open(key_file, 'r', encoding='utf-8-sig') as f:
                     key = f.read().strip('\ufeff \r\n\t')
-                if key:
+                if key and not key.startswith('sk-'):
                     return key
         except Exception as e:
             print(f'[GEMINI] API key read failed: {e}')
+
+    # 2. 환경변수 fallback (sk-로 시작하는 OpenAI/DeepSeek 키 제외)
+    env_key = str(os.environ.get('GEMINI_API_KEY') or '').strip('\ufeff \r\n\t')
+    if env_key and not env_key.startswith('sk-'):
+        return env_key
+
     return ''
 
 
@@ -662,6 +663,17 @@ def trigger_export_and_push_sync():
                 os.remove(lock_file)
         except Exception as e:
             print(f"[SYNC-PUSH] 오래된 락 파일 제거 중 오류 발생: {e}")
+
+    # 방치된 Git index.lock 파일(1분 초과) 자동 삭제 처리
+    git_index_lock = os.path.join(BASE_DIR, ".git", "index.lock")
+    if os.path.exists(git_index_lock):
+        try:
+            if time.time() - os.path.getmtime(git_index_lock) > 60:
+                print("[SYNC-PUSH] ⚠️ 방치된 .git/index.lock 감지 (1분 초과). 강제 삭제합니다.")
+                os.remove(git_index_lock)
+        except Exception as e:
+            print(f"[SYNC-PUSH] .git/index.lock 제거 오류: {e}")
+
             
     # 1. 락 획득 시도 (최대 15초 대기)
     for i in range(15):
