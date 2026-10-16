@@ -339,14 +339,14 @@ export default function PortfolioScreen() {
     const maxCash = Math.max(...list.map((s: any) => Number(s.cash) || 0), 10);
     const maxRatio = Math.max(...list.map((s: any) => Number(s.ratio) || 0), 100);
 
-    // SVG 차트 좌표 및 레이아웃 스펙 (모바일 화면에 맞춰 현금액 막대를 시원하고 크게 표현)
+    // SVG 차트 좌표 및 레이아웃 스펙 (모바일 화면에 맞춰 길고 슬림하게 표현)
     const ITEM_WIDTH = Math.max(75, (CHART_PAGE_WIDTH - 24) / Math.max(list.length, 1));
     const SVG_WIDTH = Math.max(CHART_PAGE_WIDTH - 24, list.length * ITEM_WIDTH);
     const SVG_HEIGHT = 240;
     const TOP_PADDING = 34;
     const BOTTOM_PADDING = 36;
     const PLOT_HEIGHT = SVG_HEIGHT - TOP_PADDING - BOTTOM_PADDING;
-    const BAR_WIDTH = Math.min(38, Math.max(30, ITEM_WIDTH * 0.44));
+    const BAR_WIDTH = 16; // 슬림하고 날렵한 막대 너비
 
     // 각 월별 점(X, Y) 좌표 계산
     const points = list.map((item: any, idx: number) => {
@@ -356,7 +356,7 @@ export default function PortfolioScreen() {
       // Y 좌표: ratio 0% -> PLOT_HEIGHT + TOP_PADDING, ratio maxRatio% -> TOP_PADDING
       const ratioNorm = maxRatio > 0 ? ratio / maxRatio : 0;
       const y = TOP_PADDING + PLOT_HEIGHT * (1 - ratioNorm * 0.85);
-      // 현금액(M) 막대 높이 및 Y (기존 45% -> 82%로 대폭 확대하여 눈에 잘 띄도록 표시)
+      // 현금액(M) 막대 높이 및 Y (높이는 82%로 길고 시원하게 유지)
       const cashNorm = maxCash > 0 ? cash / maxCash : 0;
       const barHeight = Math.max(8, PLOT_HEIGHT * cashNorm * 0.82);
       const barY = TOP_PADDING + PLOT_HEIGHT - barHeight;
@@ -387,7 +387,7 @@ export default function PortfolioScreen() {
             <Text style={{ color: '#22C55E', fontSize: 12, fontWeight: 'bold' }}>현금 비중 (%)</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: 'rgba(245,158,11,0.7)', borderWidth: 1, borderColor: '#F59E0B' }} />
+            <View style={{ width: 8, height: 10, borderRadius: 2, backgroundColor: 'rgba(245,158,11,0.7)', borderWidth: 1, borderColor: '#F59E0B' }} />
             <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: 'bold' }}>보유 현금액 (M)</Text>
           </View>
         </View>
@@ -405,8 +405,8 @@ export default function PortfolioScreen() {
                   </SvgLinearGradient>
                   {/* 현금액 막대 골드 그라데이션 */}
                   <SvgLinearGradient id="cashBarGrad" x1="0" y1="0" x2="0" y2="1">
-                    <Stop offset="0" stopColor="#F59E0B" stopOpacity="0.7" />
-                    <Stop offset="1" stopColor="#D97706" stopOpacity="0.25" />
+                    <Stop offset="0" stopColor="#F59E0B" stopOpacity="0.75" />
+                    <Stop offset="1" stopColor="#D97706" stopOpacity="0.3" />
                   </SvgLinearGradient>
                 </Defs>
 
@@ -427,7 +427,7 @@ export default function PortfolioScreen() {
                   );
                 })}
 
-                {/* 1. 하단 보유 현금액(M) 막대 그래프 (더 크고 또렷하게 표현) */}
+                {/* 1. 하단 보유 현금액(M) 막대 그래프 (슬림하고 세련된 바) */}
                 {points.map((pt: any, idx: number) => (
                   <React.Fragment key={`bar-${idx}`}>
                     <Rect
@@ -437,15 +437,15 @@ export default function PortfolioScreen() {
                       height={pt.barHeight}
                       fill="url(#cashBarGrad)"
                       stroke="#F59E0B"
-                      strokeWidth="1.5"
-                      rx="5"
+                      strokeWidth="1"
+                      rx="3.5"
                     />
                     {/* 현금액 M 수치 라벨 */}
                     <SvgText
                       x={pt.x}
                       y={pt.barY - 5}
                       fill="#FDE68A"
-                      fontSize="10.5"
+                      fontSize="10"
                       fontWeight="bold"
                       textAnchor="middle"
                     >
