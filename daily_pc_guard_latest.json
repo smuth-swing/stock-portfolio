@@ -1,5 +1,5 @@
 ﻿{
-    "timestamp":  "2026-10-21T21:45:31.0764009+09:00",
+    "timestamp":  "2026-10-23T15:05:37.9406256+09:00",
     "computer":  "DESKTOP-G7F107R",
     "os":  {
                "product":  "Windows 10 Pro",
@@ -10,9 +10,9 @@
     "storage":  {
                     "C":  {
                               "health":  "Healthy",
-                              "freeGB":  101.3,
+                              "freeGB":  100.4,
                               "totalGB":  237.5,
-                              "freePercent":  42.7
+                              "freePercent":  42.3
                           },
                     "F":  {
                               "health":  "Healthy",
@@ -22,28 +22,28 @@
                           }
                 },
     "performance":  {
-                        "cpuPercent":  17.2,
-                        "availableMemoryMB":  6674
+                        "cpuPercent":  65.9,
+                        "availableMemoryMB":  6506
                     },
     "services":  [
                      {
                          "url":  "http://127.0.0.1:5000/",
                          "ok":  false,
                          "status":  null,
-                         "ms":  23668.8,
+                         "ms":  19612.5,
                          "error":  "작업 시간을 초과했습니다."
                      },
                      {
                          "url":  "http://127.0.0.1:5000/api/onedrive-status",
                          "ok":  true,
                          "status":  200,
-                         "ms":  946
+                         "ms":  1711.8
                      },
                      {
                          "url":  "http://127.0.0.1:8000/",
                          "ok":  true,
                          "status":  200,
-                         "ms":  139.7
+                         "ms":  256.9
                      }
                  ],
     "startup":  [
@@ -67,17 +67,17 @@
                  {
                      "name":  "server_health.log",
                      "sizeMB":  0.2,
-                     "lastWrite":  "2026-10-21T21:42:19.9702385+09:00"
+                     "lastWrite":  "2026-10-21T22:55:20.2177586+09:00"
                  },
                  {
                      "name":  "resume_log.txt",
                      "sizeMB":  0.1,
-                     "lastWrite":  "2026-10-21T21:39:58.1244106+09:00"
+                     "lastWrite":  "2026-10-23T15:02:14.0894972+09:00"
                  },
                  {
                      "name":  "upload_log.txt",
                      "sizeMB":  0.4,
-                     "lastWrite":  "2026-10-21T21:42:29.8028590+09:00"
+                     "lastWrite":  "2026-10-23T15:02:13.2765313+09:00"
                  },
                  {
                      "name":  "restart_log.txt",
