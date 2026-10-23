@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 Format: `## YYYY-MM-DD — Summary`
 
+## 2026-10-23 — 모바일 앱 현금 비중 PC 일치화 수정 (웹 빌드 재배포)
+
+### Problem / Motivation
+PC 화면(35.6%)과 모바일(핸드폰) 화면(27.4%)의 현금 비중 수치가 다르게 표시되는 현상 발생.
+- 원인: 모바일 앱(`PortfolioScreen.tsx`)에서 엑셀 및 서버로부터 정상 동기화된 `cashSnapshots`의 공식 데이터(35.6%)가 이미 존재함에도 불구하고, `liveCash`(= 현금계좌 합계 - 당월 매매일지 순투자)를 계산하여 공식 스냅샷 데이터를 임의로 덮어쓰고 있었음.
+- 또한 현금계좌(`_계좌정보`)의 잔액은 이미 주식 매수 후의 실제 잔액이므로 매매일지 매수 금액을 또 차감하는 것은 이중 차감 왜곡을 일으킴.
+
+### Changes
+- **StockPortfolioApp/src/screens/PortfolioScreen.tsx**:
+  - `activeSnapshots`: 엑셀/서버의 정규 스냅샷(`cashSnapshots`) 데이터가 존재할 경우 PC와 100% 동일하게 공식 스냅샷을 우선 유지하도록 수정
+  - 해당 월의 스냅샷이 아직 저장되지 않은 경우에만 현재 계좌 합계(`cashAccounts`)를 기반으로 임시 보완
+  - 불필요해진 `journalDelta` 및 매매일지 필드 임포트 제거
+- **StockPortfolioApp/public/sw.js**, **mobile/sw.js**: SW 캐시 버전 `v21` → `v22`로 증가하여 모바일 기기에서 새 번들 즉시 갱신
+- Expo 웹 번들 재빌드(`npx expo export -p web`) 및 `copy_dist_to_mobile.py`로 `mobile/` 디렉터리에 반영
+
+### Verification
+- `activeSnapshots`에서 2026-10월 정규 스냅샷(투자금 284M, 현금 157M, 총자산 441M, 현금 비중 35.6%) 정상 유지 확인
+- 번들 빌드 및 로컬 서버 모바일 엔드포인트 응답(200 OK) 확인
+
 ---
 
 ## 2026-09-10 — 이번달 투자 금액 자동 계산 (매매일지 기준)
