@@ -140,11 +140,11 @@ def export_investigation_signals(file_data, sheet_names):
             if date_match and date_match.group(1) <= today_str:
                 has_date_signal = True
             
-            # 목표가 신호: 모바일은 실시간 가격 조회 불가 → 매수 목표가 이하인지 판정
+            # 목표가 신호: 매수 목표가 이하인지 판정 (모든 종목 대상)
             has_price_signal = False
-            if stock_name == '아이센스' and target_price > 0:
-                current_p = ma_prices.get(stock_name, 0)
-                if current_p and current_p <= target_price:
+            current_p = ma_prices.get(stock_name, 0)
+            if target_price > 0 and current_p > 0:
+                if current_p <= target_price:
                     has_price_signal = True
             
             signals[stock_name] = {
@@ -152,6 +152,7 @@ def export_investigation_signals(file_data, sheet_names):
                 'hasPriceSignal': has_price_signal,
                 'targetDate': target_date,
                 'targetPrice': target_price,
+                'currentPrice': current_p,
             }
     except Exception as e:
         print(f'  [경고] 신호 데이터 생성 실패: {e}')

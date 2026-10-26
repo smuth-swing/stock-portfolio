@@ -1,1261 +1,1422 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, TextInput, LayoutAnimation, Platform, UIManager, Modal } from 'react-native';
-import { useDataStore } from '../store/useDataStore';
-import { LinearGradient } from 'expo-linear-gradient';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
-// ─────────────────────────────────────────────
-// 헬퍼 함수: 컴포넌트 외부에 정의하여 매 렌더링 시 재생성 방지
-// ─────────────────────────────────────────────
-const getStockName = (item: any) => item['종목명'] || item['Unnamed: 1'] || '';
-const getQuestion  = (item: any) => item['질문'] || item['Unnamed: 2'] || '';
-const getMomentum  = (item: any) => item['모멘텀'] || item['Unnamed: 3'] || '';
-const getReason    = (item: any) => item['매수이유'] || item['Unnamed: 4'] || '';
-const getRisk      = (item: any) => item['리스크'] || item['Unnamed: 5'] || '';
-const getCeo       = (item: any) => item['대표/경영진'] || item['Unnamed: 6'] || '';
-const getStrategy  = (item: any) => item['매매 전략'] || item['Unnamed: 7'] || '';
-const getTargetDate = (item: any) => item['목표일'] || item['Unnamed: 8'] || item['targetDate'] || '';
-const getTargetPrice = (item: any) => {
-  const raw = item['목표가'] || item['targetPrice'] || item['Unnamed: 9'] || item['Unnamed: 10'] || '';
-  if (raw === null || raw === undefined || raw === '') return '';
-  const normalized = String(raw).replace(/,/g, '').trim();
-  const parsed = parseFloat(normalized);
-  return !isNaN(parsed) && parsed > 0 ? Math.round(parsed) : normalized;
-};
-
-/**
- * 종목 신호 상태 계산 (PC 버전 computeSignalStatus와 동일한 로직)
- * - 목표일 신호: 오늘 >= 목표일 (YYYY-MM-DD)
- * - 목표가 신호: 모바일은 실시간 현재가 조회 불가 → 신호 데이터 파일에서 읽음
- *   (매수 목표가 이하 여부를 PC에서 계산해 investigation_signals.json으로 전달)
- * 반환: { hasSignal, signalType: 'date'|'price'|'both'|null, targetDate, targetPrice }
- */
-const computeSignalStatusMobile = (item: any, signalData?: Record<string, any>): { hasSignal: boolean; signalType: string | null; targetDate: string; targetPrice: any } => {
-  const todayStr = new Date().toISOString().split('T')[0];
-  const td = String(getTargetDate(item) || '');
-  const tp = getTargetPrice(item);
-  
-  let dateSignal = false;
-  let priceSignal = false;
-
-  // 목표일 신호: YYYY-MM-DD 형식 추출 후 오늘과 비교 (PC와 동일)
-  const dateMatch = td.match(/(\d{4}-\d{2}-\d{2})/);
-  if (dateMatch && dateMatch[1] <= todayStr) {
-    dateSignal = true;
-  }
-
-  // 목표가 신호: signalData(PC에서 계산한 목표가 이하 상태) 확인
-  if (signalData && tp) {
-    const stockName = getStockName(item);
-    const sig = signalData[stockName];
-    if (sig && sig.hasPriceSignal) {
-      priceSignal = true;
-    }
-  }
-
-  if (dateSignal && priceSignal) return { hasSignal: true, signalType: 'both', targetDate: td, targetPrice: tp };
-  if (dateSignal) return { hasSignal: true, signalType: 'date', targetDate: td, targetPrice: tp };
-  if (priceSignal) return { hasSignal: true, signalType: 'price', targetDate: td, targetPrice: tp };
-  return { hasSignal: false, signalType: null, targetDate: td, targetPrice: tp };
-};
-
-/**
- * PC에서 export한 신호 데이터 로드 (investigation_signals.json)
- * PC의 _priceCrossTracker 기반으로 어떤 종목이 목표가를 크로스했는지 기록됨
- */
-let cachedSignalData: Record<string, any> | null = null;
-const loadSignalData = async (forceRefresh = false): Promise<Record<string, any>> => {
-  if (cachedSignalData && !forceRefresh) return cachedSignalData;
-  try {
-    const res = await fetch(`data/investigation_signals.json?t=${Date.now()}`);
-    if (res.ok) {
-      cachedSignalData = await res.json();
-      return cachedSignalData || {};
-    }
-  } catch (e) {}
-  return {};
-};
-
-// ─────────────────────────────────────────────
-// 웹/네이티브 공통 상수 및 유틸
-// ─────────────────────────────────────────────
-const MIN_HEIGHT = 80;
-const LINE_HEIGHT = 22;
-const INPUT_PADDING = 32;
-
-/**
- * 웹 환경에서 텍스트 높이를 추정
- * - 줄바꿈 기준으로 라인 수 파악
- * - 넉넉하게 36자마다 줄바꿈으로 간주
- */
-const computeWebHeight = (text: string | undefined | null): number => {
-  const content = String(text || '');
-  if (content.length === 0) return MIN_HEIGHT;
-  const lines = content.split('\n');
-  let totalLines = 0;
-  lines.forEach(line => {
-    const wrappedLines = Math.ceil((line.length || 1) / 36);
-    totalLines += Math.max(1, wrappedLines);
-  });
-  return Math.max(MIN_HEIGHT, totalLines * LINE_HEIGHT + INPUT_PADDING);
-};
-
-export default function InvestigationScreen() {
-  const {
-    investigation,
-    isLoading,
-    isSyncing,
-    refreshData,
-    syncQueue,
-    addToSyncQueue,
-    markQueueAsSynced,
-    markQueueItemsAsSynced,
-    cleanupSyncQueue,
-    clearSyncedQueue,
-    clearSyncQueue,
-    meta,
-    targetPrices,
-    targetDates,
-    setTargetPrice,
-    setTargetDate,
-    customServerIp,
-    setCustomServerIp,
-  } = useDataStore();
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'priority' | 'signal'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<any>({});
-  const [isSaving, setIsSaving] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [signalData, setSignalData] = useState<Record<string, any>>({});  // PC에서 export한 신호 상태
-  const [isSyncingPC, setIsSyncingPC] = useState(false);
-  const [showIpModal, setShowIpModal] = useState(false);
-  const [ipInput, setIpInput] = useState('');
-  const [inputHeights, setInputHeights] = useState<Record<string, number>>({
-    question: 80,
-    reason: 80,
-    risk: 80,
-    momentum: 80,
-    strategy: 80,
-    ceo: 80,
-    targetDate: 80,
-    targetPrice: 80,
-  });
-
-  // ── 날짜 선택기 (목표일) ──
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [datePickerValue, setDatePickerValue] = useState({ year: 2026, month: 8, day: 8 });
-
-  // 월별 일수 계산
-  const getDaysInMonth = useCallback((year: number, month: number) => {
-    return new Date(year, month, 0).getDate();
-  }, []);
-
-  // 날짜 선택기 열기: 현재 editForm.targetDate 기준으로 초기화
-  const openDatePicker = useCallback(() => {
-    const current = editForm.targetDate || '';
-    const match = String(current).match(/(\d{4})-(\d{2})-(\d{2})/);
-    if (match) {
-      setDatePickerValue({ year: parseInt(match[1]), month: parseInt(match[2]), day: parseInt(match[3]) });
-    } else {
-      const today = new Date();
-      setDatePickerValue({ year: today.getFullYear(), month: today.getMonth() + 1, day: today.getDate() });
-    }
-    setShowDatePicker(true);
-  }, [editForm.targetDate]);
-
-  // 날짜 선택 완료
-  const confirmDatePicker = useCallback(() => {
-    const { year, month, day } = datePickerValue;
-    const mm = String(month).padStart(2, '0');
-    const dd = String(day).padStart(2, '0');
-    setEditForm((prev: any) => ({ ...prev, targetDate: `${year}-${mm}-${dd}` }));
-    setShowDatePicker(false);
-  }, [datePickerValue]);
-
-  // ── 네이티브 전용: onContentSizeChange ──
-  const handleContentSizeChange = useCallback((field: string, event: any) => {
-    if (Platform.OS === 'web') return; // 웹은 computeWebHeight 사용
-    if (!event?.nativeEvent?.contentSize) return;
-    const { height } = event.nativeEvent.contentSize;
-    if (typeof height !== 'number') return;
-    
-    setInputHeights(prev => {
-      const newHeight = Math.max(MIN_HEIGHT, height + 40); // 하단 여백 공간 추가 확보
-      if (Math.abs((prev[field] || MIN_HEIGHT) - newHeight) < 5) return prev;
-      return {
-        ...prev,
-        [field]: newHeight,
-      };
-    });
-  }, []);
-
-  // 웹에서 사용할 필드별 높이 계산 (editForm이 변경될 때만 재계산)
-  const webHeights = useMemo(() => {
-    if (Platform.OS !== 'web') return null;
-    return {
-      question: computeWebHeight(editForm.question),
-      reason: computeWebHeight(editForm.reason),
-      risk: computeWebHeight(editForm.risk),
-      momentum: computeWebHeight(editForm.momentum),
-      strategy: computeWebHeight(editForm.strategy),
-      ceo: computeWebHeight(editForm.ceo),
-      targetDate: computeWebHeight(editForm.targetDate),
-      targetPrice: computeWebHeight(editForm.targetPrice),
-    };
-  }, [editForm.question, editForm.reason, editForm.risk, editForm.momentum, editForm.strategy, editForm.ceo, editForm.targetDate, editForm.targetPrice, computeWebHeight]);
-
-  // 플랫폼에 따라 적절한 높이를 반환하는 헬퍼
-  const getFieldHeight = useCallback((field: string): number => {
-    if (Platform.OS === 'web' && webHeights) {
-      return (webHeights as any)[field] || MIN_HEIGHT;
-    }
-    return inputHeights[field] || MIN_HEIGHT;
-  }, [webHeights, inputHeights]);
-
-  // refreshData를 ref로 보관: useEffect 의존성 배열에서 제외하여 무한 리렌더 방지
-  const refreshDataRef = useRef(refreshData);
-  useEffect(() => { refreshDataRef.current = refreshData; }, [refreshData]);
-
-  // syncQueue 파생 상태를 메모화: 렌더링마다 some() 반복 연산 방지
-  const hasPendingSync = useMemo(
-    () => !!syncQueue && syncQueue.some(item => item.isPendingSync !== false),
-    [syncQueue]
-  );
-  const hasPendingServerUpdate = useMemo(
-    () => !!syncQueue && syncQueue.some(item => item.isPendingSync === false),
-    [syncQueue]
-  );
-
-  useEffect(() => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('sync') === 'success') {
-        const serverTs = urlParams.get('ts') || undefined;
-        // URL 파라미터 즉시 정리 (새로고침 시 중복 처리 방지)
-        window.history.replaceState({}, document.title, window.location.pathname);
-        
-        // ★ PC 전송 완료: 큐를 "전송 완료" 상태로 표시하고 서버 시각 기록
-        markQueueAsSynced(serverTs).then(() => {
-          setToastMessage('✅ PC 서버에 성공적으로 전송 및 반영되었습니다.');
-          setTimeout(() => {
-            setToastMessage(null);
-          }, 3500);
-          // 서버 데이터 새로고침 (큐 오버레이 적용) 및 서버 반영 큐 정리
-          refreshDataRef.current().then(() => {
-            cleanupSyncQueue(serverTs);
-          });
-        });
-      }
-    }
-  }, []);
-
-  // PC에서 export한 신호 데이터 로드 (목표가 크로스 상태)
-  useEffect(() => {
-    loadSignalData().then(data => setSignalData(data));
-  }, [investigation]); // investigation이 로드될 때마다 신호 데이터 갱신
-
-  const toggleExpand = useCallback((id: string) => {
-    // 웹 환경에서는 LayoutAnimation 미지원 → 네이티브만 사용
-    if (Platform.OS !== 'web') {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    }
-    setExpandedId(prev => prev === id ? null : id);
-  }, []);
-
-  // 10초 자동 갱신: hasPendingServerUpdate가 true일 때만 활성화
-  // refreshData를 ref로 참조하여 의존성 배열에서 제외 → interval 재생성 방지
-  useEffect(() => {
-    if (!hasPendingServerUpdate) return;
-
-    const interval = setInterval(() => {
-      refreshDataRef.current();
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [hasPendingServerUpdate]);
-
-  // 데이터가 없고 로딩 중일 때만 스피너 표시
-  if (isLoading && !investigation) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#00F2FE" />
-        <Text style={{ color: '#64748B', fontSize: 13, marginTop: 12 }}>데이터 확인 중...</Text>
-      </View>
-    );
-  }
-
-  const getEffectiveTargetDate = (item: any) => {
-    const stockName = getStockName(item);
-    // 엑셀이 우선! 로컬 저장소는 엑셀에 값이 없을 때만 fallback
-    const excelDate = getTargetDate(item);
-    return excelDate || targetDates?.[stockName] || '';
-  };
-
-  const getEffectiveTargetPrice = (item: any) => {
-    const stockName = getStockName(item);
-    // 엑셀이 우선! 로컬 저장소는 엑셀에 값이 없을 때만 fallback
-    const excelPrice = getTargetPrice(item);
-    return excelPrice !== '' ? excelPrice : (targetPrices?.[stockName] ?? '');
-  };
-
-  // 데이터 추출 로직 — 원본 인덱스(_realIndex) 보존
-  const allData = investigation?.data || [];
-  const allItems = allData
-    .map((r: any, idx: number) => ({ ...r, _realIndex: r._realIndex !== undefined ? r._realIndex : idx }))
-    .filter((r: any) => r._realIndex === editingIndex || getStockName(r));
-  
-  const items = allItems.filter((item: any) => {
-    if (item._realIndex === editingIndex) return true; // 수정 중인 종목은 무조건 포함
-    // 모멘텀과 매매 전략 둘 다 내용이 없는 경우 매매우선 필터에서 제외
-    if (filter === 'priority' && !getMomentum(item) && !getStrategy(item)) return false;
-    // 신호 필터: 목표일 경과 또는 목표가 크로스된 종목만 (PC와 동일 로직)
-    if (filter === 'signal' && !computeSignalStatusMobile(item, signalData).hasSignal) return false;
-    if (searchQuery.trim() !== '') {
-      const stockName = getStockName(item);
-      if (!stockName.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
-    }
-    return true;
-  });
-
-  const startEditing = (realIdx: number, item: any) => {
-    const stockName = getStockName(item);
-    // 엑셀이 우선! 로컬 저장소는 엑셀에 값이 없을 때만 fallback
-    const excelDate = getTargetDate(item);
-    const excelPrice = getTargetPrice(item);
-    const storedTargetDate = targetDates?.[stockName];
-    const storedTargetPrice = targetPrices?.[stockName];
-
-    setEditingIndex(realIdx);
-    setEditForm({
-      stockName,
-      question: getQuestion(item),
-      reason: getReason(item),
-      risk: getRisk(item),
-      momentum: getMomentum(item),
-      strategy: getStrategy(item),
-      ceo: getCeo(item),
-      targetDate: excelDate || storedTargetDate || '',
-      targetPrice: String((excelPrice || storedTargetPrice) || '')
-    });
-  };
-
-  const cancelEditing = () => {
-    // ?? ???? ??? ??? ??? ?? ??
-    if (editingIndex !== null && investigation?.data) {
-      const item = investigation.data.find((row: any, index: number) => (
-        (row._realIndex !== undefined ? row._realIndex : index) === editingIndex
-      ));
-      const isNewStock = Boolean(item?._isNew) || getStockName(item || {}) === '?? ??' || editForm.stockName === '?? ??';
-      const isEmpty = !editForm.question && !editForm.reason && !editForm.risk && !editForm.momentum && !editForm.strategy && !editForm.ceo && !editForm.targetDate && !editForm.targetPrice;
-      if (isNewStock && isEmpty) {
-        const updatedData = investigation.data.filter((row: any, index: number) => (
-          (row._realIndex !== undefined ? row._realIndex : index) !== editingIndex
-        ));
-        useDataStore.setState({ investigation: { ...investigation, data: updatedData } });
-      }
-    }
-    setEditingIndex(null);
-    setEditForm({});
-    setExpandedId(null);
-  };
-
-  const saveEditing = async (realIndex: number, rowData: any) => {
-    setIsSaving(true);
-    try {
-      // ★ _filePath가 null일 경우 file_name으로 fallback
-      const filePath = investigation._filePath || investigation.file_name || '';
-      const sheetName = investigation.current_sheet;
-      const columns = investigation.columns;
-      
-      // 하위호환성(Unnamed) 및 신규 컬럼명 모두 지원
-      const newRowData = { 
-        ...rowData, 
-        '종목명': editForm.stockName, 'Unnamed: 1': editForm.stockName,
-        '질문': editForm.question, 'Unnamed: 2': editForm.question,
-        '모멘텀': editForm.momentum, 'Unnamed: 3': editForm.momentum,
-        '매수이유': editForm.reason, 'Unnamed: 4': editForm.reason,
-        '리스크': editForm.risk, 'Unnamed: 5': editForm.risk,
-        '대표/경영진': editForm.ceo, 'Unnamed: 6': editForm.ceo,
-        '매매 전략': editForm.strategy, 'Unnamed: 7': editForm.strategy,
-        '목표일': editForm.targetDate, 'Unnamed: 8': editForm.targetDate,
-        '목표가': editForm.targetPrice, 'Unnamed: 9': editForm.targetPrice,
-      };
-      const values = columns.map((col: string) => newRowData[col] !== undefined && newRowData[col] !== null ? newRowData[col] : '');
-      const baseValues = columns.map((col: string) => (
-        rowData[col] !== undefined && rowData[col] !== null ? rowData[col] : ''
-      ));
-      const editTask = {
-        file: filePath,
-        sheet: sheetName,
-        rowIndex: rowData._realIndex !== undefined
-          ? rowData._realIndex
-          : (rowData._excelRowIndex !== undefined ? rowData._excelRowIndex : realIndex),
-        stockName: getStockName(newRowData),
-        columns,
-        baseValues,
-        values,
-        isNew: Boolean(rowData._isNew),
-        timestamp: new Date().toISOString(),
-      };
-      await addToSyncQueue(editTask);
-      
-      // 저장 후 로컬 target 데이터도 함께 갱신
-      const stockName = newRowData['종목명'] || newRowData['Unnamed: 1'] || '';
-      const targetDateValue = String(editForm.targetDate || '').trim();
-      const targetPriceValue = editForm.targetPrice ? Number(editForm.targetPrice.replace(/,/g, '')) : null;
-      await Promise.all([
-        setTargetDate(stockName, targetDateValue || null),
-        setTargetPrice(stockName, targetPriceValue || null),
-      ]);
-
-      // ★ Zustand 상태를 불변 방식으로 업데이트 (직접 뮤테이션 금지)
-      const updatedData = [...investigation.data];
-      const targetArrayIndex = updatedData.findIndex((row: any, index: number) => (
-        (row._realIndex !== undefined ? row._realIndex : index) === realIndex
-      ));
-      updatedData[targetArrayIndex >= 0 ? targetArrayIndex : realIndex] = newRowData;
-      useDataStore.setState({ investigation: { ...investigation, data: updatedData } });
-    } catch (e) {
-      console.error('Failed to queue content', e);
-    } finally {
-      setIsSaving(false);
-      setEditingIndex(null);
-    }
-  };
-
-  const handleCreateNewStock = () => {
-    if (!investigation || !investigation.data) return;
-
-    const allData = investigation.data;
-    const columns = investigation.columns || [];
-
-    const numCol = columns[0] || 'Unnamed: 0';
-    let maxNum = 0;
-    allData.forEach((row: any) => {
-      const num = parseInt(row[numCol] || row['Unnamed: 0'] || 0, 10);
-      if (!isNaN(num) && num > maxNum) maxNum = num;
-    });
-    const nextNum = maxNum + 1;
-
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-    const defaultStockName = '신규 종목';
-    const newRowData: any = {};
-    columns.forEach((col: string) => { newRowData[col] = ''; });
-    newRowData[numCol] = nextNum;
-    if (numCol !== 'Unnamed: 0') newRowData['Unnamed: 0'] = nextNum;
-    newRowData['종목명'] = defaultStockName;
-    newRowData['Unnamed: 1'] = defaultStockName;
-
-    const dateCol = columns.find((c: string) => c.includes('날짜') || c.includes('일자'));
-    if (dateCol && dateCol !== numCol) {
-      newRowData[dateCol] = todayStr;
-    }
-
-    const newRealIndex = allData.length;
-    // 신규 행을 배열 맨 앞에 추가 (_excelRowIndex로 실제 엑셀 행 위치 보존)
-    newRowData._excelRowIndex = allData.length;
-    newRowData._realIndex = newRealIndex;
-    newRowData._isNew = true;
-    const updatedData = [newRowData, ...allData];
-    
-    // 모든 상태를 한 번에 업데이트 (React 18 자동 배치)
-    useDataStore.setState({ investigation: { ...investigation, data: updatedData } });
-    
-    const idStr = String(newRowData['Unnamed: 0'] || nextNum);
-    setFilter('all');
-    setSearchQuery('');
-    setExpandedId(idStr);
-    setEditingIndex(newRealIndex); // 맨 위(인덱스 0)
-    setEditForm({
-      stockName: defaultStockName,
-      question: '',
-      reason: '',
-      risk: '',
-      momentum: '',
-      strategy: '',
-      ceo: '',
-      targetDate: '',
-      targetPrice: ''
-    });
-    setToastMessage(`✨ 새 종목(번호: ${nextNum})이 생성되었습니다. 종목명과 내용을 입력해주세요.`);
-    setTimeout(() => setToastMessage(null), 3500);
-
-    // 오프라인 동기화 (백그라운드)
-    // Queue the new row only after the user presses Save.
-  };
-
-  const effectiveIp = customServerIp || meta?.server_ip || '192.168.0.2';
-
-  const handleSync = async () => {
-    const pendingQueue = (syncQueue || []).filter(item => item.isPendingSync !== false);
-    if (pendingQueue.length === 0) return;
-    setIsSyncingPC(true);
-    const targetUrl = `http://${effectiveIp}:5000/api/sync-receive`;
-
-    try {
-      const res = await fetch(targetUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(pendingQueue),
-      });
-
-      if (res.ok) {
-        const resJson = await res.json().catch(() => ({}));
-        if (resJson?.success !== true) {
-          throw new Error(resJson?.error || 'PC server rejected the sync request');
-        }
-        const results = Array.isArray(resJson?.results) ? resJson.results : [];
-        const savedIds = results.length > 0
-          ? results.filter((item: any) => item.status === 'saved' && item.syncId).map((item: any) => item.syncId)
-          : pendingQueue.map(item => item.syncId).filter(Boolean);
-        if (savedIds.length > 0) {
-          await markQueueItemsAsSynced(savedIds, resJson?.server_time);
-        }
-
-        const reviewPending = results.filter((item: any) => item.status === 'needs_review').length;
-        const fallbackSaved = results.filter((item: any) => item.review_mode === 'fallback_mobile_priority' || item.review_mode === 'fallback_server_latest').length;
-        if (reviewPending > 0) {
-          setToastMessage(`AI 검토 결과 확인이 필요한 항목 ${reviewPending}건이 있습니다.`);
-        } else if (fallbackSaved > 0) {
-          setToastMessage(`모바일 수정 내용(${fallbackSaved}건)이 PC 엑셀에 안전하게 반영되었습니다.`);
-        } else {
-          setToastMessage(`PC 서버(${effectiveIp})에 정상 반영되었습니다.`);
-        }
-        setTimeout(() => setToastMessage(null), 5000);
-        await refreshData();
-        await cleanupSyncQueue(resJson?.server_time);
-      } else {
-        const errText = await res.text().catch(() => '');
-        alert(`PC 서버 동기화 실패 (${res.status}): ${errText}`);
-      }
-    } catch (err: any) {
-      console.warn('Fetch sync failed, trying form submit fallback:', err);
-
-      if (Platform.OS === 'web' && typeof document !== 'undefined') {
-        try {
-          await markQueueItemsAsSynced(
-            pendingQueue.map(item => item.syncId).filter(Boolean),
-          );
-          const form = document.createElement('form');
-          form.method = 'POST';
-          form.action = targetUrl;
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = 'payload';
-          input.value = JSON.stringify(pendingQueue);
-          form.appendChild(input);
-          document.body.appendChild(form);
-          form.submit();
-          return;
-        } catch (e) {}
-      }
-
-      alert(
-        `PC ??(${effectiveIp}:5000) ?? ??!\n\n` +
-        '1. ???? PC? ?? Wi-Fi? ???? ??? ??????.\n' +
-        '2. PC?? server.py? ?? ??? ??????.\n' +
-        '3. PC IP? ?????? [?? IP] ???? ??????.'
-      );
-    } finally {
-      setIsSyncingPC(false);
-    }
-  };
-
-  return (
-    <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {toastMessage && (
-          <View style={styles.toastBanner}>
-            <Text style={styles.toastBannerText}>{toastMessage}</Text>
-          </View>
-        )}
-        <View style={styles.headerRow}>
-          <View style={styles.filterContainer}>
-            <TouchableOpacity 
-              style={[styles.filterBtn, filter === 'all' && styles.filterBtnActive]}
-              onPress={() => setFilter('all')}
-            >
-              <Text style={[styles.filterBtnText, filter === 'all' && styles.filterBtnTextActive]}>전체</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.filterBtn, filter === 'priority' && styles.filterBtnActive]}
-              onPress={() => setFilter('priority')}
-            >
-              <Text style={[styles.filterBtnText, filter === 'priority' && styles.filterBtnTextActive]}>매매우선</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.filterBtn, filter === 'signal' && styles.filterBtnActive]}
-              onPress={() => setFilter('signal')}
-            >
-              <Text style={[styles.filterBtnText, filter === 'signal' && styles.filterBtnTextActive]}>🔔 신호</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.headerRightActions}>
-            <TouchableOpacity 
-              style={styles.addStockBtn} 
-              onPress={handleCreateNewStock}
-            >
-              <Text style={styles.addStockBtnText}>➕ 신규 종목</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-        <View style={styles.searchContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="🔍 종목명 검색..."
-            placeholderTextColor="#475569"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-
-        {syncQueue && syncQueue.length > 0 && (
-          <View style={styles.syncBanner}>
-            <Text style={styles.syncBannerText}>
-              {hasPendingSync
-                ? `🔄 PC 동기화 대기 중인 수정내역 (${syncQueue.length}건)`
-                : `✅ PC 전송 완료 / 반영 대기 중 (${syncQueue.length}건)`}
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-              {hasPendingSync && (
-                <>
-                  <TouchableOpacity style={styles.syncBtn} onPress={handleSync} disabled={isSyncingPC}>
-                    {isSyncingPC ? (
-                      <ActivityIndicator size="small" color="#422006" />
-                    ) : (
-                      <Text style={styles.syncBtnText}>PC로 전송하기</Text>
-                    )}
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.syncBtn, { backgroundColor: '#475569' }]} 
-                    onPress={() => {
-                      setIpInput(effectiveIp);
-                      setShowIpModal(true);
-                    }}
-                  >
-                    <Text style={[styles.syncBtnText, { color: '#FFFFFF' }]}>⚙️ IP</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-              <TouchableOpacity 
-                style={[styles.syncBtn, { backgroundColor: hasPendingSync ? '#475569' : '#059669' }]} 
-                onPress={async () => {
-                  await clearSyncQueue();
-                  setToastMessage('🧹 동기화 대기 목록을 정리했습니다.');
-                  setTimeout(() => setToastMessage(null), 3000);
-                }}
-              >
-                <Text style={[styles.syncBtnText, { color: '#FFFFFF' }]}>비우기</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-        
-        {items.length > 0 ? (
-          items.map((item: any, index: number) => {
-            const id = item['Unnamed: 0'] || String(index);
-            const realIdx = item._realIndex;
-            const isExpanded = expandedId === id || editingIndex === realIdx;
-            
-            return (
-              <TouchableOpacity 
-                key={id} 
-                style={[styles.card, isExpanded && styles.cardExpanded]}
-                onPress={() => {
-                  if (editingIndex !== realIdx) toggleExpand(id);
-                }}
-                activeOpacity={0.8}
-              >
-                <View style={styles.cardHeader}>
-                  <View style={styles.titleRow}>
-                    {editingIndex === realIdx ? (
-                      <TextInput
-                        style={styles.editInput}
-                        value={editForm.stockName !== undefined ? editForm.stockName : getStockName(item)}
-                        onChangeText={t => setEditForm((prev: any) => ({ ...prev, stockName: t }))}
-                        placeholder="종목명 입력"
-                        placeholderTextColor="#94A3B8"
-                      />
-                    ) : (
-                      <Text style={styles.stockName}>
-                        {getStockName(item) || '(종목명 없음)'}
-                      </Text>
-                    )}
-                    {(getMomentum(item) || getStrategy(item)) ? (
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>매매우선</Text>
-                      </View>
-                    ) : null}
-                    {/* ── 신호 뱃지 (PC와 동일 로직) ── */}
-                    {(() => {
-                      const signal = computeSignalStatusMobile(item, signalData);
-                      if (signal.hasSignal) {
-                        let label = '🔔';
-                        if (signal.signalType === 'date') label = '📅';
-                        else if (signal.signalType === 'price') label = '💰';
-                        else if (signal.signalType === 'both') label = '🔔';
-                        return (
-                          <View style={styles.signalBadge}>
-                            <Text style={styles.signalBadgeText}>{label}</Text>
-                          </View>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </View>
-                  <Text style={styles.expandIcon}>{isExpanded ? '−' : '+'}</Text>
-                </View>
-
-                {isExpanded && (
-                  <View style={styles.expandedContent}>
-                    {editingIndex === realIdx ? (
-                      <View>
-                        <View style={styles.section}>
-                          <Text style={styles.sectionTitle}>❓ 질문</Text>
-                          <TextInput 
-                            style={[styles.multilineInput, { height: getFieldHeight('question') }]} 
-                            multiline scrollEnabled={true} value={editForm.question} 
-                            onChangeText={t => setEditForm((prev: any) => ({...prev, question: t}))} 
-                            onContentSizeChange={e => handleContentSizeChange('question', e)}
-                          />
-                        </View>
-                        <View style={styles.section}>
-                          <Text style={styles.sectionTitle}>🎯 매수 이유</Text>
-                          <TextInput 
-                            style={[styles.multilineInput, { height: getFieldHeight('reason') }]} 
-                            multiline scrollEnabled={true} value={editForm.reason} 
-                            onChangeText={t => setEditForm((prev: any) => ({...prev, reason: t}))} 
-                            onContentSizeChange={e => handleContentSizeChange('reason', e)}
-                          />
-                        </View>
-                        <View style={styles.section}>
-                          <Text style={styles.sectionTitle}>⚠️ 리스크</Text>
-                          <TextInput 
-                            style={[styles.multilineInput, { height: getFieldHeight('risk') }]} 
-                            multiline scrollEnabled={true} value={editForm.risk} 
-                            onChangeText={t => setEditForm((prev: any) => ({...prev, risk: t}))} 
-                            onContentSizeChange={e => handleContentSizeChange('risk', e)}
-                          />
-                        </View>
-                        <View style={styles.section}>
-                          <Text style={styles.sectionTitle}>💡 핵심 모멘텀</Text>
-                          <TextInput 
-                            style={[styles.multilineInput, { height: getFieldHeight('momentum') }]} 
-                            multiline scrollEnabled={true} value={editForm.momentum} 
-                            onChangeText={t => setEditForm((prev: any) => ({...prev, momentum: t}))} 
-                            onContentSizeChange={e => handleContentSizeChange('momentum', e)}
-                          />
-                        </View>
-                        <View style={styles.section}>
-                          <Text style={styles.sectionTitle}>📈 매매 전략</Text>
-                          <TextInput 
-                            style={[styles.multilineInput, { height: getFieldHeight('strategy') }]} 
-                            multiline scrollEnabled={true} value={editForm.strategy} 
-                            onChangeText={t => setEditForm((prev: any) => ({...prev, strategy: t}))} 
-                            onContentSizeChange={e => handleContentSizeChange('strategy', e)}
-                          />
-                        </View>
-                        <View style={styles.section}>
-                          <Text style={styles.sectionTitle}>🎯 목표 시점</Text>
-                          <View style={styles.dateInputRow}>
-                            <TextInput 
-                              style={[styles.singleLineInput, { height: getFieldHeight('targetDate'), flex: 1 }]} 
-                              value={editForm.targetDate} 
-                              onChangeText={t => setEditForm((prev: any) => ({...prev, targetDate: t}))} 
-                              placeholder="YYYY-MM-DD"
-                              placeholderTextColor="#94A3B8"
-                            />
-                            <TouchableOpacity style={styles.calendarBtn} onPress={openDatePicker}>
-                              <Text style={styles.calendarBtnText}>📅</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-                        <View style={styles.section}>
-                          <Text style={styles.sectionTitle}>💰 목표가</Text>
-                          <TextInput 
-                            style={[styles.singleLineInput, { height: getFieldHeight('targetPrice') }]} 
-                            value={editForm.targetPrice} 
-                            onChangeText={t => setEditForm((prev: any) => ({...prev, targetPrice: t.replace(/[^0-9]/g, '')}))} 
-                            keyboardType="numeric"
-                            placeholder="숫자만 입력"
-                            placeholderTextColor="#94A3B8"
-                          />
-                        </View>
-                        <View style={styles.section}>
-                          <Text style={styles.sectionTitle}>👤 대표 / 경영진</Text>
-                          <TextInput 
-                            style={[styles.multilineInput, { height: getFieldHeight('ceo') }]} 
-                            multiline scrollEnabled={true} value={editForm.ceo} 
-                            onChangeText={t => setEditForm((prev: any) => ({...prev, ceo: t}))} 
-                            onContentSizeChange={e => handleContentSizeChange('ceo', e)}
-                          />
-                        </View>
-                        
-                        <View style={styles.actionButtons}>
-                          <TouchableOpacity style={[styles.actionBtn, styles.cancelBtn]} onPress={(e) => {
-                            if (Platform.OS === 'web' && e && typeof (e as any).stopPropagation === 'function') {
-                              (e as any).stopPropagation();
-                            }
-                            cancelEditing();
-                          }}>
-                            <Text style={styles.cancelBtnText}>취소</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity style={[styles.actionBtn, styles.saveBtn]} onPress={(e) => {
-                            if (Platform.OS === 'web' && e && typeof (e as any).stopPropagation === 'function') {
-                              (e as any).stopPropagation();
-                            }
-                            saveEditing(realIdx, item);
-                          }} disabled={isSaving}>
-                            {isSaving ? <ActivityIndicator size="small" color="#0F172A" /> : <Text style={styles.saveBtnText}>저장</Text>}
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    ) : (
-                      <View>
-                        {getQuestion(item) ? (
-                          <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>❓ 질문</Text>
-                            <Text style={styles.sectionText}>{getQuestion(item)}</Text>
-                          </View>
-                        ) : null}
-
-                        {getReason(item) ? (
-                          <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>🎯 매수 이유</Text>
-                            <Text style={styles.sectionText}>{getReason(item)}</Text>
-                          </View>
-                        ) : null}
-
-                        {getRisk(item) ? (
-                          <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>⚠️ 리스크</Text>
-                            <Text style={styles.sectionText}>{getRisk(item)}</Text>
-                          </View>
-                        ) : null}
-
-                        {getMomentum(item) ? (
-                          <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>💡 핵심 모멘텀</Text>
-                            <Text style={styles.sectionText}>{getMomentum(item)}</Text>
-                          </View>
-                        ) : null}
-
-                        {getStrategy(item) ? (
-                          <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>📈 매매 전략</Text>
-                            <Text style={styles.sectionText}>{getStrategy(item)}</Text>
-                          </View>
-                        ) : null}
-
-                        {(() => {
-                          const effectiveDate = getEffectiveTargetDate(item);
-                          return effectiveDate ? (
-                            <View style={styles.section}>
-                              <Text style={styles.sectionTitle}>🎯 목표 시점</Text>
-                              <Text style={styles.sectionText}>{effectiveDate}</Text>
-                            </View>
-                          ) : null;
-                        })()}
-                        {(() => {
-                          const effectivePrice = getEffectiveTargetPrice(item);
-                          return effectivePrice ? (
-                            <View style={styles.section}>
-                              <Text style={styles.sectionTitle}>💰 목표가</Text>
-                              <Text style={styles.sectionText}>{String(effectivePrice).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}원</Text>
-                            </View>
-                          ) : null;
-                        })()}
-                        {getCeo(item) ? (
-                          <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>👤 대표 / 경영진</Text>
-                            <Text style={styles.sectionText}>{getCeo(item)}</Text>
-                          </View>
-                        ) : null}
-                        
-                        <TouchableOpacity style={styles.editContentBtn} onPress={(e) => {
-                          if (Platform.OS === 'web' && e && typeof (e as any).stopPropagation === 'function') {
-                            (e as any).stopPropagation();
-                          }
-                          startEditing(realIdx, item);
-                        }}>
-                          <Text style={styles.editContentBtnText}>내용 수정 ✏️</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })
-        ) : (
-          <View style={styles.glassCard}>
-            <Text style={styles.infoText}>데이터가 아직 동기화되지 않았습니다.</Text>
-          </View>
-        )}
-      </ScrollView>
-
-      {/* ── 목표일 달력 Modal ── */}
-      <Modal visible={showDatePicker} transparent animationType="fade" onRequestClose={() => setShowDatePicker(false)}>
-        <View style={styles.datePickerOverlay}>
-          <View style={styles.datePickerContainer}>
-            <Text style={styles.datePickerTitle}>📅 목표일 선택</Text>
-
-            <View style={styles.datePickerRow}>
-              {/* 연도 선택 */}
-              <View style={styles.datePickerColumn}>
-                <Text style={styles.datePickerLabel}>연도</Text>
-                <ScrollView style={styles.datePickerScroll} showsVerticalScrollIndicator={false}>
-                  {Array.from({ length: 11 }, (_, i) => 2022 + i).map(y => (
-                    <TouchableOpacity
-                      key={y}
-                      style={[styles.datePickerItem, datePickerValue.year === y && styles.datePickerItemActive]}
-                      onPress={() => {
-                        const maxDay = getDaysInMonth(y, datePickerValue.month);
-                        setDatePickerValue(prev => ({ ...prev, year: y, day: Math.min(prev.day, maxDay) }));
-                      }}
-                    >
-                      <Text style={[styles.datePickerItemText, datePickerValue.year === y && styles.datePickerItemTextActive]}>{y}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-
-              {/* 월 선택 */}
-              <View style={styles.datePickerColumn}>
-                <Text style={styles.datePickerLabel}>월</Text>
-                <ScrollView style={styles.datePickerScroll} showsVerticalScrollIndicator={false}>
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                    <TouchableOpacity
-                      key={m}
-                      style={[styles.datePickerItem, datePickerValue.month === m && styles.datePickerItemActive]}
-                      onPress={() => {
-                        const maxDay = getDaysInMonth(datePickerValue.year, m);
-                        setDatePickerValue(prev => ({ ...prev, month: m, day: Math.min(prev.day, maxDay) }));
-                      }}
-                    >
-                      <Text style={[styles.datePickerItemText, datePickerValue.month === m && styles.datePickerItemTextActive]}>{m}월</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-
-              {/* 일 선택 */}
-              <View style={styles.datePickerColumn}>
-                <Text style={styles.datePickerLabel}>일</Text>
-                <ScrollView style={styles.datePickerScroll} showsVerticalScrollIndicator={false}>
-                  {Array.from({ length: getDaysInMonth(datePickerValue.year, datePickerValue.month) }, (_, i) => i + 1).map(d => (
-                    <TouchableOpacity
-                      key={d}
-                      style={[styles.datePickerItem, datePickerValue.day === d && styles.datePickerItemActive]}
-                      onPress={() => setDatePickerValue(prev => ({ ...prev, day: d }))}
-                    >
-                      <Text style={[styles.datePickerItemText, datePickerValue.day === d && styles.datePickerItemTextActive]}>{d}일</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            </View>
-
-            {/* 버튼 영역 */}
-            <View style={styles.datePickerActions}>
-              <TouchableOpacity style={styles.datePickerCancelBtn} onPress={() => setShowDatePicker(false)}>
-                <Text style={styles.datePickerCancelText}>취소</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.datePickerConfirmBtn} onPress={confirmDatePicker}>
-                <Text style={styles.datePickerConfirmText}>확인</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* PC IP 설정 모달 */}
-      <Modal
-        visible={showIpModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowIpModal(false)}
-      >
-        <View style={styles.datePickerOverlay}>
-          <View style={styles.datePickerContainer}>
-            <Text style={styles.datePickerTitle}>⚙️ PC 서버 IP 설정</Text>
-            <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 16, textAlign: 'center', lineHeight: 20 }}>
-              핸드폰과 PC가 같은 와이파이에 연결되어 있어야 합니다.{'\n'}
-              현재 설정 IP: <Text style={{ color: '#00F2FE', fontWeight: 'bold' }}>{effectiveIp}</Text>
-            </Text>
-            <TextInput
-              style={[styles.singleLineInput, { color: '#FFFFFF', marginBottom: 20, textAlign: 'center', fontSize: 16 }]}
-              value={ipInput}
-              onChangeText={setIpInput}
-              placeholder="예: 192.168.0.2"
-              placeholderTextColor="#64748B"
-            />
-            <View style={styles.datePickerActions}>
-              <TouchableOpacity
-                style={styles.datePickerCancelBtn}
-                onPress={async () => {
-                  await setCustomServerIp(null);
-                  setShowIpModal(false);
-                }}
-              >
-                <Text style={styles.datePickerCancelText}>기본값 리셋</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.datePickerConfirmBtn}
-                onPress={async () => {
-                  if (ipInput.trim()) {
-                    await setCustomServerIp(ipInput.trim());
-                  }
-                  setShowIpModal(false);
-                }}
-              >
-                <Text style={styles.datePickerConfirmText}>저장</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </LinearGradient>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  loadingContainer: { flex: 1, backgroundColor: '#0F172A', justifyContent: 'center', alignItems: 'center' },
-  scrollContent: { padding: 20, paddingBottom: 40 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  title: { fontSize: 28, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 },
-  filterContainer: { flexDirection: 'row', backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 12, padding: 4 },
-  filterBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 },
-  filterBtnActive: { backgroundColor: 'rgba(0, 242, 254, 0.2)' },
-  filterBtnText: { color: '#64748B', fontSize: 13, fontWeight: '700' },
-  filterBtnTextActive: { color: '#00F2FE' },
-  headerRightActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  addStockBtn: {
-    backgroundColor: 'rgba(0, 242, 254, 0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 242, 254, 0.4)',
-  },
-  addStockBtnText: { color: '#00F2FE', fontSize: 13, fontWeight: 'bold' },
-  searchContainer: { marginBottom: 16 },
-  searchInput: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
-    color: '#E2E8F0', fontSize: 14,
-  },
-  card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  cardExpanded: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderColor: 'rgba(0, 242, 254, 0.3)',
-    shadowColor: '#00F2FE',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1 },
-  stockName: { fontSize: 20, fontWeight: 'bold', color: '#FFFFFF' },
-  editInput: { 
-    fontSize: 20, fontWeight: 'bold', color: '#FFFFFF', 
-    borderBottomWidth: 1, borderBottomColor: '#00F2FE', 
-    padding: 0, margin: 0, minWidth: 100 
-  },
-  badge: { backgroundColor: 'rgba(0, 242, 254, 0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  badgeText: { color: '#00F2FE', fontSize: 11, fontWeight: 'bold' },
-  signalBadge: { backgroundColor: 'rgba(248, 113, 113, 0.2)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(248, 113, 113, 0.4)' },
-  signalBadgeText: { fontSize: 12 },
-  expandIcon: { color: '#00F2FE', fontSize: 28, fontWeight: '300', marginTop: -4 },
-  expandedContent: { marginTop: 20, paddingTop: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
-  section: { marginBottom: 20 },
-  sectionTitle: { fontSize: 13, fontWeight: 'bold', color: '#94A3B8', marginBottom: 8 },
-  sectionText: { fontSize: 15, color: '#E2E8F0', lineHeight: 24 },
-  multilineInput: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 8, 
-    paddingTop: 12, paddingHorizontal: 12, paddingBottom: 32,
-    color: '#FFFFFF', fontSize: 15, lineHeight: 22,
-    textAlignVertical: 'top',
-  },
-  singleLineInput: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    color: '#FFFFFF',
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  actionButtons: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 10 },
-  actionBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
-  cancelBtn: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#475569' },
-  saveBtn: { backgroundColor: '#00F2FE' },
-  cancelBtnText: { color: '#94A3B8', fontWeight: 'bold' },
-  saveBtnText: { color: '#0F172A', fontWeight: 'bold' },
-  editContentBtn: {
-    alignSelf: 'flex-end',
-    backgroundColor: 'rgba(0, 242, 254, 0.1)',
-    paddingHorizontal: 16, paddingVertical: 8,
-    borderRadius: 8, marginTop: 10,
-    borderWidth: 1, borderColor: 'rgba(0, 242, 254, 0.3)'
-  },
-  editContentBtnText: { color: '#00F2FE', fontSize: 13, fontWeight: 'bold' },
-  glassCard: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 24, padding: 24, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
-  infoText: { color: '#64748B', fontSize: 16, textAlign: 'center', marginVertical: 20 },
-  syncBanner: { backgroundColor: 'rgba(234, 179, 8, 0.1)', borderColor: '#EAB308', borderWidth: 1, borderRadius: 12, padding: 16, marginBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  syncBannerText: { color: '#FDE047', fontSize: 14, fontWeight: 'bold', flex: 1 },
-  syncBtn: { backgroundColor: '#EAB308', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-  syncBtnText: { color: '#422006', fontSize: 13, fontWeight: 'bold' },
-  toastBanner: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderColor: 'rgba(16, 185, 129, 0.4)',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  toastBannerText: {
-    color: '#34D399',
-    fontSize: 14,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  // ── 목표일 달력 버튼 & 날짜 선택기 ──
-  dateInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  calendarBtn: {
-    backgroundColor: 'rgba(0, 242, 254, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 242, 254, 0.4)',
-    borderRadius: 8,
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  calendarBtnText: {
-    fontSize: 20,
-  },
-  datePickerOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  datePickerContainer: {
-    backgroundColor: '#1E293B',
-    borderRadius: 20,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 242, 254, 0.3)',
-  },
-  datePickerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  datePickerRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  datePickerColumn: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  datePickerLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#94A3B8',
-    marginBottom: 8,
-  },
-  datePickerScroll: {
-    maxHeight: 200,
-    width: '100%',
-  },
-  datePickerItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    alignItems: 'center',
-    borderRadius: 8,
-    marginBottom: 4,
-  },
-  datePickerItemActive: {
-    backgroundColor: 'rgba(0, 242, 254, 0.2)',
-    borderWidth: 1,
-    borderColor: '#00F2FE',
-  },
-  datePickerItemText: {
-    color: '#94A3B8',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  datePickerItemTextActive: {
-    color: '#00F2FE',
-    fontWeight: 'bold',
-  },
-  datePickerActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
-  },
-  datePickerCancelBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#475569',
-  },
-  datePickerCancelText: {
-    color: '#94A3B8',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  datePickerConfirmBtn: {
-    backgroundColor: '#00F2FE',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  datePickerConfirmText: {
-    color: '#0F172A',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-});
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, TextInput, LayoutAnimation, Platform, UIManager, Modal } from 'react-native';
+import { useDataStore } from '../store/useDataStore';
+import { LinearGradient } from 'expo-linear-gradient';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+// ─────────────────────────────────────────────
+// 헬퍼 함수: 컴포넌트 외부에 정의하여 매 렌더링 시 재생성 방지
+// ─────────────────────────────────────────────
+const getStockName = (item: any) => item['종목명'] || item['Unnamed: 1'] || '';
+const getQuestion  = (item: any) => item['질문'] || item['Unnamed: 2'] || '';
+const getMomentum  = (item: any) => item['모멘텀'] || item['Unnamed: 3'] || '';
+const getReason    = (item: any) => item['매수이유'] || item['Unnamed: 4'] || '';
+const getRisk      = (item: any) => item['리스크'] || item['Unnamed: 5'] || '';
+const getCeo       = (item: any) => item['대표/경영진'] || item['Unnamed: 6'] || '';
+const getStrategy  = (item: any) => item['매매 전략'] || item['Unnamed: 7'] || '';
+const getTargetDate = (item: any) => item['목표일'] || item['Unnamed: 8'] || item['targetDate'] || '';
+const getTargetPrice = (item: any) => {
+  const raw = item['목표가'] || item['targetPrice'] || item['Unnamed: 9'] || item['Unnamed: 10'] || '';
+  if (raw === null || raw === undefined || raw === '') return '';
+  const normalized = String(raw).replace(/,/g, '').trim();
+  const parsed = parseFloat(normalized);
+  return !isNaN(parsed) && parsed > 0 ? Math.round(parsed) : normalized;
+};
+
+/**
+ * 종목 신호 상태 계산 (PC 버전 computeSignalStatus와 동일한 로직)
+ * - 목표일 신호: 오늘 >= 목표일 (YYYY-MM-DD)
+ * - 목표가 신호: 모바일은 실시간 현재가 조회 불가 → 신호 데이터 파일에서 읽음
+ *   (매수 목표가 이하 여부를 PC에서 계산해 investigation_signals.json으로 전달)
+ * 반환: { hasSignal, signalType: 'date'|'price'|'both'|null, targetDate, targetPrice }
+ */
+const computeSignalStatusMobile = (item: any, signalData?: Record<string, any>): { hasSignal: boolean; signalType: string | null; targetDate: string; targetPrice: any; currentPrice?: number } => {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const td = String(getTargetDate(item) || '');
+  const tp = getTargetPrice(item);
+  const numTp = tp ? Number(String(tp).replace(/,/g, '')) : 0;
+  
+  let dateSignal = false;
+  let priceSignal = false;
+  let currentPrice: number | undefined = undefined;
+
+  // 목표일 신호: YYYY-MM-DD 형식 추출 후 오늘과 비교 (PC와 동일)
+  const dateMatch = td.match(/(\d{4}-\d{2}-\d{2})/);
+  if (dateMatch && dateMatch[1] <= todayStr) {
+    dateSignal = true;
+  }
+
+  // 목표가 신호: signalData 확인 및 현재가 <= 목표가 실시간 비교
+  if (signalData && numTp > 0) {
+    const stockName = getStockName(item);
+    const sig = signalData[stockName];
+    if (sig) {
+      if (sig.currentPrice || sig.current) {
+        currentPrice = Number(sig.currentPrice || sig.current);
+      }
+      if (sig.hasPriceSignal || (currentPrice && currentPrice > 0 && currentPrice <= numTp)) {
+        priceSignal = true;
+      }
+    }
+  }
+
+  if (dateSignal && priceSignal) return { hasSignal: true, signalType: 'both', targetDate: td, targetPrice: tp, currentPrice };
+  if (dateSignal) return { hasSignal: true, signalType: 'date', targetDate: td, targetPrice: tp, currentPrice };
+  if (priceSignal) return { hasSignal: true, signalType: 'price', targetDate: td, targetPrice: tp, currentPrice };
+  return { hasSignal: false, signalType: null, targetDate: td, targetPrice: tp, currentPrice };
+};
+
+/**
+ * PC에서 export한 신호 데이터 로드 (investigation_signals.json)
+ * PC의 _priceCrossTracker 기반으로 어떤 종목이 목표가를 크로스했는지 기록됨
+ */
+let cachedSignalData: Record<string, any> | null = null;
+const loadSignalData = async (forceRefresh = false): Promise<Record<string, any>> => {
+  if (cachedSignalData && !forceRefresh) return cachedSignalData;
+  try {
+    const res = await fetch(`data/investigation_signals.json?t=${Date.now()}`);
+    if (res.ok) {
+      cachedSignalData = await res.json();
+      return cachedSignalData || {};
+    }
+  } catch (e) {}
+  return {};
+};
+
+// ─────────────────────────────────────────────
+// 웹/네이티브 공통 상수 및 유틸
+// ─────────────────────────────────────────────
+const MIN_HEIGHT = 80;
+const LINE_HEIGHT = 22;
+const INPUT_PADDING = 32;
+
+/**
+ * 웹 환경에서 텍스트 높이를 추정
+ * - 줄바꿈 기준으로 라인 수 파악
+ * - 넉넉하게 36자마다 줄바꿈으로 간주
+ */
+const computeWebHeight = (text: string | undefined | null): number => {
+  const content = String(text || '');
+  if (content.length === 0) return MIN_HEIGHT;
+  const lines = content.split('\n');
+  let totalLines = 0;
+  lines.forEach(line => {
+    const wrappedLines = Math.ceil((line.length || 1) / 36);
+    totalLines += Math.max(1, wrappedLines);
+  });
+  return Math.max(MIN_HEIGHT, totalLines * LINE_HEIGHT + INPUT_PADDING);
+};
+
+export default function InvestigationScreen() {
+  const {
+    investigation,
+    isLoading,
+    isSyncing,
+    refreshData,
+    syncQueue,
+    addToSyncQueue,
+    markQueueAsSynced,
+    markQueueItemsAsSynced,
+    cleanupSyncQueue,
+    clearSyncedQueue,
+    clearSyncQueue,
+    meta,
+    targetPrices,
+    targetDates,
+    setTargetPrice,
+    setTargetDate,
+    customServerIp,
+    setCustomServerIp,
+  } = useDataStore();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | 'priority' | 'signal'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<any>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [signalData, setSignalData] = useState<Record<string, any>>({});  // PC에서 export한 신호 상태
+  const [isCheckingSignals, setIsCheckingSignals] = useState(false);  // 실시간 신호 조회 중 상태
+  const [isSyncingPC, setIsSyncingPC] = useState(false);
+  const [showIpModal, setShowIpModal] = useState(false);
+  const [ipInput, setIpInput] = useState('');
+  const [inputHeights, setInputHeights] = useState<Record<string, number>>({
+    question: 80,
+    reason: 80,
+    risk: 80,
+    momentum: 80,
+    strategy: 80,
+    ceo: 80,
+    targetDate: 80,
+    targetPrice: 80,
+  });
+
+  // ── 날짜 선택기 (목표일) ──
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [datePickerValue, setDatePickerValue] = useState({ year: 2026, month: 8, day: 8 });
+
+  // 월별 일수 계산
+  const getDaysInMonth = useCallback((year: number, month: number) => {
+    return new Date(year, month, 0).getDate();
+  }, []);
+
+  // 날짜 선택기 열기: 현재 editForm.targetDate 기준으로 초기화
+  const openDatePicker = useCallback(() => {
+    const current = editForm.targetDate || '';
+    const match = String(current).match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      setDatePickerValue({ year: parseInt(match[1]), month: parseInt(match[2]), day: parseInt(match[3]) });
+    } else {
+      const today = new Date();
+      setDatePickerValue({ year: today.getFullYear(), month: today.getMonth() + 1, day: today.getDate() });
+    }
+    setShowDatePicker(true);
+  }, [editForm.targetDate]);
+
+  // 날짜 선택 완료
+  const confirmDatePicker = useCallback(() => {
+    const { year, month, day } = datePickerValue;
+    const mm = String(month).padStart(2, '0');
+    const dd = String(day).padStart(2, '0');
+    setEditForm((prev: any) => ({ ...prev, targetDate: `${year}-${mm}-${dd}` }));
+    setShowDatePicker(false);
+  }, [datePickerValue]);
+
+  // ── 네이티브 전용: onContentSizeChange ──
+  const handleContentSizeChange = useCallback((field: string, event: any) => {
+    if (Platform.OS === 'web') return; // 웹은 computeWebHeight 사용
+    if (!event?.nativeEvent?.contentSize) return;
+    const { height } = event.nativeEvent.contentSize;
+    if (typeof height !== 'number') return;
+    
+    setInputHeights(prev => {
+      const newHeight = Math.max(MIN_HEIGHT, height + 40); // 하단 여백 공간 추가 확보
+      if (Math.abs((prev[field] || MIN_HEIGHT) - newHeight) < 5) return prev;
+      return {
+        ...prev,
+        [field]: newHeight,
+      };
+    });
+  }, []);
+
+  // 웹에서 사용할 필드별 높이 계산 (editForm이 변경될 때만 재계산)
+  const webHeights = useMemo(() => {
+    if (Platform.OS !== 'web') return null;
+    return {
+      question: computeWebHeight(editForm.question),
+      reason: computeWebHeight(editForm.reason),
+      risk: computeWebHeight(editForm.risk),
+      momentum: computeWebHeight(editForm.momentum),
+      strategy: computeWebHeight(editForm.strategy),
+      ceo: computeWebHeight(editForm.ceo),
+      targetDate: computeWebHeight(editForm.targetDate),
+      targetPrice: computeWebHeight(editForm.targetPrice),
+    };
+  }, [editForm.question, editForm.reason, editForm.risk, editForm.momentum, editForm.strategy, editForm.ceo, editForm.targetDate, editForm.targetPrice, computeWebHeight]);
+
+  // 플랫폼에 따라 적절한 높이를 반환하는 헬퍼
+  const getFieldHeight = useCallback((field: string): number => {
+    if (Platform.OS === 'web' && webHeights) {
+      return (webHeights as any)[field] || MIN_HEIGHT;
+    }
+    return inputHeights[field] || MIN_HEIGHT;
+  }, [webHeights, inputHeights]);
+
+  // refreshData를 ref로 보관: useEffect 의존성 배열에서 제외하여 무한 리렌더 방지
+  const refreshDataRef = useRef(refreshData);
+  useEffect(() => { refreshDataRef.current = refreshData; }, [refreshData]);
+
+  // syncQueue 파생 상태를 메모화: 렌더링마다 some() 반복 연산 방지
+  const hasPendingSync = useMemo(
+    () => !!syncQueue && syncQueue.some(item => item.isPendingSync !== false),
+    [syncQueue]
+  );
+  const hasPendingServerUpdate = useMemo(
+    () => !!syncQueue && syncQueue.some(item => item.isPendingSync === false),
+    [syncQueue]
+  );
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('sync') === 'success') {
+        const serverTs = urlParams.get('ts') || undefined;
+        // URL 파라미터 즉시 정리 (새로고침 시 중복 처리 방지)
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // ★ PC 전송 완료: 큐를 "전송 완료" 상태로 표시하고 서버 시각 기록
+        markQueueAsSynced(serverTs).then(() => {
+          setToastMessage('✅ PC 서버에 성공적으로 전송 및 반영되었습니다.');
+          setTimeout(() => {
+            setToastMessage(null);
+          }, 3500);
+          // 서버 데이터 새로고침 (큐 오버레이 적용) 및 서버 반영 큐 정리
+          refreshDataRef.current().then(() => {
+            cleanupSyncQueue(serverTs);
+          });
+        });
+      }
+    }
+  }, []);
+
+  // PC 서버 및 로컬 캐시를 통한 실시간 신호 데이터 조회
+  const fetchRealtimeSignalData = useCallback(async (): Promise<Record<string, any>> => {
+    const currentItems = investigation?.data || [];
+    const targetStockNames = currentItems
+      .filter((item: any) => {
+        const tp = getTargetPrice(item);
+        return tp !== '' && Number(String(tp).replace(/,/g, '')) > 0;
+      })
+      .map((item: any) => getStockName(item))
+      .filter(Boolean);
+
+    let realtimePrices: Record<string, number> = {};
+
+    // 1. PC 서버(Flask)가 연결 가능한 경우: /api/batch-current-prices 로 실시간 현재가 배치 조회
+    const pcIp = customServerIp || meta?.server_ip || '192.168.0.2';
+    if (targetStockNames.length > 0) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500); // 3.5초 타임아웃
+        const res = await fetch(`http://${pcIp}:5000/api/batch-current-prices`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ names: targetStockNames }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.prices) {
+            realtimePrices = data.prices;
+          }
+        }
+      } catch (e) {
+        // PC 서버 미연결 시 fallback 진행
+      }
+    }
+
+    // 2. moving_averages.json 및 investigation_signals.json 파일 캐시 방지 로드
+    let maData: Record<string, any> = {};
+    let baseSignals: Record<string, any> = {};
+    try {
+      const ts = Date.now();
+      const [maRes, sigRes] = await Promise.all([
+        fetch(`data/moving_averages.json?t=${ts}`).catch(() => null),
+        fetch(`data/investigation_signals.json?t=${ts}`).catch(() => null),
+      ]);
+      if (maRes && maRes.ok) maData = await maRes.json();
+      if (sigRes && sigRes.ok) baseSignals = await sigRes.json();
+    } catch (e) {}
+
+    // 3. 종합하여 신호 데이터 맵 생성
+    const todayStr = new Date().toISOString().split('T')[0];
+    const mergedSignals: Record<string, any> = { ...baseSignals };
+
+    currentItems.forEach((item: any) => {
+      const stockName = getStockName(item);
+      if (!stockName) return;
+
+      const td = String(getTargetDate(item) || '');
+      const tpRaw = getTargetPrice(item);
+      const numTp = tpRaw ? Number(String(tpRaw).replace(/,/g, '')) : 0;
+
+      let hasDateSignal = false;
+      const dateMatch = td.match(/(\d{4}-\d{2}-\d{2})/);
+      if (dateMatch && dateMatch[1] <= todayStr) {
+        hasDateSignal = true;
+      }
+
+      // 현재가 결정: 실시간 조회 가격 > moving_averages.json > baseSignals
+      let curPrice = realtimePrices[stockName]
+        || (maData[stockName]?.current ? Number(maData[stockName].current) : 0)
+        || (baseSignals[stockName]?.currentPrice ? Number(baseSignals[stockName].currentPrice) : 0);
+
+      let hasPriceSignal = false;
+      if (numTp > 0 && curPrice > 0) {
+        if (curPrice <= numTp) {
+          hasPriceSignal = true;
+        }
+      } else if (baseSignals[stockName]?.hasPriceSignal) {
+        hasPriceSignal = true;
+      }
+
+      mergedSignals[stockName] = {
+        ...(baseSignals[stockName] || {}),
+        hasDateSignal,
+        hasPriceSignal,
+        targetDate: td,
+        targetPrice: numTp,
+        currentPrice: curPrice,
+      };
+    });
+
+    cachedSignalData = mergedSignals;
+    return mergedSignals;
+  }, [investigation, customServerIp, meta?.server_ip]);
+
+  // 신호 필터 버튼 클릭 시 실시간 시세 확인 및 갱신 핸들러
+  const handleSignalFilterClick = useCallback(async () => {
+    setFilter('signal');
+    setIsCheckingSignals(true);
+    setToastMessage('🔍 실시간 시세 및 신호 확인 중...');
+
+    try {
+      const updatedSignals = await fetchRealtimeSignalData();
+      setSignalData(updatedSignals);
+
+      // 신호 발생 종목 수 계산
+      let signalCount = 0;
+      let priceCount = 0;
+      let dateCount = 0;
+      const currentItems = investigation?.data || [];
+      currentItems.forEach((item: any) => {
+        const sig = computeSignalStatusMobile(item, updatedSignals);
+        if (sig.hasSignal) {
+          signalCount++;
+          if (sig.signalType === 'price' || sig.signalType === 'both') priceCount++;
+          if (sig.signalType === 'date' || sig.signalType === 'both') dateCount++;
+        }
+      });
+
+      if (signalCount > 0) {
+        const details = [];
+        if (priceCount > 0) details.push(`목표가 도달 ${priceCount}건`);
+        if (dateCount > 0) details.push(`목표일 경과 ${dateCount}건`);
+        setToastMessage(`🔔 신호 발생 종목 ${signalCount}건 발견! (${details.join(', ')})`);
+      } else {
+        setToastMessage('🔔 현재 목표가 도달 또는 목표일 경과 종목이 없습니다.');
+      }
+    } catch (e) {
+      console.warn('Failed to fetch realtime signals:', e);
+      setToastMessage('⚠️ 실시간 시세 확인 실패 (이전 신호 데이터를 표시합니다)');
+    } finally {
+      setIsCheckingSignals(false);
+      setTimeout(() => {
+        setToastMessage(prev => (prev && prev.startsWith('🔔') ? null : prev));
+      }, 4000);
+    }
+  }, [fetchRealtimeSignalData, investigation]);
+
+  // PC에서 export한 신호 데이터 로드 (초기 마운트 시)
+  useEffect(() => {
+    loadSignalData().then(data => setSignalData(data));
+  }, [investigation]);
+
+  const toggleExpand = useCallback((id: string) => {
+    // 웹 환경에서는 LayoutAnimation 미지원 → 네이티브만 사용
+    if (Platform.OS !== 'web') {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
+    setExpandedId(prev => prev === id ? null : id);
+  }, []);
+
+  // 10초 자동 갱신: hasPendingServerUpdate가 true일 때만 활성화
+  // refreshData를 ref로 참조하여 의존성 배열에서 제외 → interval 재생성 방지
+  useEffect(() => {
+    if (!hasPendingServerUpdate) return;
+
+    const interval = setInterval(() => {
+      refreshDataRef.current();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [hasPendingServerUpdate]);
+
+  // 데이터가 없고 로딩 중일 때만 스피너 표시
+  if (isLoading && !investigation) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#00F2FE" />
+        <Text style={{ color: '#64748B', fontSize: 13, marginTop: 12 }}>데이터 확인 중...</Text>
+      </View>
+    );
+  }
+
+  const getEffectiveTargetDate = (item: any) => {
+    const stockName = getStockName(item);
+    // 엑셀이 우선! 로컬 저장소는 엑셀에 값이 없을 때만 fallback
+    const excelDate = getTargetDate(item);
+    return excelDate || targetDates?.[stockName] || '';
+  };
+
+  const getEffectiveTargetPrice = (item: any) => {
+    const stockName = getStockName(item);
+    // 엑셀이 우선! 로컬 저장소는 엑셀에 값이 없을 때만 fallback
+    const excelPrice = getTargetPrice(item);
+    return excelPrice !== '' ? excelPrice : (targetPrices?.[stockName] ?? '');
+  };
+
+  // 데이터 추출 로직 — 원본 인덱스(_realIndex) 보존
+  const allData = investigation?.data || [];
+  const allItems = allData
+    .map((r: any, idx: number) => ({ ...r, _realIndex: r._realIndex !== undefined ? r._realIndex : idx }))
+    .filter((r: any) => r._realIndex === editingIndex || getStockName(r));
+  
+  const items = allItems.filter((item: any) => {
+    if (item._realIndex === editingIndex) return true; // 수정 중인 종목은 무조건 포함
+    // 모멘텀과 매매 전략 둘 다 내용이 없는 경우 매매우선 필터에서 제외
+    if (filter === 'priority' && !getMomentum(item) && !getStrategy(item)) return false;
+    // 신호 필터: 목표일 경과 또는 목표가 크로스된 종목만 (PC와 동일 로직)
+    if (filter === 'signal' && !computeSignalStatusMobile(item, signalData).hasSignal) return false;
+    if (searchQuery.trim() !== '') {
+      const stockName = getStockName(item);
+      if (!stockName.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
+    }
+    return true;
+  });
+
+  const startEditing = (realIdx: number, item: any) => {
+    const stockName = getStockName(item);
+    // 엑셀이 우선! 로컬 저장소는 엑셀에 값이 없을 때만 fallback
+    const excelDate = getTargetDate(item);
+    const excelPrice = getTargetPrice(item);
+    const storedTargetDate = targetDates?.[stockName];
+    const storedTargetPrice = targetPrices?.[stockName];
+
+    setEditingIndex(realIdx);
+    setEditForm({
+      stockName,
+      question: getQuestion(item),
+      reason: getReason(item),
+      risk: getRisk(item),
+      momentum: getMomentum(item),
+      strategy: getStrategy(item),
+      ceo: getCeo(item),
+      targetDate: excelDate || storedTargetDate || '',
+      targetPrice: String((excelPrice || storedTargetPrice) || '')
+    });
+  };
+
+  const cancelEditing = () => {
+    // ?? ???? ??? ??? ??? ?? ??
+    if (editingIndex !== null && investigation?.data) {
+      const item = investigation.data.find((row: any, index: number) => (
+        (row._realIndex !== undefined ? row._realIndex : index) === editingIndex
+      ));
+      const isNewStock = Boolean(item?._isNew) || getStockName(item || {}) === '?? ??' || editForm.stockName === '?? ??';
+      const isEmpty = !editForm.question && !editForm.reason && !editForm.risk && !editForm.momentum && !editForm.strategy && !editForm.ceo && !editForm.targetDate && !editForm.targetPrice;
+      if (isNewStock && isEmpty) {
+        const updatedData = investigation.data.filter((row: any, index: number) => (
+          (row._realIndex !== undefined ? row._realIndex : index) !== editingIndex
+        ));
+        useDataStore.setState({ investigation: { ...investigation, data: updatedData } });
+      }
+    }
+    setEditingIndex(null);
+    setEditForm({});
+    setExpandedId(null);
+  };
+
+  const saveEditing = async (realIndex: number, rowData: any) => {
+    setIsSaving(true);
+    try {
+      // ★ _filePath가 null일 경우 file_name으로 fallback
+      const filePath = investigation._filePath || investigation.file_name || '';
+      const sheetName = investigation.current_sheet;
+      const columns = investigation.columns;
+      
+      // 하위호환성(Unnamed) 및 신규 컬럼명 모두 지원
+      const newRowData = { 
+        ...rowData, 
+        '종목명': editForm.stockName, 'Unnamed: 1': editForm.stockName,
+        '질문': editForm.question, 'Unnamed: 2': editForm.question,
+        '모멘텀': editForm.momentum, 'Unnamed: 3': editForm.momentum,
+        '매수이유': editForm.reason, 'Unnamed: 4': editForm.reason,
+        '리스크': editForm.risk, 'Unnamed: 5': editForm.risk,
+        '대표/경영진': editForm.ceo, 'Unnamed: 6': editForm.ceo,
+        '매매 전략': editForm.strategy, 'Unnamed: 7': editForm.strategy,
+        '목표일': editForm.targetDate, 'Unnamed: 8': editForm.targetDate,
+        '목표가': editForm.targetPrice, 'Unnamed: 9': editForm.targetPrice,
+      };
+      const values = columns.map((col: string) => newRowData[col] !== undefined && newRowData[col] !== null ? newRowData[col] : '');
+      const baseValues = columns.map((col: string) => (
+        rowData[col] !== undefined && rowData[col] !== null ? rowData[col] : ''
+      ));
+      const editTask = {
+        file: filePath,
+        sheet: sheetName,
+        rowIndex: rowData._realIndex !== undefined
+          ? rowData._realIndex
+          : (rowData._excelRowIndex !== undefined ? rowData._excelRowIndex : realIndex),
+        stockName: getStockName(newRowData),
+        columns,
+        baseValues,
+        values,
+        isNew: Boolean(rowData._isNew),
+        timestamp: new Date().toISOString(),
+      };
+      await addToSyncQueue(editTask);
+      
+      // 저장 후 로컬 target 데이터도 함께 갱신
+      const stockName = newRowData['종목명'] || newRowData['Unnamed: 1'] || '';
+      const targetDateValue = String(editForm.targetDate || '').trim();
+      const targetPriceValue = editForm.targetPrice ? Number(editForm.targetPrice.replace(/,/g, '')) : null;
+      await Promise.all([
+        setTargetDate(stockName, targetDateValue || null),
+        setTargetPrice(stockName, targetPriceValue || null),
+      ]);
+
+      // ★ Zustand 상태를 불변 방식으로 업데이트 (직접 뮤테이션 금지)
+      const updatedData = [...investigation.data];
+      const targetArrayIndex = updatedData.findIndex((row: any, index: number) => (
+        (row._realIndex !== undefined ? row._realIndex : index) === realIndex
+      ));
+      updatedData[targetArrayIndex >= 0 ? targetArrayIndex : realIndex] = newRowData;
+      useDataStore.setState({ investigation: { ...investigation, data: updatedData } });
+    } catch (e) {
+      console.error('Failed to queue content', e);
+    } finally {
+      setIsSaving(false);
+      setEditingIndex(null);
+    }
+  };
+
+  const handleCreateNewStock = () => {
+    if (!investigation || !investigation.data) return;
+
+    const allData = investigation.data;
+    const columns = investigation.columns || [];
+
+    const numCol = columns[0] || 'Unnamed: 0';
+    let maxNum = 0;
+    allData.forEach((row: any) => {
+      const num = parseInt(row[numCol] || row['Unnamed: 0'] || 0, 10);
+      if (!isNaN(num) && num > maxNum) maxNum = num;
+    });
+    const nextNum = maxNum + 1;
+
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    const defaultStockName = '신규 종목';
+    const newRowData: any = {};
+    columns.forEach((col: string) => { newRowData[col] = ''; });
+    newRowData[numCol] = nextNum;
+    if (numCol !== 'Unnamed: 0') newRowData['Unnamed: 0'] = nextNum;
+    newRowData['종목명'] = defaultStockName;
+    newRowData['Unnamed: 1'] = defaultStockName;
+
+    const dateCol = columns.find((c: string) => c.includes('날짜') || c.includes('일자'));
+    if (dateCol && dateCol !== numCol) {
+      newRowData[dateCol] = todayStr;
+    }
+
+    const newRealIndex = allData.length;
+    // 신규 행을 배열 맨 앞에 추가 (_excelRowIndex로 실제 엑셀 행 위치 보존)
+    newRowData._excelRowIndex = allData.length;
+    newRowData._realIndex = newRealIndex;
+    newRowData._isNew = true;
+    const updatedData = [newRowData, ...allData];
+    
+    // 모든 상태를 한 번에 업데이트 (React 18 자동 배치)
+    useDataStore.setState({ investigation: { ...investigation, data: updatedData } });
+    
+    const idStr = String(newRowData['Unnamed: 0'] || nextNum);
+    setFilter('all');
+    setSearchQuery('');
+    setExpandedId(idStr);
+    setEditingIndex(newRealIndex); // 맨 위(인덱스 0)
+    setEditForm({
+      stockName: defaultStockName,
+      question: '',
+      reason: '',
+      risk: '',
+      momentum: '',
+      strategy: '',
+      ceo: '',
+      targetDate: '',
+      targetPrice: ''
+    });
+    setToastMessage(`✨ 새 종목(번호: ${nextNum})이 생성되었습니다. 종목명과 내용을 입력해주세요.`);
+    setTimeout(() => setToastMessage(null), 3500);
+
+    // 오프라인 동기화 (백그라운드)
+    // Queue the new row only after the user presses Save.
+  };
+
+  const effectiveIp = customServerIp || meta?.server_ip || '192.168.0.2';
+
+  const handleSync = async () => {
+    const pendingQueue = (syncQueue || []).filter(item => item.isPendingSync !== false);
+    if (pendingQueue.length === 0) return;
+    setIsSyncingPC(true);
+    const targetUrl = `http://${effectiveIp}:5000/api/sync-receive`;
+
+    try {
+      const res = await fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(pendingQueue),
+      });
+
+      if (res.ok) {
+        const resJson = await res.json().catch(() => ({}));
+        if (resJson?.success !== true) {
+          throw new Error(resJson?.error || 'PC server rejected the sync request');
+        }
+        const results = Array.isArray(resJson?.results) ? resJson.results : [];
+        const savedIds = results.length > 0
+          ? results.filter((item: any) => item.status === 'saved' && item.syncId).map((item: any) => item.syncId)
+          : pendingQueue.map(item => item.syncId).filter(Boolean);
+        if (savedIds.length > 0) {
+          await markQueueItemsAsSynced(savedIds, resJson?.server_time);
+        }
+
+        const reviewPending = results.filter((item: any) => item.status === 'needs_review').length;
+        const fallbackSaved = results.filter((item: any) => item.review_mode === 'fallback_mobile_priority' || item.review_mode === 'fallback_server_latest').length;
+        if (reviewPending > 0) {
+          setToastMessage(`AI 검토 결과 확인이 필요한 항목 ${reviewPending}건이 있습니다.`);
+        } else if (fallbackSaved > 0) {
+          setToastMessage(`모바일 수정 내용(${fallbackSaved}건)이 PC 엑셀에 안전하게 반영되었습니다.`);
+        } else {
+          setToastMessage(`PC 서버(${effectiveIp})에 정상 반영되었습니다.`);
+        }
+        setTimeout(() => setToastMessage(null), 5000);
+        await refreshData();
+        await cleanupSyncQueue(resJson?.server_time);
+      } else {
+        const errText = await res.text().catch(() => '');
+        alert(`PC 서버 동기화 실패 (${res.status}): ${errText}`);
+      }
+    } catch (err: any) {
+      console.warn('Fetch sync failed, trying form submit fallback:', err);
+
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        try {
+          await markQueueItemsAsSynced(
+            pendingQueue.map(item => item.syncId).filter(Boolean),
+          );
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = targetUrl;
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'payload';
+          input.value = JSON.stringify(pendingQueue);
+          form.appendChild(input);
+          document.body.appendChild(form);
+          form.submit();
+          return;
+        } catch (e) {}
+      }
+
+      alert(
+        `PC ??(${effectiveIp}:5000) ?? ??!\n\n` +
+        '1. ???? PC? ?? Wi-Fi? ???? ??? ??????.\n' +
+        '2. PC?? server.py? ?? ??? ??????.\n' +
+        '3. PC IP? ?????? [?? IP] ???? ??????.'
+      );
+    } finally {
+      setIsSyncingPC(false);
+    }
+  };
+
+  return (
+    <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {toastMessage && (
+          <View style={styles.toastBanner}>
+            <Text style={styles.toastBannerText}>{toastMessage}</Text>
+          </View>
+        )}
+        <View style={styles.headerRow}>
+          <View style={styles.filterContainer}>
+            <TouchableOpacity 
+              style={[styles.filterBtn, filter === 'all' && styles.filterBtnActive]}
+              onPress={() => setFilter('all')}
+            >
+              <Text style={[styles.filterBtnText, filter === 'all' && styles.filterBtnTextActive]}>전체</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.filterBtn, filter === 'priority' && styles.filterBtnActive]}
+              onPress={() => setFilter('priority')}
+            >
+              <Text style={[styles.filterBtnText, filter === 'priority' && styles.filterBtnTextActive]}>매매우선</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.filterBtn, filter === 'signal' && styles.filterBtnActive]}
+              onPress={handleSignalFilterClick}
+              disabled={isCheckingSignals}
+            >
+              {isCheckingSignals ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <ActivityIndicator size="small" color="#00F2FE" />
+                  <Text style={[styles.filterBtnText, styles.filterBtnTextActive]}>조회중</Text>
+                </View>
+              ) : (
+                <Text style={[styles.filterBtnText, filter === 'signal' && styles.filterBtnTextActive]}>🔔 신호</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.headerRightActions}>
+            <TouchableOpacity 
+              style={styles.addStockBtn} 
+              onPress={handleCreateNewStock}
+            >
+              <Text style={styles.addStockBtnText}>➕ 신규 종목</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="🔍 종목명 검색..."
+            placeholderTextColor="#475569"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        {syncQueue && syncQueue.length > 0 && (
+          <View style={styles.syncBanner}>
+            <Text style={styles.syncBannerText}>
+              {hasPendingSync
+                ? `🔄 PC 동기화 대기 중인 수정내역 (${syncQueue.length}건)`
+                : `✅ PC 전송 완료 / 반영 대기 중 (${syncQueue.length}건)`}
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+              {hasPendingSync && (
+                <>
+                  <TouchableOpacity style={styles.syncBtn} onPress={handleSync} disabled={isSyncingPC}>
+                    {isSyncingPC ? (
+                      <ActivityIndicator size="small" color="#422006" />
+                    ) : (
+                      <Text style={styles.syncBtnText}>PC로 전송하기</Text>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.syncBtn, { backgroundColor: '#475569' }]} 
+                    onPress={() => {
+                      setIpInput(effectiveIp);
+                      setShowIpModal(true);
+                    }}
+                  >
+                    <Text style={[styles.syncBtnText, { color: '#FFFFFF' }]}>⚙️ IP</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+              <TouchableOpacity 
+                style={[styles.syncBtn, { backgroundColor: hasPendingSync ? '#475569' : '#059669' }]} 
+                onPress={async () => {
+                  await clearSyncQueue();
+                  setToastMessage('🧹 동기화 대기 목록을 정리했습니다.');
+                  setTimeout(() => setToastMessage(null), 3000);
+                }}
+              >
+                <Text style={[styles.syncBtnText, { color: '#FFFFFF' }]}>비우기</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+        
+        {items.length > 0 ? (
+          items.map((item: any, index: number) => {
+            const id = item['Unnamed: 0'] || String(index);
+            const realIdx = item._realIndex;
+            const isExpanded = expandedId === id || editingIndex === realIdx;
+            
+            return (
+              <TouchableOpacity 
+                key={id} 
+                style={[styles.card, isExpanded && styles.cardExpanded]}
+                onPress={() => {
+                  if (editingIndex !== realIdx) toggleExpand(id);
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={styles.cardHeader}>
+                  <View style={styles.titleRow}>
+                    {editingIndex === realIdx ? (
+                      <TextInput
+                        style={styles.editInput}
+                        value={editForm.stockName !== undefined ? editForm.stockName : getStockName(item)}
+                        onChangeText={t => setEditForm((prev: any) => ({ ...prev, stockName: t }))}
+                        placeholder="종목명 입력"
+                        placeholderTextColor="#94A3B8"
+                      />
+                    ) : (
+                      <Text style={styles.stockName}>
+                        {getStockName(item) || '(종목명 없음)'}
+                      </Text>
+                    )}
+                    {(getMomentum(item) || getStrategy(item)) ? (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>매매우선</Text>
+                      </View>
+                    ) : null}
+                    {/* ── 신호 뱃지 (PC와 동일 로직) ── */}
+                    {(() => {
+                      const signal = computeSignalStatusMobile(item, signalData);
+                      if (signal.hasSignal) {
+                        let label = '🔔';
+                        if (signal.signalType === 'date') label = '📅';
+                        else if (signal.signalType === 'price') label = '💰';
+                        else if (signal.signalType === 'both') label = '🔔';
+                        return (
+                          <View style={styles.signalBadge}>
+                            <Text style={styles.signalBadgeText}>{label}</Text>
+                          </View>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </View>
+                  <Text style={styles.expandIcon}>{isExpanded ? '−' : '+'}</Text>
+                </View>
+
+                {isExpanded && (
+                  <View style={styles.expandedContent}>
+                    {editingIndex === realIdx ? (
+                      <View>
+                        <View style={styles.section}>
+                          <Text style={styles.sectionTitle}>❓ 질문</Text>
+                          <TextInput 
+                            style={[styles.multilineInput, { height: getFieldHeight('question') }]} 
+                            multiline scrollEnabled={true} value={editForm.question} 
+                            onChangeText={t => setEditForm((prev: any) => ({...prev, question: t}))} 
+                            onContentSizeChange={e => handleContentSizeChange('question', e)}
+                          />
+                        </View>
+                        <View style={styles.section}>
+                          <Text style={styles.sectionTitle}>🎯 매수 이유</Text>
+                          <TextInput 
+                            style={[styles.multilineInput, { height: getFieldHeight('reason') }]} 
+                            multiline scrollEnabled={true} value={editForm.reason} 
+                            onChangeText={t => setEditForm((prev: any) => ({...prev, reason: t}))} 
+                            onContentSizeChange={e => handleContentSizeChange('reason', e)}
+                          />
+                        </View>
+                        <View style={styles.section}>
+                          <Text style={styles.sectionTitle}>⚠️ 리스크</Text>
+                          <TextInput 
+                            style={[styles.multilineInput, { height: getFieldHeight('risk') }]} 
+                            multiline scrollEnabled={true} value={editForm.risk} 
+                            onChangeText={t => setEditForm((prev: any) => ({...prev, risk: t}))} 
+                            onContentSizeChange={e => handleContentSizeChange('risk', e)}
+                          />
+                        </View>
+                        <View style={styles.section}>
+                          <Text style={styles.sectionTitle}>💡 핵심 모멘텀</Text>
+                          <TextInput 
+                            style={[styles.multilineInput, { height: getFieldHeight('momentum') }]} 
+                            multiline scrollEnabled={true} value={editForm.momentum} 
+                            onChangeText={t => setEditForm((prev: any) => ({...prev, momentum: t}))} 
+                            onContentSizeChange={e => handleContentSizeChange('momentum', e)}
+                          />
+                        </View>
+                        <View style={styles.section}>
+                          <Text style={styles.sectionTitle}>📈 매매 전략</Text>
+                          <TextInput 
+                            style={[styles.multilineInput, { height: getFieldHeight('strategy') }]} 
+                            multiline scrollEnabled={true} value={editForm.strategy} 
+                            onChangeText={t => setEditForm((prev: any) => ({...prev, strategy: t}))} 
+                            onContentSizeChange={e => handleContentSizeChange('strategy', e)}
+                          />
+                        </View>
+                        <View style={styles.section}>
+                          <Text style={styles.sectionTitle}>🎯 목표 시점</Text>
+                          <View style={styles.dateInputRow}>
+                            <TextInput 
+                              style={[styles.singleLineInput, { height: getFieldHeight('targetDate'), flex: 1 }]} 
+                              value={editForm.targetDate} 
+                              onChangeText={t => setEditForm((prev: any) => ({...prev, targetDate: t}))} 
+                              placeholder="YYYY-MM-DD"
+                              placeholderTextColor="#94A3B8"
+                            />
+                            <TouchableOpacity style={styles.calendarBtn} onPress={openDatePicker}>
+                              <Text style={styles.calendarBtnText}>📅</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                        <View style={styles.section}>
+                          <Text style={styles.sectionTitle}>💰 목표가</Text>
+                          <TextInput 
+                            style={[styles.singleLineInput, { height: getFieldHeight('targetPrice') }]} 
+                            value={editForm.targetPrice} 
+                            onChangeText={t => setEditForm((prev: any) => ({...prev, targetPrice: t.replace(/[^0-9]/g, '')}))} 
+                            keyboardType="numeric"
+                            placeholder="숫자만 입력"
+                            placeholderTextColor="#94A3B8"
+                          />
+                        </View>
+                        <View style={styles.section}>
+                          <Text style={styles.sectionTitle}>👤 대표 / 경영진</Text>
+                          <TextInput 
+                            style={[styles.multilineInput, { height: getFieldHeight('ceo') }]} 
+                            multiline scrollEnabled={true} value={editForm.ceo} 
+                            onChangeText={t => setEditForm((prev: any) => ({...prev, ceo: t}))} 
+                            onContentSizeChange={e => handleContentSizeChange('ceo', e)}
+                          />
+                        </View>
+                        
+                        <View style={styles.actionButtons}>
+                          <TouchableOpacity style={[styles.actionBtn, styles.cancelBtn]} onPress={(e) => {
+                            if (Platform.OS === 'web' && e && typeof (e as any).stopPropagation === 'function') {
+                              (e as any).stopPropagation();
+                            }
+                            cancelEditing();
+                          }}>
+                            <Text style={styles.cancelBtnText}>취소</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={[styles.actionBtn, styles.saveBtn]} onPress={(e) => {
+                            if (Platform.OS === 'web' && e && typeof (e as any).stopPropagation === 'function') {
+                              (e as any).stopPropagation();
+                            }
+                            saveEditing(realIdx, item);
+                          }} disabled={isSaving}>
+                            {isSaving ? <ActivityIndicator size="small" color="#0F172A" /> : <Text style={styles.saveBtnText}>저장</Text>}
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ) : (
+                      <View>
+                        {getQuestion(item) ? (
+                          <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>❓ 질문</Text>
+                            <Text style={styles.sectionText}>{getQuestion(item)}</Text>
+                          </View>
+                        ) : null}
+
+                        {getReason(item) ? (
+                          <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>🎯 매수 이유</Text>
+                            <Text style={styles.sectionText}>{getReason(item)}</Text>
+                          </View>
+                        ) : null}
+
+                        {getRisk(item) ? (
+                          <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>⚠️ 리스크</Text>
+                            <Text style={styles.sectionText}>{getRisk(item)}</Text>
+                          </View>
+                        ) : null}
+
+                        {getMomentum(item) ? (
+                          <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>💡 핵심 모멘텀</Text>
+                            <Text style={styles.sectionText}>{getMomentum(item)}</Text>
+                          </View>
+                        ) : null}
+
+                        {getStrategy(item) ? (
+                          <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>📈 매매 전략</Text>
+                            <Text style={styles.sectionText}>{getStrategy(item)}</Text>
+                          </View>
+                        ) : null}
+
+                        {(() => {
+                          const effectiveDate = getEffectiveTargetDate(item);
+                          return effectiveDate ? (
+                            <View style={styles.section}>
+                              <Text style={styles.sectionTitle}>🎯 목표 시점</Text>
+                              <Text style={styles.sectionText}>{effectiveDate}</Text>
+                            </View>
+                          ) : null;
+                        })()}
+                        {(() => {
+                          const effectivePrice = getEffectiveTargetPrice(item);
+                          const stockName = getStockName(item);
+                          const sig = signalData?.[stockName];
+                          const curP = sig?.currentPrice || sig?.current;
+                          return effectivePrice ? (
+                            <View style={styles.section}>
+                              <Text style={styles.sectionTitle}>💰 목표가</Text>
+                              <Text style={styles.sectionText}>
+                                {String(effectivePrice).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}원
+                                {curP ? ` (현재가: ${String(curP).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}원)` : ''}
+                              </Text>
+                            </View>
+                          ) : null;
+                        })()}
+                        {getCeo(item) ? (
+                          <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>👤 대표 / 경영진</Text>
+                            <Text style={styles.sectionText}>{getCeo(item)}</Text>
+                          </View>
+                        ) : null}
+                        
+                        <TouchableOpacity style={styles.editContentBtn} onPress={(e) => {
+                          if (Platform.OS === 'web' && e && typeof (e as any).stopPropagation === 'function') {
+                            (e as any).stopPropagation();
+                          }
+                          startEditing(realIdx, item);
+                        }}>
+                          <Text style={styles.editContentBtnText}>내용 수정 ✏️</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })
+        ) : (
+          <View style={styles.glassCard}>
+            <Text style={styles.infoText}>데이터가 아직 동기화되지 않았습니다.</Text>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* ── 목표일 달력 Modal ── */}
+      <Modal visible={showDatePicker} transparent animationType="fade" onRequestClose={() => setShowDatePicker(false)}>
+        <View style={styles.datePickerOverlay}>
+          <View style={styles.datePickerContainer}>
+            <Text style={styles.datePickerTitle}>📅 목표일 선택</Text>
+
+            <View style={styles.datePickerRow}>
+              {/* 연도 선택 */}
+              <View style={styles.datePickerColumn}>
+                <Text style={styles.datePickerLabel}>연도</Text>
+                <ScrollView style={styles.datePickerScroll} showsVerticalScrollIndicator={false}>
+                  {Array.from({ length: 11 }, (_, i) => 2022 + i).map(y => (
+                    <TouchableOpacity
+                      key={y}
+                      style={[styles.datePickerItem, datePickerValue.year === y && styles.datePickerItemActive]}
+                      onPress={() => {
+                        const maxDay = getDaysInMonth(y, datePickerValue.month);
+                        setDatePickerValue(prev => ({ ...prev, year: y, day: Math.min(prev.day, maxDay) }));
+                      }}
+                    >
+                      <Text style={[styles.datePickerItemText, datePickerValue.year === y && styles.datePickerItemTextActive]}>{y}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* 월 선택 */}
+              <View style={styles.datePickerColumn}>
+                <Text style={styles.datePickerLabel}>월</Text>
+                <ScrollView style={styles.datePickerScroll} showsVerticalScrollIndicator={false}>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                    <TouchableOpacity
+                      key={m}
+                      style={[styles.datePickerItem, datePickerValue.month === m && styles.datePickerItemActive]}
+                      onPress={() => {
+                        const maxDay = getDaysInMonth(datePickerValue.year, m);
+                        setDatePickerValue(prev => ({ ...prev, month: m, day: Math.min(prev.day, maxDay) }));
+                      }}
+                    >
+                      <Text style={[styles.datePickerItemText, datePickerValue.month === m && styles.datePickerItemTextActive]}>{m}월</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* 일 선택 */}
+              <View style={styles.datePickerColumn}>
+                <Text style={styles.datePickerLabel}>일</Text>
+                <ScrollView style={styles.datePickerScroll} showsVerticalScrollIndicator={false}>
+                  {Array.from({ length: getDaysInMonth(datePickerValue.year, datePickerValue.month) }, (_, i) => i + 1).map(d => (
+                    <TouchableOpacity
+                      key={d}
+                      style={[styles.datePickerItem, datePickerValue.day === d && styles.datePickerItemActive]}
+                      onPress={() => setDatePickerValue(prev => ({ ...prev, day: d }))}
+                    >
+                      <Text style={[styles.datePickerItemText, datePickerValue.day === d && styles.datePickerItemTextActive]}>{d}일</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+
+            {/* 버튼 영역 */}
+            <View style={styles.datePickerActions}>
+              <TouchableOpacity style={styles.datePickerCancelBtn} onPress={() => setShowDatePicker(false)}>
+                <Text style={styles.datePickerCancelText}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.datePickerConfirmBtn} onPress={confirmDatePicker}>
+                <Text style={styles.datePickerConfirmText}>확인</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* PC IP 설정 모달 */}
+      <Modal
+        visible={showIpModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowIpModal(false)}
+      >
+        <View style={styles.datePickerOverlay}>
+          <View style={styles.datePickerContainer}>
+            <Text style={styles.datePickerTitle}>⚙️ PC 서버 IP 설정</Text>
+            <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 16, textAlign: 'center', lineHeight: 20 }}>
+              핸드폰과 PC가 같은 와이파이에 연결되어 있어야 합니다.{'\n'}
+              현재 설정 IP: <Text style={{ color: '#00F2FE', fontWeight: 'bold' }}>{effectiveIp}</Text>
+            </Text>
+            <TextInput
+              style={[styles.singleLineInput, { color: '#FFFFFF', marginBottom: 20, textAlign: 'center', fontSize: 16 }]}
+              value={ipInput}
+              onChangeText={setIpInput}
+              placeholder="예: 192.168.0.2"
+              placeholderTextColor="#64748B"
+            />
+            <View style={styles.datePickerActions}>
+              <TouchableOpacity
+                style={styles.datePickerCancelBtn}
+                onPress={async () => {
+                  await setCustomServerIp(null);
+                  setShowIpModal(false);
+                }}
+              >
+                <Text style={styles.datePickerCancelText}>기본값 리셋</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.datePickerConfirmBtn}
+                onPress={async () => {
+                  if (ipInput.trim()) {
+                    await setCustomServerIp(ipInput.trim());
+                  }
+                  setShowIpModal(false);
+                }}
+              >
+                <Text style={styles.datePickerConfirmText}>저장</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </LinearGradient>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  loadingContainer: { flex: 1, backgroundColor: '#0F172A', justifyContent: 'center', alignItems: 'center' },
+  scrollContent: { padding: 20, paddingBottom: 40 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  title: { fontSize: 28, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 },
+  filterContainer: { flexDirection: 'row', backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 12, padding: 4 },
+  filterBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 },
+  filterBtnActive: { backgroundColor: 'rgba(0, 242, 254, 0.2)' },
+  filterBtnText: { color: '#64748B', fontSize: 13, fontWeight: '700' },
+  filterBtnTextActive: { color: '#00F2FE' },
+  headerRightActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  addStockBtn: {
+    backgroundColor: 'rgba(0, 242, 254, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 254, 0.4)',
+  },
+  addStockBtnText: { color: '#00F2FE', fontSize: 13, fontWeight: 'bold' },
+  searchContainer: { marginBottom: 16 },
+  searchInput: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+    color: '#E2E8F0', fontSize: 14,
+  },
+  card: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  cardExpanded: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: 'rgba(0, 242, 254, 0.3)',
+    shadowColor: '#00F2FE',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1 },
+  stockName: { fontSize: 20, fontWeight: 'bold', color: '#FFFFFF' },
+  editInput: { 
+    fontSize: 20, fontWeight: 'bold', color: '#FFFFFF', 
+    borderBottomWidth: 1, borderBottomColor: '#00F2FE', 
+    padding: 0, margin: 0, minWidth: 100 
+  },
+  badge: { backgroundColor: 'rgba(0, 242, 254, 0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  badgeText: { color: '#00F2FE', fontSize: 11, fontWeight: 'bold' },
+  signalBadge: { backgroundColor: 'rgba(248, 113, 113, 0.2)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(248, 113, 113, 0.4)' },
+  signalBadgeText: { fontSize: 12 },
+  expandIcon: { color: '#00F2FE', fontSize: 28, fontWeight: '300', marginTop: -4 },
+  expandedContent: { marginTop: 20, paddingTop: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
+  section: { marginBottom: 20 },
+  sectionTitle: { fontSize: 13, fontWeight: 'bold', color: '#94A3B8', marginBottom: 8 },
+  sectionText: { fontSize: 15, color: '#E2E8F0', lineHeight: 24 },
+  multilineInput: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 8, 
+    paddingTop: 12, paddingHorizontal: 12, paddingBottom: 32,
+    color: '#FFFFFF', fontSize: 15, lineHeight: 22,
+    textAlignVertical: 'top',
+  },
+  singleLineInput: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    color: '#FFFFFF',
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  actionButtons: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 10 },
+  actionBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
+  cancelBtn: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#475569' },
+  saveBtn: { backgroundColor: '#00F2FE' },
+  cancelBtnText: { color: '#94A3B8', fontWeight: 'bold' },
+  saveBtnText: { color: '#0F172A', fontWeight: 'bold' },
+  editContentBtn: {
+    alignSelf: 'flex-end',
+    backgroundColor: 'rgba(0, 242, 254, 0.1)',
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: 8, marginTop: 10,
+    borderWidth: 1, borderColor: 'rgba(0, 242, 254, 0.3)'
+  },
+  editContentBtnText: { color: '#00F2FE', fontSize: 13, fontWeight: 'bold' },
+  glassCard: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 24, padding: 24, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  infoText: { color: '#64748B', fontSize: 16, textAlign: 'center', marginVertical: 20 },
+  syncBanner: { backgroundColor: 'rgba(234, 179, 8, 0.1)', borderColor: '#EAB308', borderWidth: 1, borderRadius: 12, padding: 16, marginBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  syncBannerText: { color: '#FDE047', fontSize: 14, fontWeight: 'bold', flex: 1 },
+  syncBtn: { backgroundColor: '#EAB308', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
+  syncBtnText: { color: '#422006', fontSize: 13, fontWeight: 'bold' },
+  toastBanner: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toastBannerText: {
+    color: '#34D399',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  // ── 목표일 달력 버튼 & 날짜 선택기 ──
+  dateInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  calendarBtn: {
+    backgroundColor: 'rgba(0, 242, 254, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 254, 0.4)',
+    borderRadius: 8,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  calendarBtnText: {
+    fontSize: 20,
+  },
+  datePickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  datePickerContainer: {
+    backgroundColor: '#1E293B',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 254, 0.3)',
+  },
+  datePickerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  datePickerRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  datePickerColumn: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  datePickerLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#94A3B8',
+    marginBottom: 8,
+  },
+  datePickerScroll: {
+    maxHeight: 200,
+    width: '100%',
+  },
+  datePickerItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  datePickerItemActive: {
+    backgroundColor: 'rgba(0, 242, 254, 0.2)',
+    borderWidth: 1,
+    borderColor: '#00F2FE',
+  },
+  datePickerItemText: {
+    color: '#94A3B8',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  datePickerItemTextActive: {
+    color: '#00F2FE',
+    fontWeight: 'bold',
+  },
+  datePickerActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+  },
+  datePickerCancelBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#475569',
+  },
+  datePickerCancelText: {
+    color: '#94A3B8',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  datePickerConfirmBtn: {
+    backgroundColor: '#00F2FE',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  datePickerConfirmText: {
+    color: '#0F172A',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+});
