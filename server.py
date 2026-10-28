@@ -1,2945 +1,6278 @@
 """
+
 OneDrive 엑셀 데이터 분석 서버
+
 - OneDrive 로컬 동기화 폴더에서 엑셀 파일을 읽어 JSON API로 제공
+
 - Flask 기반 REST API 서버
+
 """
 
+
+
 import os
+
 import sys
+
 import json
+
 import re
+
 from pathlib import Path
+
 from collections import OrderedDict
+
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+
+
 # 작업 디렉토리를 스크립트 위치로 고정 (작업 스케줄러 실행 시 System32 참조 방지)
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 os.chdir(BASE_DIR)
+
 from flask import Flask, jsonify, request, send_from_directory, make_response
+
 from flask_cors import CORS
+
 import pandas as pd
+
 import openpyxl
+
 import subprocess
+
 import threading
+
 from openpyxl.styles import Font
 
+
+
 # Windows 콘솔 CP949 인코딩 충돌 방지 - stdout/stderr를 UTF-8로 강제 설정 (백그라운드 예외 처리)
+
 try:
+
     if sys.stdout and hasattr(sys.stdout, 'encoding') and sys.stdout.encoding != 'utf-8':
+
         try:
+
             sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1)
+
         except Exception:
+
             pass
+
     if sys.stderr and hasattr(sys.stderr, 'encoding') and sys.stderr.encoding != 'utf-8':
+
         try:
+
             sys.stderr = open(sys.stderr.fileno(), mode='w', encoding='utf-8', buffering=1)
+
         except Exception:
+
             pass
+
 except Exception:
+
     pass
 
 
+
+
+
 app = Flask(__name__, static_folder=None)
+
 # 모든 경로와 오리진에 대해 CORS 허용 (모바일 앱 접속용)
+
 CORS(app, resources={r"/*": {"origins": "*"}})
 
+
+
 @app.before_request
+
 def handle_options_preflight():
+
     if request.method == 'OPTIONS':
+
         response = make_response()
+
         response.headers.add('Access-Control-Allow-Origin', '*')
+
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+
         response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+
         return response
 
+
+
 @app.after_request
+
 def after_request(response):
+
     response.headers.add('Access-Control-Allow-Origin', '*')
+
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+
     return response
 
+
+
 # API 응답 gzip 압축 (대용량 JSON 전송 최적화 - 약 70~80% 크기 감소)
+
 try:
+
     from flask_compress import Compress
+
     compress = Compress()
+
     app.config['COMPRESS_MIMETYPES'] = [
+
         'application/json',
+
         'text/html',
+
         'text/css',
+
         'application/javascript',
+
     ]
+
     app.config['COMPRESS_LEVEL'] = 6      # 압축 레벨 (1~9, 6이 속도/크기 균형)
+
     app.config['COMPRESS_MIN_SIZE'] = 500 # 500바이트 이상만 압축
+
     compress.init_app(app)
+
     print("[COMPRESS] gzip 압축 활성화됨")
+
 except ImportError:
+
     print("[COMPRESS] flask-compress 미설치 — pip install flask-compress 로 설치 가능")
 
 
+
+
+
 # 글로벌 OneDrive 경로 설정 (사용자 지정 경로 우선)
+
 def find_target_onedrive_path():
+
     fixed_path = r"C:\Users\zerod\OneDrive"
+
     if os.path.isdir(fixed_path):
+
         return fixed_path
+
     
+
     # 자동 탐색 로직 (예비용)
+
     possible_paths = [
+
         os.path.expanduser("~/OneDrive"),
+
         os.path.expanduser("~/OneDrive - Personal"),
+
         os.path.expandvars(r"%USERPROFILE%\OneDrive"),
+
     ]
+
     for path in possible_paths:
+
         if path and os.path.isdir(path):
+
             return os.path.abspath(path)
+
     return None
 
+
+
 ONEDRIVE_PATH = find_target_onedrive_path()
+
 EXCEL_FILE = '주식 체크 리스트_20220328.xlsx'
 
+
+
 # ==================== 자동 동기화 트리거 ====================
+
 _export_lock = threading.Lock()
+
 _export_request_lock = threading.Lock()
+
 _export_requested = False
+
 _export_worker_running = False
 
+
+
 # 탐구생활 신호 가격 캐시.
+
 # 서버 시작 시 백그라운드에서 미리 채우고, 화면에서는 캐시를 먼저 사용한 뒤
+
 # 별도 가격 조회로 최신값을 반영한다.
+
 _signal_price_cache_lock = threading.Lock()
+
 _signal_price_refresh_lock = threading.Lock()
+
 _signal_price_cache = {
+
     'date': None,
+
     'updatedAt': None,
+
     'loading': False,
+
     'prices': {},
+
     'names': [],
+
     'error': None,
+
 }
 
 
+
+
+
 def _load_investigation_signal_names():
+
     """탐구생활에서 현재가가 필요한 목표가 종목명을 읽는다."""
+
     path = os.path.join(BASE_DIR, 'StockPortfolioApp', 'public', 'data', 'investigation.json')
+
     if not os.path.exists(path):
+
         return []
+
+
 
     try:
+
         with open(path, 'r', encoding='utf-8') as f:
+
             payload = json.load(f)
+
         columns = payload.get('columns', [])
+
         name_col = next(
+
             (col for col in columns if '종목' in str(col) or str(col).lower().endswith('stock')),
+
             columns[1] if len(columns) > 1 else None,
+
         )
+
         target_price_col = next(
+
             (col for col in columns if '목표가' in str(col)),
+
             columns[9] if len(columns) > 9 else None,
+
         )
+
         if not name_col or not target_price_col:
+
             return []
 
+
+
         names = []
+
         for row in payload.get('data', []):
+
             name = str(row.get(name_col, '')).replace('~~', '').strip()
+
             target_price = str(row.get(target_price_col, '')).replace(',', '').strip()
+
             if name and target_price and name not in names:
+
                 names.append(name)
+
         return names
+
     except Exception as e:
+
         print(f'[SIGNAL-CACHE] 종목 목록 로드 실패: {e}')
+
         return []
+
+
+
 
 
 def _load_static_signal_prices(names):
+
     """실시간 조회 전 정적 이동평균 데이터에서 당일 가격을 읽는다."""
+
     path = os.path.join(BASE_DIR, 'StockPortfolioApp', 'public', 'data', 'moving_averages.json')
+
     try:
+
         with open(path, 'r', encoding='utf-8') as f:
+
             payload = json.load(f)
+
         prices = {}
+
         for name in names:
+
             current = float(payload.get(name, {}).get('current', 0) or 0)
+
             if current > 0:
+
                 prices[name] = int(current)
+
         return prices
+
     except Exception:
+
         return {}
+
+
+
 
 
 def _fetch_signal_prices_from_ls(names):
+
     """LS API에서 신호 종목 현재가를 조회한다."""
+
     from ls_api import fetch_current_prices, get_stock_codes_by_names, load_config, get_access_token
 
+
+
     cfg = load_config()
+
     token = get_access_token(cfg.get('app_key', ''), cfg.get('app_secret', ''))
+
     if not token:
+
         return {}
+
+
 
     name_to_code = get_stock_codes_by_names(token, names)
+
     if not name_to_code:
+
         return {}
 
+
+
     code_prices = fetch_current_prices(list(name_to_code.values()))
+
     return {
+
         name: int(code_prices[code])
+
         for name, code in name_to_code.items()
+
         if code in code_prices
+
     }
 
 
+
+
+
 def _set_signal_price_cache(prices=None, names=None, loading=None, error=None):
+
     from datetime import datetime
 
+
+
     with _signal_price_cache_lock:
+
         if names is not None:
+
             _signal_price_cache['names'] = list(names)
+
         if prices:
+
             _signal_price_cache['prices'].update(prices)
+
         if loading is not None:
+
             _signal_price_cache['loading'] = loading
+
         if error is not None:
+
             _signal_price_cache['error'] = error
+
         elif loading is False:
+
             _signal_price_cache['error'] = None
+
         _signal_price_cache['date'] = datetime.now().strftime('%Y-%m-%d')
+
         if prices:
+
             _signal_price_cache['updatedAt'] = datetime.now().isoformat(timespec='seconds')
 
 
+
+
+
 def refresh_investigation_signal_price_cache(names=None):
+
     """서버 시작/갱신 시 탐구생활 목표가 종목의 현재가를 캐시에 저장한다."""
+
     if not _signal_price_refresh_lock.acquire(blocking=False):
+
         return False
 
+
+
     try:
+
         names = names or _load_investigation_signal_names()
+
         _set_signal_price_cache(names=names, loading=True, error=None)
 
+
+
         # 서버가 시작되자마자 화면에 보여줄 수 있도록 정적 가격을 먼저 넣는다.
+
         static_prices = _load_static_signal_prices(names)
+
         _set_signal_price_cache(prices=static_prices)
 
+
+
         try:
+
             live_prices = _fetch_signal_prices_from_ls(names)
+
             _set_signal_price_cache(prices=live_prices)
+
         except Exception as e:
+
             _set_signal_price_cache(error=str(e))
+
             print(f'[SIGNAL-CACHE] 실시간 가격 갱신 실패: {e}')
 
+
+
         _set_signal_price_cache(loading=False)
+
         print(
+
             f"[SIGNAL-CACHE] 준비 완료: {len(_signal_price_cache['prices'])}/"
+
             f"{len(names)}종목"
+
         )
+
         return True
+
     finally:
+
         _signal_price_refresh_lock.release()
 
 
+
+
+
 @app.route('/api/investigation-signal-prices', methods=['GET'])
+
 def get_investigation_signal_prices():
+
     """탐구생활 신호 버튼이 즉시 사용할 서버 캐시를 반환한다."""
+
     refresh = request.args.get('refresh') == '1'
+
     with _signal_price_cache_lock:
+
         snapshot = dict(_signal_price_cache)
+
         snapshot['prices'] = dict(_signal_price_cache['prices'])
+
         snapshot['names'] = list(_signal_price_cache['names'])
 
+
+
     # 서버가 import되어 실행되는 환경에서도 첫 요청으로 워밍업을 시작한다.
+
     if (not snapshot['names'] or refresh) and not snapshot['loading']:
+
         threading.Thread(
+
             target=refresh_investigation_signal_price_cache,
+
             daemon=True,
+
             name='signal-price-refresh',
+
         ).start()
+
+
 
     return jsonify(snapshot)
 
+
+
 # ==================== 엑셀 쓰기 직렬화 ====================
+
 # 여러 쓰기 엔드포인트가 동시에 wb.save()를 호출하면 zip 스트림이 뒤섞여
+
 # 파일이 손상(CRC 오류)되는 문제 방지: 모든 쓰기를 락으로 직렬화하고
+
 # 임시 파일에 먼저 저장한 뒤 원본에 반영한다.
+
 _excel_write_lock = threading.Lock()
 
+
+
 def save_workbook_safely(wb, full_path):
+
     """워크북을 임시 파일에 먼저 저장한 뒤 원본에 반영 (동시 쓰기/중단 손상 방지)"""
+
     import tempfile
+
     directory = os.path.dirname(full_path) or '.'
+
     fd, tmp_path = tempfile.mkstemp(prefix='~wb_', suffix='.xlsx', dir=directory)
+
     os.close(fd)
+
     try:
+
         wb.save(tmp_path)
+
         try:
+
             os.replace(tmp_path, full_path)
+
         except OSError:
+
             # 다른 프로세스가 읽기 잠금을 걸고 있어 교체가 불가하면 내용만 덮어쓰기
+
             with open(tmp_path, 'rb') as src:
+
                 data = src.read()
+
             with open(full_path, 'r+b') as dst:
+
                 dst.write(data)
+
                 dst.truncate()
+
                 dst.flush()
+
                 os.fsync(dst.fileno())
+
     finally:
+
         try:
+
             if os.path.exists(tmp_path):
+
                 os.remove(tmp_path)
+
         except Exception:
+
             pass
 
+
+
 def load_workbook_retry(full_path, max_attempts=4, **kwargs):
+
     """엑셀 로드 재시도 — 동시 쓰기로 인한 순간적 비-zip 상태 대응"""
+
     import zipfile, time
+
     last_err = None
+
     for attempt in range(max_attempts):
+
         try:
+
             return openpyxl.load_workbook(full_path, **kwargs)
+
         except (zipfile.BadZipFile, openpyxl.utils.exceptions.InvalidFileException, KeyError, OSError) as e:
+
             last_err = e
+
             if attempt < max_attempts - 1:
+
                 time.sleep(0.4 * (attempt + 1))
+
     raise last_err
 
 
+
+
+
 # ==================== Gemini review for mobile sync ====================
+
 # The key is read from the PC environment or a per-user local file. It must
+
 # never be placed in the mobile bundle, GitHub Pages, or a committed file.
+
 GEMINI_DEFAULT_MODEL = 'gemini-2.5-flash'
+
 GEMINI_KEY_FILE = os.path.join(
+
     os.environ.get('LOCALAPPDATA') or os.path.join(BASE_DIR, 'local_config'),
+
     'StockPortfolioGemini',
+
     'api_key.txt',
+
 )
 
 
+
+
+
 def _read_gemini_api_key():
+
     # 1. 전용 키 파일 우선 확인 (시스템 환경변수 오염 방지)
+
     candidates = [
+
         GEMINI_KEY_FILE,
+
         os.path.join(BASE_DIR, 'secrets', 'gemini_api_key.txt'),
+
     ]
+
     for key_file in candidates:
+
         try:
+
             if os.path.isfile(key_file):
+
                 with open(key_file, 'r', encoding='utf-8-sig') as f:
+
                     key = f.read().strip('\ufeff \r\n\t')
+
                 if key and not key.startswith('sk-'):
+
                     return key
+
         except Exception as e:
+
             print(f'[GEMINI] API key read failed: {e}')
 
+
+
     # 2. 환경변수 fallback (sk-로 시작하는 OpenAI/DeepSeek 키 제외)
+
     env_key = str(os.environ.get('GEMINI_API_KEY') or '').strip('\ufeff \r\n\t')
+
     if env_key and not env_key.startswith('sk-'):
+
         return env_key
+
+
 
     return ''
 
 
+
+
+
 def _review_value(value):
+
     """비교 및 검토를 위한 값 정규화 (날짜, 숫자, 줄바꿈, 공백 통일)"""
+
     if value is None:
+
         return ''
+
     from datetime import date, datetime
+
     if isinstance(value, (datetime, date)):
+
         return value.strftime('%Y-%m-%d')
+
     if isinstance(value, float) and value.is_integer():
+
         return str(int(value))
+
     s = str(value).replace('\r\n', '\n').replace('\r', '\n').strip()
+
     if s.lower() in ('none', 'nan', 'null'):
+
         return ''
+
     return s
 
 
+
+
+
 def _same_review_value(left, right):
+
     """Excel 셀 값과 모바일 JSON 값 간의 서식 차이를 보정하여 동일성 비교"""
+
     l_str = _review_value(left)
+
     r_str = _review_value(right)
+
     if l_str == r_str:
+
         return True
 
+
+
     # 1. 숫자 비교 (예: "7,500" vs "7500" vs 7500)
+
     try:
+
         l_num = float(l_str.replace(',', ''))
+
         r_num = float(r_str.replace(',', ''))
+
         if l_num == r_num:
+
             return True
+
     except (ValueError, TypeError):
+
         pass
 
+
+
     # 2. 날짜 시간 비교 (예: "2029-03-01 00:00:00" vs "2029-03-01")
+
     if len(l_str) >= 10 and len(r_str) >= 10:
+
         if l_str[:10] == r_str[:10]:
+
             if (l_str.endswith(' 00:00:00') or r_str.endswith(' 00:00:00') or
+
                 len(l_str) == 10 or len(r_str) == 10):
+
                 return True
+
+
 
     return False
 
 
+
+
+
 def _deterministic_merge(base_values, server_values, mobile_values):
+
     """서버와 모바일의 변경 사항을 비충돌 우선으로 결정론적 병합"""
+
     if not isinstance(mobile_values, list):
+
         mobile_values = []
+
     if not isinstance(server_values, list):
+
         server_values = []
 
+
+
     # base_values가 없거나 불일치할 경우 모바일 제안값을 우선 병합
+
     if not isinstance(base_values, list) or len(base_values) != len(mobile_values):
+
         merged = []
+
         conflicts = []
+
         for i, m_val in enumerate(mobile_values):
+
             s_val = server_values[i] if i < len(server_values) else ''
+
             if not _same_review_value(m_val, s_val):
+
                 merged.append(m_val)
+
             else:
+
                 merged.append(s_val)
+
         return merged, conflicts, None
 
+
+
     merged = []
+
     conflicts = []
+
     for i, mobile_value in enumerate(mobile_values):
+
         base_value = base_values[i] if i < len(base_values) else ''
+
         server_value = server_values[i] if i < len(server_values) else ''
+
         mobile_changed = not _same_review_value(mobile_value, base_value)
+
         server_changed = not _same_review_value(server_value, base_value)
 
+
+
         if mobile_changed and not server_changed:
+
             # 모바일에서만 수정된 경우: 모바일 값 채택
+
             merged.append(mobile_value)
+
         elif not mobile_changed and server_changed:
+
             # 서버에서만 수정된 경우: 서버 최신값 유지
+
             merged.append(server_value)
+
         elif mobile_changed and server_changed:
+
             if _same_review_value(mobile_value, server_value):
+
                 # 양쪽이 동일한 내용으로 수정된 경우
+
                 merged.append(server_value)
+
             else:
+
                 # 양쪽이 서로 다르게 수정한 경우: 충돌 감지
+
                 merged.append(mobile_value)
+
                 conflicts.append(i)
+
         else:
+
             # 양쪽 모두 변경 없음: 서버 값 유지
+
             merged.append(server_value)
+
+
 
     return merged, conflicts, None
 
 
+
+
+
 def _call_gemini_review(columns, base_values, server_values, mobile_values, conflicts):
+
     """Ask Gemini for a JSON merge decision. Returns (dict, error_code)."""
+
     api_key = _read_gemini_api_key()
+
     if not api_key:
+
         return None, 'missing_api_key'
 
+
+
     import urllib.error
+
     import urllib.parse
+
     import urllib.request
 
+
+
     model = os.environ.get('GEMINI_MODEL', GEMINI_DEFAULT_MODEL).strip() or GEMINI_DEFAULT_MODEL
+
     url = (
+
         'https://generativelanguage.googleapis.com/v1beta/models/'
+
         f'{urllib.parse.quote(model, safe="")}:generateContent?key={urllib.parse.quote(api_key, safe="")}'
+
     )
+
     review_payload = {
+
         'columns': columns,
+
         'base_values': base_values,
+
         'current_server_values': server_values,
+
         'mobile_proposed_values': mobile_values,
+
         'conflict_columns': [columns[i] if i < len(columns) else f'column_{i + 1}' for i in conflicts],
+
     }
+
     prompt = (
+
         '당신은 주식 탐구생활 데이터의 병합 검토자입니다.\n'
+
         '목적은 투자 판단을 새로 만드는 것이 아니라, PC 원본과 모바일 수정 내용을 안전하게 병합하는 것입니다.\n'
+
         'base_values는 모바일이 수정하기 전 확인한 값이고, current_server_values는 현재 PC 원본이며, '
+
         'mobile_proposed_values는 모바일이 저장하려는 전체 행입니다.\n'
+
         '변경되지 않은 값은 current_server_values를 유지합니다. 모바일만 바뀐 열은 모바일 값을 사용합니다. '
+
         '양쪽이 같은 열을 다르게 바꾼 경우에는 근거 없이 내용을 만들지 말고, 보수적으로 판단합니다.\n'
+
         '반드시 아래 JSON 형식만 반환하세요. final_values의 길이는 mobile_proposed_values와 같아야 합니다.\n'
+
         '{"decision":"approve_mobile|approve_server|merge|needs_review",'
+
         '"final_values":[],"conflict_fields":[],"reason":""}\n\n'
+
         + json.dumps(review_payload, ensure_ascii=False, default=str)
+
     )
+
     body = {
+
         'contents': [{'parts': [{'text': prompt}]}],
+
         'generationConfig': {
+
             'temperature': 0.1,
+
             'responseMimeType': 'application/json',
+
             'responseSchema': {
+
                 'type': 'OBJECT',
+
                 'properties': {
+
                     'decision': {
+
                         'type': 'STRING',
+
                         'enum': ['approve_mobile', 'approve_server', 'merge', 'needs_review'],
+
                     },
+
                     'final_values': {'type': 'ARRAY', 'items': {'type': 'STRING'}},
+
                     'conflict_fields': {'type': 'ARRAY', 'items': {'type': 'STRING'}},
+
                     'reason': {'type': 'STRING'},
+
                 },
+
                 'required': ['decision', 'final_values', 'conflict_fields', 'reason'],
+
             },
+
         },
+
     }
+
     request_data = json.dumps(body, ensure_ascii=False).encode('utf-8')
+
     req = urllib.request.Request(
+
         url,
+
         data=request_data,
+
         headers={'Content-Type': 'application/json'},
+
         method='POST',
+
     )
+
     try:
+
         with urllib.request.urlopen(req, timeout=30) as response:
+
             response_data = json.loads(response.read().decode('utf-8'))
+
         parts = (
+
             response_data.get('candidates', [{}])[0]
+
             .get('content', {})
+
             .get('parts', [])
+
         )
+
         text = ''.join(str(part.get('text') or '') for part in parts).strip()
+
         if text.startswith('```'):
+
             text = re.sub(r'^```(?:json)?\s*|\s*```$', '', text, flags=re.IGNORECASE | re.DOTALL).strip()
+
         parsed = json.loads(text)
+
         if not isinstance(parsed, dict):
+
             return None, 'invalid_response'
+
         return parsed, None
+
     except urllib.error.HTTPError as e:
+
         # Do not log the URL because it contains the API key.
+
         return None, f'http_{e.code}'
+
     except Exception as e:
+
         return None, f'{type(e).__name__}'
 
 
+
+
+
 def _coerce_review_values(values, reference_values):
+
     """Preserve numeric Excel cells when Gemini returns JSON strings."""
+
     if not isinstance(values, list):
+
         return values
+
     result = list(values)
+
     for i, value in enumerate(result):
+
         if i >= len(reference_values) or not isinstance(value, str):
+
             continue
+
         reference = reference_values[i]
+
         if isinstance(reference, bool):
+
             continue
+
         if isinstance(reference, int):
+
             try:
+
                 result[i] = int(value.replace(',', '').strip())
+
             except (TypeError, ValueError):
+
                 pass
+
         elif isinstance(reference, float):
+
             try:
+
                 result[i] = float(value.replace(',', '').strip())
+
             except (TypeError, ValueError):
+
                 pass
+
     return result
 
 
+
+
+
 def _review_mobile_edit(columns, base_values, server_values, mobile_values, is_new=False):
+
     """Return a safe final row and review metadata for one mobile edit."""
+
     if is_new:
+
         return {
+
             'status': 'saved',
+
             'values': mobile_values,
+
             'review_mode': 'new_row',
+
             'conflict_fields': [],
+
             'reason': '신규 행으로 모바일 데이터를 저장했습니다.',
+
         }
+
     merged, conflicts, merge_error = _deterministic_merge(
+
         base_values, server_values, mobile_values
+
     )
+
     if merged is not None and not conflicts:
+
         return {
+
             'status': 'saved',
+
             'values': merged,
+
             'review_mode': 'deterministic_merge',
+
             'conflict_fields': [],
+
             'reason': '서버 변경과 겹치지 않는 모바일 변경을 병합했습니다.',
+
         }
+
+
 
     # 충돌이 발생한 경우에만 AI 검토 호출
+
     ai_result, ai_error = _call_gemini_review(
+
         columns, base_values, server_values, mobile_values, conflicts
+
     )
+
     if ai_result:
+
         decision = str(ai_result.get('decision') or '').strip()
+
         final_values = ai_result.get('final_values')
+
         if decision == 'needs_review':
+
             # AI가 검토 필요로 판단한 경우라도, 사용자가 모바일에서 보낸 값을 저장하여 유실 방지
+
             return {
+
                 'status': 'saved',
+
                 'values': merged or mobile_values,
+
                 'review_mode': 'gemini_needs_review',
+
                 'conflict_fields': ai_result.get('conflict_fields') or [],
+
                 'reason': str(ai_result.get('reason') or 'AI 검토 결과 확인이 필요하나 모바일 수정값을 저장했습니다.'),
+
             }
+
         if decision in ('approve_mobile', 'approve_server', 'merge'):
+
             if decision == 'approve_mobile':
+
                 final_values = mobile_values
+
             elif decision == 'approve_server':
+
                 final_values = server_values
+
             if isinstance(final_values, list) and len(final_values) == len(mobile_values):
+
                 final_values = _coerce_review_values(final_values, mobile_values)
+
                 return {
+
                     'status': 'saved',
+
                     'values': final_values,
+
                     'review_mode': 'gemini',
+
                     'conflict_fields': ai_result.get('conflict_fields') or [],
+
                     'reason': str(ai_result.get('reason') or 'Gemini 검토 결과를 저장했습니다.'),
+
                 }
 
+
+
     # AI 검토가 불가능하거나 실패한 경우:
+
     # 사용자가 모바일에서 보낸 수정사항이 날아가지 않도록 모바일 수정값을 우선 저장!
+
     fallback_values = list(merged) if merged is not None else list(mobile_values)
+
     return {
+
         'status': 'saved',
+
         'values': fallback_values,
+
         'review_mode': 'fallback_mobile_priority',
+
         'conflict_fields': [columns[i] if i < len(columns) else f'column_{i + 1}' for i in conflicts],
+
         'reason': f'Gemini 검토 불가({ai_error or merge_error}); 모바일 수정값을 안전하게 저장했습니다.',
+
     }
 
+
+
 def trigger_export():
+
     """데이터 변경 시 export_to_json.py를 실행하여 앱용 JSON 갱신.
 
+
+
     저장 요청이 짧은 시간에 여러 번 들어오면 export 요청을 버리지 않고
+
     현재 export가 끝난 뒤 한 번 더 실행한다. 같은 행의 연속 수정이 JSON에
+
     누락되는 것을 막기 위한 간단한 coalescing worker이다.
+
     """
+
     global _export_requested, _export_worker_running
 
+
+
     with _export_request_lock:
+
         _export_requested = True
+
         if _export_worker_running:
+
             return
+
         _export_worker_running = True
 
+
+
     def run():
+
         global _export_requested, _export_worker_running
+
         with _export_lock:
+
             while True:
+
                 with _export_request_lock:
+
                     if not _export_requested:
+
                         _export_worker_running = False
+
                         return
+
                     _export_requested = False
 
+
+
                 try:
+
                     print("[AUTO-SYNC] JSON 변환 시작...")
+
                     subprocess.run([sys.executable, "export_to_json.py"], check=True)
+
                     print("[AUTO-SYNC] ✅ JSON 변환 완료!")
+
                 except Exception as e:
+
                     print(f"[AUTO-SYNC] ❌ 변환 실패: {e}")
 
+
+
     # 서버 응답을 방해하지 않도록 별도 데몬 스레드에서 실행
+
     threading.Thread(target=run, daemon=True).start()
 
 
+
+
+
 def git_has_changes():
+
     """Git 작업 디렉터리에 커밋되지 않은 변경 사항이 있는지 확인 (로캘에 구애받지 않음)"""
+
     try:
+
         res = subprocess.run(
+
             ["git", "status", "--porcelain"],
+
             cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15
+
         )
+
         return len(res.stdout.strip()) > 0
+
     except Exception as e:
+
         print(f"[GIT-CHECK] 변경사항 확인 오류: {e}")
+
         return True  # 오류 발생 시 보수적으로 변경사항이 있는 것으로 취급
 
+
+
 def trigger_export_and_push_sync():
+
     """동기적으로 JSON 내보내기 + Git Push까지 실행 (sync-receive 전용)
+
     
+
     모바일에서 PC로 전송 후 리다이렉트 전에 호출하여,
+
     GitHub Pages에 최신 데이터가 반영된 상태에서 앱이 데이터를 받을 수 있게 합니다.
+
     """
+
     import time
+
     lock_file = os.path.join(BASE_DIR, ".git_sync.lock")
+
     
+
     # 오래된 락 파일(5분 초과) 자동 삭제 처리
+
     if os.path.exists(lock_file):
+
         try:
+
             mtime = os.path.getmtime(lock_file)
+
             if time.time() - mtime > 300:
+
                 print("[SYNC-PUSH] ⚠️ 오래된 Git 동기화 락 감지 (5분 초과). 강제 삭제합니다.")
+
                 os.remove(lock_file)
+
         except Exception as e:
+
             print(f"[SYNC-PUSH] 오래된 락 파일 제거 중 오류 발생: {e}")
 
+
+
     # 방치된 Git index.lock 파일(1분 초과) 자동 삭제 처리
+
     git_index_lock = os.path.join(BASE_DIR, ".git", "index.lock")
+
     if os.path.exists(git_index_lock):
+
         try:
+
             if time.time() - os.path.getmtime(git_index_lock) > 60:
+
                 print("[SYNC-PUSH] ⚠️ 방치된 .git/index.lock 감지 (1분 초과). 강제 삭제합니다.")
+
                 os.remove(git_index_lock)
+
         except Exception as e:
+
             print(f"[SYNC-PUSH] .git/index.lock 제거 오류: {e}")
 
+
+
             
+
     # 1. 락 획득 시도 (최대 15초 대기)
+
     for i in range(15):
+
         if not os.path.exists(lock_file):
+
             break
+
         print(f"[SYNC-PUSH] ⚠️ Git 동기화 락 감지. 대기 중... ({i+1}/15)")
+
         time.sleep(1)
+
         
+
     # 락 파일 생성
+
     try:
+
         with open(lock_file, "w", encoding="utf-8") as f:
+
             f.write(str(os.getpid()))
+
     except Exception as e:
+
         print(f"[SYNC-PUSH] 락 파일 생성 실패: {e}")
 
+
+
     with _export_lock:
+
         try:
+
             # 1단계: JSON 내보내기
+
             print("[SYNC-PUSH] 1. JSON 내보내기 시작...")
+
             result = subprocess.run(
+
                 [sys.executable, "export_to_json.py"],
+
                 capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180
+
             )
+
             if result.returncode != 0:
+
                 print(f"[SYNC-PUSH] ❌ JSON 내보내기 실패: {result.stderr[:300]}")
+
                 return False
+
             print("[SYNC-PUSH] ✅ JSON 내보내기 완료")
 
+
+
             # 1-5단계: 신호 데이터(이평선/RSI) 내보내기 (텍스트 동기화 시에는 40~50초 소요되어 응답 지연을 방지하기 위해 주석 처리)
+
             # print("[SYNC-PUSH] 1-5. 신호 데이터(이평선/RSI) 내보내기 시작...")
+
             # result_sig = subprocess.run(
+
             #     [sys.executable, "export_signals.py"],
+
             #     capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300
+
             # )
+
             # if result_sig.returncode != 0:
+
             #     print(f"[SYNC-PUSH] ❌ 신호 데이터 내보내기 실패: {result_sig.stderr[:300]}")
+
             # else:
+
             #     print("[SYNC-PUSH] ✅ 신호 데이터 내보내기 완료")
 
+
+
             # 2단계: 모바일 데이터 복사 (StockPortfolioApp/public/data → mobile/data)
+
             print("[SYNC-PUSH] 2. 모바일 데이터 복사 중...")
+
             src = os.path.join(BASE_DIR, "StockPortfolioApp", "public", "data")
+
             dst = os.path.join(BASE_DIR, "mobile", "data")
+
             if os.path.exists(src):
+
                 subprocess.run(
+
                     f'xcopy "{src}" "{dst}" /E /I /Y',
+
                     shell=True, capture_output=True, timeout=30
+
                 )
+
             print("[SYNC-PUSH] ✅ 모바일 데이터 복사 완료")
 
+
+
             # 3단계: Git add + commit + push
+
             print("[SYNC-PUSH] 3. Git push 시작...")
+
             subprocess.run(["git", "add", "."], cwd=BASE_DIR, capture_output=True, timeout=30)
+
             
+
             # 변경 사항이 없는 경우 커밋 건너뜀
+
             if not git_has_changes():
+
                 print("[SYNC-PUSH] 변경사항 없음, 커밋 및 푸시 건너뜀")
+
                 return True
+
+
 
             from datetime import datetime as dt
+
             commit_msg = f"Mobile sync update {dt.now().strftime('%Y-%m-%d %H:%M')}"
+
             commit_result = subprocess.run(
+
                 ["git", "commit", "-m", commit_msg],
+
                 cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30
+
             )
+
             if commit_result.returncode != 0:
+
                 print(f"[SYNC-PUSH] ❌ Git 커밋 실패: {commit_result.stderr[:300]}")
+
                 return False
+
+
 
             env = os.environ.copy()
+
             env["GCM_INTERACTIVE"] = "never"
+
             env["GIT_TERMINAL_PROMPT"] = "0"
+
             
+
             # push 직전 rebase pull로 충돌 방지
+
             print("[SYNC-PUSH] push 전 원격 변경 사항 병합 (rebase)...")
+
             subprocess.run(
+
                 ["git", "pull", "--rebase", "origin", "main"],
+
                 cwd=BASE_DIR, capture_output=True, env=env, timeout=60
+
             )
+
+
 
             push_result = subprocess.run(
+
                 ["git", "push", "origin", "main"],
+
                 cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace",
+
                 timeout=120, env=env
+
             )
+
             if push_result.returncode == 0:
+
                 print("[SYNC-PUSH] ✅ GitHub push (main) 완료!")
+
                 
+
                 # gh-pages 브랜치 동기화 (GitHub Pages 배포용)
+
                 print("[SYNC-PUSH] gh-pages 브랜치 동기화 중...")
+
                 try:
+
                     subprocess.run(["git", "checkout", "gh-pages"], cwd=BASE_DIR, capture_output=True, timeout=30, env=env)
+
                     subprocess.run(["git", "merge", "main", "--no-edit"], cwd=BASE_DIR, capture_output=True, timeout=30, env=env)
+
                     gh_push = subprocess.run(
+
                         ["git", "push", "origin", "gh-pages"],
+
                         cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace",
+
                         timeout=120, env=env
+
                     )
+
                     if gh_push.returncode == 0:
+
                         print("[SYNC-PUSH] ✅ gh-pages 브랜치 푸시 완료!")
+
                     else:
+
                         print(f"[SYNC-PUSH] ⚠️ gh-pages 푸시 실패 (무시): {gh_push.stderr[:200]}")
+
                 except Exception as e:
+
                     print(f"[SYNC-PUSH] ⚠️ gh-pages 동기화 예외 (무시): {e}")
+
                 finally:
+
                     subprocess.run(["git", "checkout", "main"], cwd=BASE_DIR, capture_output=True, timeout=30, env=env)
 
+
+
                 return True
+
             else:
+
                 print(f"[SYNC-PUSH] ❌ GitHub push 실패: {push_result.stderr[:300]}")
+
                 return False
 
+
+
         except subprocess.TimeoutExpired as e:
+
             print(f"[SYNC-PUSH] ❌ 시간 초과: {e}")
+
             return False
+
         except Exception as e:
+
             print(f"[SYNC-PUSH] ❌ 예외 발생: {e}")
+
             return False
+
         finally:
+
             # 락 해제
+
             if os.path.exists(lock_file):
+
                 try:
+
                     os.remove(lock_file)
+
                 except:
+
                     pass
 
+
+
 # ==================== 유틸리티 함수 (취소선 처리) ====================
+
 def parse_strikethrough_text(text):
+
     """텍스트 내의 <del>태그 또는 ~~패턴을 파싱하여 CellRichText 객체로 변환"""
+
     if not isinstance(text, str) or not text:
+
         return text
+
     from openpyxl.cell.rich_text import CellRichText, TextBlock
+
     from openpyxl.cell.text import InlineFont
+
     
+
     text = re.sub(r'<del>(.*?)</del>', r'~~\1~~', text)
+
     pattern = r'~~(.*?)~~'
+
     parts = re.split(pattern, text)
+
     
+
     if len(parts) == 1: return text
+
     
+
     rich_text = CellRichText()
+
     default_font = InlineFont(rFont='맑은 고딕')
+
     strike_font = InlineFont(rFont='맑은 고딕', strike=True)
+
     
+
     for i, part in enumerate(parts):
+
         if not part: continue
+
         if i % 2 == 0:
+
             rich_text.append(TextBlock(default_font, part))
+
         else:
+
             rich_text.append(TextBlock(strike_font, part))
+
     return rich_text
 
+
+
 def extract_rich_text(cell):
+
     """엑셀 셀의 실제 취소선 서식을 감지하여 마크다운(~~) 형식으로 변환"""
+
     from openpyxl.cell.rich_text import CellRichText
+
     if not hasattr(cell, 'value') or cell.value is None: return ""
+
     if isinstance(cell.value, CellRichText):
+
         result = []
+
         for part in cell.value:
+
             text = part.text if hasattr(part, 'text') else str(part)
+
             if hasattr(part, 'font') and part.font and part.font.strike:
+
                 result.append(f"~~{text}~~")
+
             else: result.append(text)
+
         return "".join(result)
+
     if cell.font and cell.font.strike: return f"~~{cell.value}~~"
+
     return str(cell.value)
 
+
+
 @app.route('/')
+
 def index():
+
     """메인 페이지 서빙"""
+
     return send_from_directory('.', 'index.html')
 
+
+
 @app.route('/app.js')
+
 def serve_root_js():
+
     """루트 app.js 서빙"""
+
     return send_from_directory('.', 'app.js')
 
+
+
 @app.route('/styles.css')
+
 def serve_root_css():
+
     """루트 styles.css 서빙"""
+
     return send_from_directory('.', 'styles.css')
 
+
+
 @app.route('/mobile')
+
 @app.route('/mobile/')
+
 def mobile_index():
+
     """모바일 PWA 메인 서빙"""
+
     return send_from_directory('mobile', 'index.html')
+
+
 
 @app.route('/stock-portfolio/mobile')
+
 @app.route('/stock-portfolio/mobile/')
+
 def mobile_index_subpath():
+
     """모바일 PWA 메인 서브패스 서빙"""
+
     return send_from_directory('mobile', 'index.html')
 
+
+
 @app.route('/mobile/sw.js')
+
 @app.route('/stock-portfolio/mobile/sw.js')
+
 def serve_mobile_sw():
+
     """모바일 sw.js 서빙"""
+
     return send_from_directory('mobile', 'sw.js')
 
+
+
 @app.route('/mobile/manifest.json')
+
 @app.route('/stock-portfolio/mobile/manifest.json')
+
 def serve_mobile_manifest():
+
     """모바일 manifest.json 서빙"""
+
     return send_from_directory('mobile', 'manifest.json')
 
+
+
 @app.route('/mobile/metadata.json')
+
 @app.route('/stock-portfolio/mobile/metadata.json')
+
 def serve_mobile_metadata():
+
     """모바일 metadata.json 서빙"""
+
     return send_from_directory('mobile', 'metadata.json')
 
+
+
 @app.route('/mobile/favicon.ico')
+
 @app.route('/stock-portfolio/mobile/favicon.ico')
+
 def serve_mobile_favicon():
+
     """모바일 favicon.ico 서빙"""
+
     return send_from_directory('mobile', 'favicon.ico')
 
+
+
 @app.route('/mobile/_expo/<path:filename>')
+
 @app.route('/stock-portfolio/mobile/_expo/<path:filename>')
+
 def serve_mobile_expo(filename):
+
     """모바일 _expo 폴더 정적 파일 서빙"""
+
     return send_from_directory('mobile/_expo', filename)
 
+
+
 @app.route('/mobile/assets/<path:filename>')
+
 @app.route('/stock-portfolio/mobile/assets/<path:filename>')
+
 def serve_mobile_assets(filename):
+
     """모바일 assets 폴더 정적 파일 서빙"""
+
     return send_from_directory('mobile/assets', filename)
 
 
 
+
+
+
+
 @app.route('/mobile/data/<path:filename>', methods=['GET', 'OPTIONS'])
+
 @app.route('/stock-portfolio/mobile/data/<path:filename>', methods=['GET', 'OPTIONS'])
+
 def serve_mobile_data(filename):
+
     if request.method == 'OPTIONS':
+
         response = make_response()
+
         response.headers.add('Access-Control-Allow-Origin', '*')
+
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+
         response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+
         return response
+
     
+
     file_path = os.path.join('mobile/data', filename)
+
     if not os.path.exists(file_path):
+
         return jsonify({'error': 'File not found'}), 404
+
         
+
     try:
+
         with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+
             content = f.read()
+
         response = make_response(content)
+
         response.headers['Content-Type'] = 'application/json; charset=utf-8'
+
         response.headers['Access-Control-Allow-Origin'] = '*'
+
         return response
+
     except Exception as e:
+
         print(f"[CORS-SERVE] 모바일 데이터 로드 오류 ({filename}): {e}")
+
         return jsonify({'error': str(e)}), 500
+
+
 
 @app.route('/StockPortfolioApp/public/data/<path:filename>', methods=['GET', 'OPTIONS'])
+
 def serve_app_data(filename):
+
     if request.method == 'OPTIONS':
+
         response = make_response()
+
         response.headers.add('Access-Control-Allow-Origin', '*')
+
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+
         response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+
         return response
+
         
+
     file_path = os.path.join('StockPortfolioApp/public/data', filename)
+
     if not os.path.exists(file_path):
+
         return jsonify({'error': 'File not found'}), 404
+
         
+
     try:
+
         with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+
             content = f.read()
+
         response = make_response(content)
+
         response.headers['Content-Type'] = 'application/json; charset=utf-8'
+
         response.headers['Access-Control-Allow-Origin'] = '*'
+
         return response
+
     except Exception as e:
+
         print(f"[CORS-SERVE] 앱 데이터 로드 오류 ({filename}): {e}")
+
         return jsonify({'error': str(e)}), 500
 
+
+
 @app.route('/api/onedrive-status')
+
 def onedrive_status():
+
     """OneDrive 연결 상태 확인"""
+
     if ONEDRIVE_PATH and os.path.isdir(ONEDRIVE_PATH):
+
         return jsonify({
+
             'connected': True,
+
             'path': ONEDRIVE_PATH,
+
             'message': f'OneDrive 연결됨: {ONEDRIVE_PATH}'
+
         })
+
     return jsonify({
+
         'connected': False,
+
         'path': None,
+
         'message': 'OneDrive 동기화 폴더를 찾을 수 없습니다. 경로를 직접 지정해주세요.'
+
     })
+
+
 
 @app.route('/api/set-path', methods=['POST'])
+
 def set_path():
+
     """OneDrive 경로 수동 설정"""
+
     global ONEDRIVE_PATH
+
     data = request.get_json()
+
     path = data.get('path', '')
+
     
+
     if os.path.isdir(path):
+
         ONEDRIVE_PATH = path
+
         return jsonify({'success': True, 'path': ONEDRIVE_PATH})
+
     return jsonify({'success': False, 'message': '유효하지 않은 경로입니다.'}), 400
 
+
+
 @app.route('/api/files')
+
 def list_excel_files():
+
     """OneDrive 내 엑셀 파일 목록 조회"""
+
     if not ONEDRIVE_PATH:
+
         return jsonify({'error': 'OneDrive 경로가 설정되지 않았습니다.'}), 400
+
     
+
     search_path = request.args.get('subdir', '')
+
     base_path = os.path.join(ONEDRIVE_PATH, search_path)
+
     
+
     if not os.path.isdir(base_path):
+
         return jsonify({'error': f'경로를 찾을 수 없습니다: {base_path}'}), 404
+
     
+
     files = []
+
     # 현재 폴더의 하위 디렉토리 목록
+
     directories = []
+
     
+
     try:
+
         for item in os.listdir(base_path):
+
             full_path = os.path.join(base_path, item)
+
             rel_path = os.path.relpath(full_path, ONEDRIVE_PATH)
+
             
+
             if os.path.isdir(full_path):
+
                 # 숨김 폴더 제외
+
                 if not item.startswith('.'):
+
                     directories.append({
+
                         'name': item,
+
                         'path': rel_path.replace('\\', '/')
+
                     })
+
             elif item.lower().endswith(('.xlsx', '.xls', '.xlsm')):
+
                 stat = os.stat(full_path)
+
                 files.append({
+
                     'name': item,
+
                     'path': rel_path.replace('\\', '/'),
+
                     'size': stat.st_size,
+
                     'modified': stat.st_mtime,
+
                     'full_path': full_path
+
                 })
+
     except PermissionError:
+
         return jsonify({'error': '해당 폴더에 대한 접근 권한이 없습니다.'}), 403
+
     
+
     return jsonify({
+
         'current_dir': search_path or '/',
+
         'directories': sorted(directories, key=lambda x: x['name']),
+
         'files': sorted(files, key=lambda x: x['name'])
+
     })
 
+
+
 # 파일 파싱 캐시 (LRU 방식 - 최대 10개 유지)
+
 EXCEL_CACHE = OrderedDict()
+
 EXCEL_CACHE_MAX = 10
 
+
+
 @app.route('/api/read-excel')
+
 def read_excel():
+
     """엑셀 파일 데이터 읽기"""
+
     if not ONEDRIVE_PATH:
+
         return jsonify({'error': 'OneDrive 경로가 설정되지 않았습니다.'}), 400
+
     
+
     file_path = request.args.get('file', '')
+
     sheet_name = request.args.get('sheet', None)
+
     
+
     full_path = os.path.join(ONEDRIVE_PATH, file_path)
+
     
+
     if not os.path.isfile(full_path):
+
         return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
+
     
+
     try:
+
         import io
+
         from datetime import datetime, date as date_cls
+
         
+
         # 캐시 확인 (수정 시간이 같으면 캐시 반환)
+
         file_stat = os.stat(full_path)
+
         last_modified = file_stat.st_mtime
+
         
+
         cache_key = f"{full_path}_{sheet_name}_{last_modified}"
+
         if cache_key in EXCEL_CACHE:
+
             EXCEL_CACHE.move_to_end(cache_key)
+
             return jsonify(EXCEL_CACHE[cache_key])
+
             
+
         # 파일 잠금(Lock)을 방지하기 위해 메모리로 먼저 읽어오기
+
         with open(full_path, 'rb') as f:
+
             file_data = f.read()
+
             
+
         # 시트 목록 가져오기
+
         xl = pd.ExcelFile(io.BytesIO(file_data), engine='openpyxl')
+
         sheet_names = xl.sheet_names
+
         
+
         # 특정 시트 또는 첫 번째 시트 읽기
+
         target_sheet = sheet_name if sheet_name else sheet_names[0]
+
         df = pd.read_excel(xl, sheet_name=target_sheet)
+
         
+
         # NaN 값 처리
+
         df = df.fillna('')
+
+
 
         # --- 헤더 자동 탐색 및 승격 (첫 행이 빈 줄이거나 Unnamed인 경우) ---
+
         header_row_idx = 0
+
         promoted = False
+
         is_unnamed_header = any(str(c).startswith('Unnamed:') for c in df.columns)
+
         if not df.empty and (is_unnamed_header or "실적" in target_sheet or "매매" in target_sheet):
+
             keywords = ["Date", "종목", "날짜", "수량", "가격", "매매유형", "연도", "수익율", "종목명"]
+
             for i in range(min(10, len(df))):
+
                 row_vals = [str(x).strip() for x in df.iloc[i].values]
+
                 if any(k in row_vals for k in keywords):
+
                     header_row_idx = i
+
                     promoted = True
+
                     new_cols = []
+
                     for j, val in enumerate(row_vals):
+
                         if val and val != 'nan':
+
                             new_cols.append(val)
+
                         else:
+
                             new_cols.append(f"Unnamed: {j}")
+
                     df.columns = new_cols
+
                     df = df.iloc[i+1:].reset_index(drop=True)
+
                     break
 
+
+
         # 실적 시트 수식 셀 값 보정 (캐시 누락 수식 자동 계산)
+
         grid_data = None
+
         if "실적" in target_sheet:
+
             try:
+
                 from excel_formula import get_resolved_sheet_grid
+
                 grid_data, max_r, max_c = get_resolved_sheet_grid(file_data, target_sheet)
+
                 for i in range(len(df)):
+
                     excel_row_0based = header_row_idx + 2 + i
+
                     if excel_row_0based < len(grid_data):
+
                         row_vals = grid_data[excel_row_0based]
+
                         for j, col_name in enumerate(df.columns):
+
                             curr_val = df.iat[i, j]
+
                             if (curr_val == '' or pd.isna(curr_val)) and j < len(row_vals):
+
                                 g_val = row_vals[j]
+
                                 if g_val is not None:
+
                                     df.iat[i, j] = g_val
+
             except Exception as e:
+
                 print(f"[경고] 실적 수식 계산 중 오류: {e}")
 
+
+
         # 숫자형 컬럼 감지 (강제 변환 시도 포함)
+
         # 주의: 매매일지 시트는 '52000원' 같은 혼합 텍스트, 코멘트, 날짜가 섞여 있어
+
         # 강제 숫자 변환 시 실제 데이터가 0으로 파괴되므로 변환을 건너뜀
+
         if "매매" not in target_sheet:
+
             for col in df.columns:
+
                 col_str = str(col)
+
                 if '연도' in col_str: continue 
+
                 if 'date' in col_str.lower() or '날짜' in col_str: continue
+
                 try:
+
                     series = df[col]
+
                     non_empty = series.dropna()
+
                     try:
+
                         non_empty = non_empty[non_empty != '']
+
                     except Exception:
+
                         pass
+
                     # 날짜 값이 들어있는 컬럼은 숫자 변환 제외
+
                     if len(non_empty) > 0 and isinstance(non_empty.iloc[0], (datetime, date_cls)):
+
                         continue
+
                     temp_numeric = pd.to_numeric(series.replace('', pd.NA), errors='coerce')
+
                     if temp_numeric.notna().any():
+
                         if temp_numeric.notna().sum() / len(df) > 0.2: # 기준 완화
+
                             df[col] = temp_numeric.fillna(0)
+
                 except:
+
                     pass
 
+
+
         numeric_columns = df.select_dtypes(include=['number']).columns.tolist()
+
         
+
         # 기본 통계 계산
+
         stats = {}
+
         for col in numeric_columns:
+
             col_data = df[col].replace('', pd.NA).dropna()
+
             if len(col_data) > 0:
+
                 stats[col] = {
+
                     'mean': round(float(col_data.mean()), 2),
+
                     'sum': round(float(col_data.sum()), 2),
+
                     'min': round(float(col_data.min()), 2),
+
                     'max': round(float(col_data.max()), 2),
+
                     'count': int(col_data.count()),
+
                     'std': round(float(col_data.std()), 2) if len(col_data) > 1 else 0
+
                 }
+
         
+
         # 데이터를 JSON 직렬화 가능한 형태로 변환
+
         columns = [str(c) for c in df.columns.tolist()]
+
         
+
         # 탐구생활/실적 시트인 경우 서식 데이터(취소선 등)를 위해 openpyxl로 재확인
+
         is_special = any(k in target_sheet for k in ["탐구", "실적"])
+
         if is_special:
+
             # openpyxl 워크북 로드
+
             wb_format = openpyxl.load_workbook(io.BytesIO(file_data), data_only=True, rich_text=True)
+
             ws_format = wb_format[target_sheet]
+
             
+
             data = []
+
             # openpyxl은 1-based index이므로 pandas 인덱스 기반 보정
+
             # pandas df.iloc[header_row_idx]는 원본 엑셀의 row=header_row_idx+2 (기본 헤더가 1행일 때)
+
             # 하지만 df를 처음 읽을 때 이미 Row 1이 헤더로 쓰였으므로:
+
             # Row 1 (Header), df.iloc[0] = Row 2, df.iloc[1] = Row 3 ...
+
             # 따라서 header_row_idx일 때 엑셀 행은 header_row_idx + 2
+
             start_row = header_row_idx + 3 if "실적" in target_sheet else 2
+
             
+
             for r_idx in range(start_row, ws_format.max_row + 1):
+
                 row_data = {'_realIndex': r_idx - 2}
+
                 for c_idx, col_name in enumerate(columns, start=1):
+
                     cell = ws_format.cell(row=r_idx, column=c_idx)
+
                     val = extract_rich_text(cell)
+
                     if (val == '' or val is None) and grid_data and r_idx - 1 < len(grid_data) and c_idx - 1 < len(grid_data[r_idx - 1]):
+
                         g_val = grid_data[r_idx - 1][c_idx - 1]
+
                         if g_val is not None:
+
                             val = g_val
+
                     row_data[col_name] = val
+
                 data.append(row_data)
+
         else:
+
             data = []
+
             # 헤더 승격 시 _realIndex 보정:
+
             # 승격 전 df 행 N = 엑셀 N+2행, 승격 후 df 행 0 = 엑셀 (header_row_idx+3)행
+
             # → _realIndex가 '엑셀 행번호 - 2'가 되도록 오프셋 적용 (update/delete API의 +2 규칙 유지)
+
             real_offset = (header_row_idx + 1) if promoted else 0
+
             for idx, row in df.iterrows():
+
                 row_data = {'_realIndex': idx + real_offset}
+
                 for i, col in enumerate(df.columns):
+
                     val = row[col]
+
                     col_name = columns[i]
+
                     if pd.isna(val): row_data[col_name] = ''
+
                     elif isinstance(val, (datetime, date_cls)): row_data[col_name] = val.strftime('%Y-%m-%d')
+
                     elif isinstance(val, (int, float)): row_data[col_name] = val
+
                     else: row_data[col_name] = str(val)
+
                 data.append(row_data)
+
         
+
         # 파일 수정 시간 가져오기
+
         file_stat = os.stat(full_path)
+
         last_modified = file_stat.st_mtime
 
+
+
         response_data = {
+
             'file_name': os.path.basename(file_path),
+
             'last_modified': last_modified,
+
             'sheet_names': sheet_names,
+
             'current_sheet': target_sheet,
+
             'columns': columns,
+
             'numeric_columns': [str(c) for c in numeric_columns],
+
             'data': data,
+
             'row_count': len(data),
+
             'stats': stats
+
         }
+
         
+
         # LRU 캐시 저장 (가장 오래된 항목부터 제거)
+
         while len(EXCEL_CACHE) >= EXCEL_CACHE_MAX:
+
             EXCEL_CACHE.popitem(last=False)
+
         EXCEL_CACHE[cache_key] = response_data
 
+
+
         return jsonify(response_data)
+
     
+
     except Exception as e:
+
         return jsonify({'error': f'엑셀 파일 읽기 오류: {str(e)}'}), 500
 
+
+
 @app.route('/api/analyze')
+
 def analyze_data():
+
     """엑셀 데이터 심층 분석"""
+
     if not ONEDRIVE_PATH:
+
         return jsonify({'error': 'OneDrive 경로가 설정되지 않았습니다.'}), 400
+
     
+
     file_path = request.args.get('file', '')
+
     sheet_name = request.args.get('sheet', None)
+
     
+
     full_path = os.path.join(ONEDRIVE_PATH, file_path)
+
     
+
     if not os.path.isfile(full_path):
+
         return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
+
     
+
     try:
+
         import io
+
         # 파일 잠금(Lock)을 방지하기 위해 메모리로 먼저 읽어오기
+
         with open(full_path, 'rb') as f:
+
             file_data = f.read()
+
             
+
         df = pd.read_excel(io.BytesIO(file_data), sheet_name=sheet_name, engine='openpyxl')
+
         df = df.fillna('')
+
         
+
         # 컬럼 타입 분석
+
         column_analysis = []
+
         for col in df.columns:
+
             col_data = df[col].replace('', pd.NA).dropna()
+
             col_info = {
+
                 'name': str(col),
+
                 'total': len(df),
+
                 'non_empty': int(col_data.count()) if hasattr(col_data, 'count') else len(col_data),
+
                 'unique': int(df[col].nunique()),
+
             }
+
             
+
             # 숫자형인지 확인
+
             numeric_data = pd.to_numeric(col_data, errors='coerce').dropna()
+
             if len(numeric_data) > 0 and len(numeric_data) / max(len(col_data), 1) > 0.5:
+
                 col_info['type'] = 'numeric'
+
                 col_info['stats'] = {
+
                     'mean': round(float(numeric_data.mean()), 2),
+
                     'median': round(float(numeric_data.median()), 2),
+
                     'sum': round(float(numeric_data.sum()), 2),
+
                     'min': round(float(numeric_data.min()), 2),
+
                     'max': round(float(numeric_data.max()), 2),
+
                     'std': round(float(numeric_data.std()), 2) if len(numeric_data) > 1 else 0,
+
                 }
+
             else:
+
                 col_info['type'] = 'text'
+
                 # 상위 빈도 값
+
                 value_counts = df[col].value_counts().head(10)
+
                 col_info['top_values'] = [
+
                     {'value': str(v), 'count': int(c)} 
+
                     for v, c in value_counts.items() if str(v).strip()
+
                 ]
+
             
+
             column_analysis.append(col_info)
+
         
+
         return jsonify({
+
             'file_name': os.path.basename(file_path),
+
             'total_rows': len(df),
+
             'total_columns': len(df.columns),
+
             'column_analysis': column_analysis
+
         })
+
     
+
     except Exception as e:
+
         return jsonify({'error': f'분석 오류: {str(e)}'}), 500
 
 
+
+
+
 @app.route('/api/save-journal', methods=['POST'])
+
 def save_journal():
+
     """매매일지 데이터 추가 저장"""
+
     if not ONEDRIVE_PATH:
+
         return jsonify({'error': 'OneDrive 경로가 설정되지 않았습니다.'}), 400
+
     
+
     data = request.get_json()
+
     file_path = data.get('file', '')
+
     sheet_name = data.get('sheet', '매매일지')
+
     row_values = data.get('row', [])  # [날짜, 종목, 수량, 단가, 매매종류, 투자금]
+
     
+
     full_path = os.path.join(ONEDRIVE_PATH, file_path)
+
     
+
     if not os.path.isfile(full_path):
+
         return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
+
     
+
     try:
+
         from openpyxl.styles import Font, PatternFill
 
+
+
         # 포트폴리오 맵 업데이트에 사용할 스타일 정의
+
         yellow_fill = PatternFill(
+
             fill_type="solid",
+
             fgColor="FFFF00"   # 노란색
+
         )
+
         no_fill = PatternFill(fill_type=None)  # 배경색 없음(초기화용)
 
+
+
         # openpyxl을 사용하여 데이터 추가 (동시 쓰기 방지용 락 획득)
+
         _excel_write_lock.acquire()
+
         try:
+
             wb = load_workbook_retry(full_path, rich_text=True)
+
         except Exception:
+
             _excel_write_lock.release()
+
             raise
+
         try:
+
             if sheet_name not in wb.sheetnames:
+
                 ws = wb.create_sheet(sheet_name)
+
             else:
+
                 ws = wb[sheet_name]
+
             
+
             # 데이터 추가
+
             ws.append(row_values)
+
             
+
             # 마지막으로 추가된 행의 폰트 색상 설정
+
             last_row = ws.max_row
+
             trade_type_val = row_values[4] if len(row_values) > 4 else ""
+
             
+
             # 색상 결정 (매도: 빨간색, 매수: 검정색)
+
             font_color = "FF0000" if trade_type_val == "매도" else "000000"
+
             cell_font = Font(color=font_color)
+
             
+
             for col_idx in range(1, len(row_values) + 1):
+
                 ws.cell(row=last_row, column=col_idx).font = cell_font
+
             
+
             # --- 포트폴리오 맵 절대값 동기화 ---
+
             # row_values: [날짜, 종목, 수량, 단가, 매매종류, 투자금]
+
             try:
+
                 trade_stock = str(row_values[1]).strip() if len(row_values) > 1 else ""
+
                 # 투자금액 절대값 계산
+
                 raw_investment = float(row_values[5]) if len(row_values) > 5 else 0
+
                 investment_amount = abs(raw_investment)
+
                 
+
                 if trade_stock:
+
                     sync_portfolio_map(wb, trade_stock, investment_amount)
+
                     
+
                     # 실제 반영된 마크 수 재검증 → 매매일지 투자금 보정
+
                     ws_map = wb['포트폴리오 맵']
+
                     trade_stock_clean = trade_stock.replace(" ", "")
+
                     final_ones = 0
+
                     for r in range(1, ws_map.max_row + 1):
+
                         cell_val = str(ws_map.cell(row=r, column=4).value or "").strip().replace(" ", "")
+
                         if cell_val == trade_stock_clean:
+
                             for c in range(5, 101):
+
                                 if ws_map.cell(row=r, column=c).value == 1:
+
                                     final_ones += 1
+
                             ws.cell(row=last_row, column=6).value = final_ones * 100
+
                             break
+
                     print(f"[OK] [{trade_stock}] sync done: marks={final_ones}")
+
             except Exception as inner_e:
+
                 print(f"[ERROR] portfolio map update failed: {inner_e}")
+
             
+
             # 최종 저장 (매매일지 + 포트폴리오 맵 모두 반영)
+
             save_workbook_safely(wb, full_path)
+
             wb.close()
+
             
+
             # 아이폰 앱용 데이터 자동 갱신
+
             trigger_export()
+
                 
+
         finally:
+
             # 오류가 발생하더라도 확실하게 파일을 닫아 잠금 해제
+
             try: wb.close()
+
             except: pass
+
             _excel_write_lock.release()
+
         
+
         return jsonify({'success': True, 'message': '성공적으로 저장되었습니다.'})
+
     
+
     except Exception as e:
+
         import traceback
+
         print(traceback.format_exc())
+
         return jsonify({'error': f'저장 오류: {str(e)}'}), 500
 
 
+
+
+
 def _resolve_target_row(ws, row_index=None, stock_name="", is_new=False, prefer_index=True):
+
     """엑셀 시트의 수정 대상 행을 결정합니다.
 
+
+
     기존 행은 화면이 보낸 ``_realIndex``를 가장 신뢰합니다. 화면에서
+
     종목명을 수정해도 같은 행을 계속 갱신해야 하므로 종목명 검색을
+
     우선하지 않습니다. 신규 행은 반드시 ``is_new`` 또는 음수 인덱스로
+
     표시하고 시트의 마지막 행 뒤에 추가합니다.
+
     """
+
     def _normalize_name(val):
+
         return str(val or '').replace('~~', '').strip().replace(' ', '').replace('\n', '')
+
+
 
     clean_stock = _normalize_name(stock_name)
 
+
+
     # 구형 모바일 동기화 요청은 종목명을 먼저 확인한다.
+
     # PC 저장은 prefer_index=True로 실제 Excel 행 번호를 우선 사용한다.
+
     if not prefer_index and clean_stock and clean_stock not in ['종목명', '종목', '신규종목', '신규종목추가']:
+
         name_col_idx = None
+
         for r in range(1, min(6, ws.max_row + 1)):
+
             for c in range(1, ws.max_column + 1):
+
                 header = str(ws.cell(row=r, column=c).value or '').strip()
+
                 if header in ['종목명', '종목', 'Unnamed: 1', 'stock']:
+
                     name_col_idx = c
+
                     break
+
             if name_col_idx:
+
                 break
+
         name_col_idx = name_col_idx or 2
+
         for r in range(1, ws.max_row + 1):
+
             if _normalize_name(ws.cell(row=r, column=name_col_idx).value) == clean_stock:
+
                 return r
+
+
 
     try:
+
         parsed_index = int(row_index) if row_index is not None else None
+
     except (TypeError, ValueError):
+
         parsed_index = None
 
+
+
     # 신규 행은 기존 데이터와 인덱스가 섞이지 않도록 무조건 append한다.
+
     if is_new or parsed_index is None or parsed_index < 0:
+
         target_r = max(ws.max_row + 1, 2)
+
         print(f'[_resolve_target_row] 신규 행 추가 -> 엑셀 {target_r}행')
+
         return target_r
+
+
 
     target_r = parsed_index + 2
+
     if target_r >= 2 and target_r <= ws.max_row:
+
         return target_r
 
+
+
     # 구형 모바일 신규 행은 잘못 계산된 rowIndex가 기존 종목을 가리킬 수 있다.
+
     if not prefer_index and clean_stock and target_r <= ws.max_row:
+
         existing_stock = _normalize_name(ws.cell(row=target_r, column=2).value)
+
         if existing_stock and existing_stock != clean_stock:
+
             return max(ws.max_row + 1, 2)
 
+
+
     if clean_stock and clean_stock not in ['종목명', '종목', '신규종목', '신규종목추가']:
+
         for r in range(1, ws.max_row + 1):
+
             for c in range(1, min(ws.max_column, 5) + 1):
+
                 header = str(ws.cell(row=1, column=c).value or '').strip()
+
                 if header in ['종목명', '종목', 'Unnamed: 1', 'stock']:
+
                     if _normalize_name(ws.cell(row=r, column=c).value) == clean_stock:
+
                         return r
 
+
+
         # 헤더가 승격되지 않은 탐구생활 시트는 B열을 기본 종목명 컬럼으로 사용한다.
+
         for r in range(1, ws.max_row + 1):
+
             if _normalize_name(ws.cell(row=r, column=2).value) == clean_stock:
+
                 return r
+
+
 
     return max(ws.max_row + 1, 2)
 
 
+
+
+
 def _verify_saved_row(full_path, sheet_name, target_row, values):
+
     """저장된 엑셀 파일을 다시 열어 요청한 행의 값을 검증합니다."""
+
     verify_wb = None
+
     try:
+
         verify_wb = load_workbook_retry(full_path, rich_text=True, data_only=False)
+
         if sheet_name not in verify_wb.sheetnames:
+
             return False, [f'시트 없음: {sheet_name}']
+
         verify_ws = verify_wb[sheet_name]
+
         mismatches = []
+
         for col_idx, expected in enumerate(values, start=1):
+
             actual = extract_rich_text(verify_ws.cell(row=target_row, column=col_idx))
+
             expected_text = '' if expected is None else str(expected)
+
             actual_text = '' if actual is None else str(actual)
+
             if actual_text != expected_text:
+
                 mismatches.append({
+
                     'column': col_idx,
+
                     'expected': expected_text,
+
                     'actual': actual_text,
+
                 })
+
         return len(mismatches) == 0, mismatches
+
     except Exception as e:
+
         return False, [f'저장 검증 오류: {e}']
+
     finally:
+
         if verify_wb is not None:
+
             try:
+
                 verify_wb.close()
+
             except Exception:
+
                 pass
 
 
+
+
+
 @app.route('/api/update-row', methods=['POST'])
+
 def update_row():
+
     if not ONEDRIVE_PATH:
+
         return jsonify({'error': 'OneDrive 경로가 설정되지 않았습니다.'}), 400
 
+
+
     data = request.get_json(silent=True) or {}
+
     file_path = data.get('file', '')
+
     sheet_name = data.get('sheet')
+
     raw_row_index = data.get('rowIndex')
+
     try:
+
         row_index = int(raw_row_index) if raw_row_index not in (None, '') else None
+
     except (TypeError, ValueError):
+
         return jsonify({'error': 'rowIndex가 올바르지 않습니다.'}), 400
+
     is_new = bool(data.get('isNew', False)) or (row_index is not None and row_index < 0)
+
     values = data.get('values', [])
+
     stock_name = data.get('stockName', '')
+
     if not stock_name and len(values) > 1:
+
         stock_name = str(values[1] or '').strip()
 
+
+
     if not sheet_name:
+
         return jsonify({'error': 'sheet 값이 필요합니다.'}), 400
+
     if row_index is None and not is_new:
+
         return jsonify({'error': '기존 행 저장에는 rowIndex가 필요합니다.'}), 400
 
+
+
     full_path = os.path.join(ONEDRIVE_PATH, file_path)
+
     if not os.path.isfile(full_path):
+
         return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
 
+
+
     target_row = None
+
     try:
+
         from openpyxl.styles import Alignment
+
         _excel_write_lock.acquire()
+
         try:
+
             wb = load_workbook_retry(full_path, rich_text=True)
+
         except Exception:
+
             _excel_write_lock.release()
+
             raise
+
         try:
+
             if sheet_name not in wb.sheetnames:
+
                 return jsonify({'error': f'시트를 찾을 수 없습니다: {sheet_name}'}), 404
 
+
+
             ws = wb[sheet_name]
+
             target_row = _resolve_target_row(ws, row_index, stock_name, is_new=is_new)
+
             for col_idx, value in enumerate(values, start=1):
+
                 cell = ws.cell(row=target_row, column=col_idx)
+
                 # 취소선 처리
+
                 processed_value = parse_strikethrough_text(value)
+
                 cell.value = processed_value
+
                 
+
                 # 줄바꿈(\n)이 포함된 셀은 엑셀에서도 표시되도록 wrap_text 설정
+
                 if isinstance(value, str) and '\n' in value:
+
                     cell.alignment = Alignment(wrap_text=True)
 
+
+
             # 매매일지인 경우 포트폴리오 맵 동기화
+
             if sheet_name == '매매일지':
+
                 try:
+
                     s_name = values[1] if len(values) > 1 else ""
+
                     amount = float(values[5]) if len(values) > 5 else 0
+
                     if s_name:
+
                         sync_portfolio_map(wb, s_name, amount)
+
                 except: pass
+
+
 
             save_workbook_safely(wb, full_path)
+
         finally:
+
             try: wb.close()
+
             except: pass
+
             _excel_write_lock.release()
 
+
+
         verified, verification_errors = _verify_saved_row(
+
             full_path, sheet_name, target_row, values
+
         )
+
         if not verified:
+
             print(f'[UPDATE-ROW] 저장 검증 실패: {verification_errors}')
+
             return jsonify({
+
                 'success': False,
+
                 'verified': False,
+
                 'target_row': target_row,
+
                 'rowIndex': target_row - 2,
+
                 'error': '엑셀 저장 후 재확인에 실패했습니다.',
+
                 'details': verification_errors,
+
             }), 500
+
         
+
         # 아이폰 앱용 데이터 자동 갱신
+
         trigger_export()
+
         
+
         return jsonify({
+
             'success': True,
+
             'verified': True,
+
             'target_row': target_row,
+
             'rowIndex': target_row - 2,
+
             'message': '행이 업데이트되었습니다.'
+
         })
+
     except Exception as e:
+
         import traceback
+
         print(traceback.format_exc())
+
         return jsonify({'error': f'업데이트 오류: {str(e)}'}), 500
 
+
+
 @app.route('/api/sync-receive', methods=['GET', 'POST'])
+
 def sync_receive():
+
     if not ONEDRIVE_PATH:
+
         return "OneDrive 경로가 설정되지 않았습니다.", 400
 
+
+
     try:
+
         import json
+
         if request.is_json:
+
             edits = request.get_json()
+
         else:
+
             payload = request.values.get('payload')
+
             if not payload:
+
                 return "No payload provided.", 400
+
             edits = json.loads(payload)
 
+
+
         if not isinstance(edits, list):
+
             edits = [edits]
 
+
+
         from openpyxl.styles import Alignment
+
         import traceback
+
         from collections import defaultdict
 
+
+
         # ★ 파일별로 edit을 그룹화하여 동일 파일은 1번만 열기 (성능 최적화)
+
         edits_by_file = defaultdict(list)
+
         for edit in edits:
+
             file_path = edit.get('file', '')
+
             if os.path.isabs(file_path) and os.path.isfile(file_path):
+
                 full_path = file_path
+
             else:
+
                 full_path = os.path.join(ONEDRIVE_PATH, file_path)
+
             edits_by_file[full_path].append(edit)
 
+
+
         sync_results = []
+
         applied_count = 0
 
+
+
         for full_path, file_edits in edits_by_file.items():
+
             if not os.path.isfile(full_path):
+
                 print(f'[sync-receive] file not found: {full_path}')
+
                 for edit in file_edits:
+
                     sync_results.append({
+
                         'syncId': edit.get('syncId'),
+
                         'status': 'error',
+
                         'reason': 'source file not found',
+
                     })
+
                 continue
 
+
+
             _excel_write_lock.acquire()
+
             try:
+
                 wb = load_workbook_retry(full_path, rich_text=True)
+
             except Exception:
+
                 _excel_write_lock.release()
+
                 raise
 
+
+
             file_changed = False
+
             try:
+
                 for edit in file_edits:
+
                     result_base = {'syncId': edit.get('syncId')}
+
                     sheet_name = edit.get('sheet')
+
                     raw_row_index = edit.get('rowIndex')
+
                     row_index = int(raw_row_index) if raw_row_index not in (None, '') else None
+
                     values = edit.get('values', [])
+
                     if not isinstance(values, list):
+
                         values = []
+
                     stock_name = str(edit.get('stockName') or '').strip()
+
                     is_new = bool(edit.get('isNew', False)) or (row_index is not None and row_index < 0)
+
                     if not stock_name and len(values) > 1:
+
                         stock_name = str(values[1] or '').strip()
 
+
+
                     if sheet_name not in wb.sheetnames:
+
                         sync_results.append({
+
                             **result_base,
+
                             'status': 'error',
+
                             'reason': f'sheet not found: {sheet_name}',
+
                         })
+
                         continue
+
+
 
                     ws = wb[sheet_name]
+
                     target_row = _resolve_target_row(
+
                         ws, row_index, stock_name, is_new=is_new, prefer_index=False
+
                     )
+
                     server_values = [
+
                         extract_rich_text(ws.cell(row=target_row, column=col_idx))
+
                         for col_idx in range(1, len(values) + 1)
+
                     ]
+
                     base_values = edit.get('baseValues')
+
                     columns = edit.get('columns')
+
                     if not isinstance(columns, list) or len(columns) != len(values):
+
                         columns = [f'column_{i + 1}' for i in range(len(values))]
 
+
+
                     review = _review_mobile_edit(
+
                         columns,
+
                         base_values,
+
                         server_values,
+
                         values,
+
                         is_new=is_new,
+
                     )
+
                     if review.get('status') != 'saved':
+
                         sync_results.append({
+
                             **result_base,
+
                             'status': review.get('status'),
+
                             'review_mode': review.get('review_mode'),
+
                             'conflict_fields': review.get('conflict_fields', []),
+
                             'reason': review.get('reason', ''),
+
                             'target_row': target_row,
+
                         })
+
                         continue
 
+
+
                     final_values = review.get('values') or []
+
                     for col_idx, value in enumerate(final_values, start=1):
+
                         cell = ws.cell(row=target_row, column=col_idx)
+
                         processed_value = parse_strikethrough_text(value)
+
                         cell.value = processed_value
+
                         if isinstance(value, str) and '\n' in value:
+
                             cell.alignment = Alignment(wrap_text=True)
 
+
+
                     file_changed = True
+
                     applied_count += 1
+
                     sync_results.append({
+
                         **result_base,
+
                         'status': 'saved',
+
                         'review_mode': review.get('review_mode'),
+
                         'conflict_fields': review.get('conflict_fields', []),
+
                         'reason': review.get('reason', ''),
+
                         'target_row': target_row,
+
                     })
 
+
+
                 if file_changed:
+
                     save_workbook_safely(wb, full_path)
+
             finally:
+
                 try: wb.close()
+
                 except: pass
+
                 _excel_write_lock.release()
+
+
 
         push_success = True if applied_count == 0 else trigger_export_and_push_sync()
 
+
+
         from datetime import datetime as dt, timezone
+
         now_iso = dt.now(timezone.utc).isoformat()
 
+
+
         # AJAX / fetch 요청 (JSON) 인 경우 JSON 응답 반환
+
         if request.is_json or 'application/json' in request.headers.get('Accept', ''):
+
             return jsonify({
+
                 'success': True,
+
                 'push_success': push_success,
+
                 'saved_count': applied_count,
+
                 'results': sync_results,
+
                 'review_model': os.environ.get('GEMINI_MODEL', GEMINI_DEFAULT_MODEL),
+
                 'server_time': now_iso,
+
                 'message': 'PC 엑셀 정상 반영 완료' if push_success else 'PC 엑셀 저장 완료 (GitHub 반영 진행 중)'
+
             })
+
+
 
         redirect_url = f'https://smuth-swing.github.io/stock-portfolio/mobile/?sync=success&ts={now_iso}'
 
+
+
         if push_success:
+
             return f"""
+
             <html>
+
             <head>
+
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
               <script>
+
                 // GitHub Pages CDN 반영 대기 (약 5초) 후 리다이렉트
+
                 setTimeout(function() {{
+
                   window.location.href = '{redirect_url}';
+
                 }}, 5000);
+
               </script>
+
               <style>
+
                 body {{ background: #0F172A; color: white; font-family: sans-serif; text-align: center; padding-top: 100px; }}
+
                 h2 {{ color: #00F2FE; }}
+
                 p {{ color: #94A3B8; font-size: 16px; margin-top: 20px; }}
+
                 .spinner {{ display: inline-block; width: 40px; height: 40px; border: 4px solid rgba(0,242,254,0.2); border-top: 4px solid #00F2FE; border-radius: 50%; animation: spin 1s linear infinite; margin-top: 30px; }}
+
                 @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
+
                 button {{ background: #00F2FE; color: #0F172A; border: none; padding: 15px 30px; border-radius: 10px; font-size: 18px; font-weight: bold; margin-top: 30px; cursor: pointer; }}
+
               </style>
+
             </head>
+
             <body>
+
               <h2>✅ PC 서버 반영 완료!</h2>
+
               <p>GitHub Pages 반영 대기 중... (약 5초)</p>
+
               <div class="spinner"></div>
+
               <br>
+
               <button onclick="window.location.href='{redirect_url}'">바로 돌아가기</button>
+
             </body>
+
             </html>
+
             """
+
         else:
+
             # Push 실패 시에도 엑셀에는 이미 저장되었으므로, 큐 정리를 위해 success로 리다이렉트
+
             return f"""
+
             <html>
+
             <head>
+
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
               <script>
+
                 setTimeout(function() {{
+
                   window.location.href = '{redirect_url}';
+
                 }}, 3000);
+
               </script>
+
               <style>
+
                 body {{ background: #0F172A; color: white; font-family: sans-serif; text-align: center; padding-top: 100px; }}
+
                 h2 {{ color: #EAB308; }}
+
                 p {{ color: #94A3B8; font-size: 14px; margin-top: 15px; }}
+
                 button {{ background: #EAB308; color: #422006; border: none; padding: 15px 30px; border-radius: 10px; font-size: 18px; font-weight: bold; margin-top: 30px; cursor: pointer; }}
+
               </style>
+
             </head>
+
             <body>
+
               <h2>⚠️ PC에 저장됨 (GitHub 반영은 잠시 후)</h2>
+
               <p>엑셀 파일에는 정상 저장되었습니다.</p>
+
               <button onclick="window.location.href='{redirect_url}'">바로 돌아가기</button>
+
             </body>
+
             </html>
+
             """
+
     except Exception as e:
+
         import traceback
+
         print(traceback.format_exc())
+
         if request.is_json or 'application/json' in request.headers.get('Accept', ''):
+
             return jsonify({'error': f'동기화 오류: {str(e)}'}), 500
+
         return f"동기화 오류: {str(e)}", 500
 
 
+
+
+
 def sync_portfolio_map(wb, stock_name, trade_amount):
+
     """포트폴리오 맵의 종목 마크(점)를 투자금액에 맞게 동기화"""
+
     if '포트폴리오 맵' not in wb.sheetnames:
+
         return
+
     
+
     from openpyxl.styles import PatternFill
+
     yellow_fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+
     no_fill = PatternFill(fill_type=None)
+
     
+
     ws_map = wb['포트폴리오 맵']
+
     stock_clean = stock_name.replace(" ", "")
+
     target_marks = int(abs(trade_amount) // 100)
+
     
+
     # 종목명이 일치하는 모든 행을 찾아서 처리
+
     for r in range(1, ws_map.max_row + 1):
+
         cell_val = str(ws_map.cell(row=r, column=4).value or "").strip().replace(" ", "")
+
         if cell_val and (stock_clean in cell_val or cell_val in stock_clean):
+
             # 1. 초기화
+
             for c in range(5, 101):
+
                 cell = ws_map.cell(row=r, column=c)
+
                 cell.value = None
+
                 cell.fill = no_fill
+
             # 2. 마킹
+
             if target_marks > 0:
+
                 for i in range(target_marks):
+
                     col_idx = 5 + i
+
                     if col_idx <= 100:
+
                         cell = ws_map.cell(row=r, column=col_idx)
+
                         cell.value = 1
+
                         cell.fill = yellow_fill
+
     print(f"📊 [{stock_name}] 포트폴리오 동기화: {target_marks}개")
 
 
+
+
+
 @app.route('/api/delete-row', methods=['POST'])
+
 def delete_row():
+
     """행 삭제 API - 매매일지의 경우 이전 데이터로 동기화 포함"""
+
     if not ONEDRIVE_PATH:
+
         return jsonify({'error': 'OneDrive 경로가 설정되지 않았습니다.'}), 400
 
+
+
     data = request.get_json()
+
     file_path = data.get('file', '')
+
     sheet_name = data.get('sheet')
+
     row_index = int(data.get('rowIndex', 0))
 
+
+
     full_path = os.path.join(ONEDRIVE_PATH, file_path)
+
     if not os.path.isfile(full_path):
+
         return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
 
+
+
     try:
+
         _excel_write_lock.acquire()
+
         try:
+
             wb = load_workbook_retry(full_path, rich_text=True)
+
         except Exception:
+
             _excel_write_lock.release()
+
             raise
+
         try:
+
             if sheet_name not in wb.sheetnames:
+
                 return jsonify({'error': f'시트를 찾을 수 없습니다: {sheet_name}'}), 404
 
+
+
             ws = wb[sheet_name]
+
             target_row_idx = row_index + 2
+
             
+
             # 삭제 전 정보 기억
+
             stock_name = None
+
             if sheet_name == '매매일지':
+
                 stock_name = str(ws.cell(row=target_row_idx, column=2).value or "").strip()
+
             
+
             # 행 삭제
+
             ws.delete_rows(target_row_idx)
+
             
+
             # 매매일지 삭제 후 동기화
+
             if sheet_name == '매매일지' and stock_name:
+
                 last_amount = 0
+
                 stock_clean = stock_name.replace(" ", "")
+
                 for r in range(2, ws.max_row + 1):
+
                     cell_val = str(ws.cell(row=r, column=2).value or "").strip().replace(" ", "")
+
                     if cell_val == stock_clean:
+
                         try:
+
                             val = ws.cell(row=r, column=6).value
+
                             if val is not None: last_amount = float(val)
+
                         except: pass
+
                 
+
                 sync_portfolio_map(wb, stock_name, last_amount)
+
                 print(f"🗑️ [{stock_name}] 삭제 및 이전 데이터({last_amount}) 동기화")
 
+
+
             save_workbook_safely(wb, full_path)
+
         finally:
+
             try: wb.close()
+
             except: pass
+
             _excel_write_lock.release()
+
         
+
         # 아이폰 앱용 데이터 자동 갱신
+
         trigger_export()
+
         
+
         return jsonify({'success': True, 'message': '행이 삭제되었습니다.'})
+
     except Exception as e:
+
         import traceback
+
         print(traceback.format_exc())
+
         return jsonify({'error': f'삭제 오류: {str(e)}'}), 500
 
 
+
+
+
 @app.route('/api/ping')
+
 def ping():
+
     """
+
     절전 복귀 감지용 헬스체크 엔드포인트.
+
     클라이언트(PWA)가 주기적으로 호출하여 서버 생존 및 절전 복귀를 감지한다.
+
     """
+
     import time
+
     return jsonify({
+
         'alive': True,
+
         'timestamp': time.time(),
+
         'server_time': __import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
     })
 
 
+
+
+
 # ══════════════════════════════════════════════════════════════
+
 # LS증권 OpenAPI 연동 엔드포인트
+
 # ══════════════════════════════════════════════════════════════
+
+
 
 @app.route('/api/ls/config', methods=['GET', 'POST'])
+
 def ls_config():
+
     """LS증권 API 설정 저장 / 조회"""
+
     try:
+
         from ls_api import load_config, save_config
+
     except ImportError:
+
         return jsonify({'error': 'ls_api 모듈을 찾을 수 없습니다.'}), 500
 
+
+
     if request.method == 'GET':
+
         cfg = load_config()
+
         # 비밀번호/시크릿은 마스킹하여 반환
+
         safe_cfg = {
+
             'app_key': cfg.get('app_key', ''),
+
             'app_secret': '****' if cfg.get('app_secret') else '',
+
             'account': cfg.get('account', ''),
+
             'account_pw': '****' if cfg.get('account_pw') else '',
+
             'configured': bool(cfg.get('app_key') and cfg.get('app_secret') and
+
                                cfg.get('account') and cfg.get('account_pw'))
+
         }
+
         return jsonify(safe_cfg)
 
+
+
     # POST: 설정 저장
+
     data = request.get_json()
+
     cfg = load_config()  # 기존 설정 유지 (부분 업데이트 지원)
 
+
+
     for key in ('app_key', 'app_secret', 'account', 'account_pw'):
+
         val = data.get(key, '')
+
         # '****'가 들어오면 기존 값 유지 (마스킹된 값 그대로 보낸 경우)
+
         if val and val != '****':
+
             cfg[key] = val
 
+
+
     save_config(cfg)
+
     return jsonify({'success': True, 'message': 'LS증권 API 설정이 저장되었습니다.'})
 
 
+
+
+
 @app.route('/api/ls/fetch-trades', methods=['POST'])
+
 def ls_fetch_trades():
+
     """
+
     LS증권 API로 체결 내역 조회
+
     Body: { from_date: "YYYYMMDD", to_date: "YYYYMMDD", stock_code: "" }
+
     """
+
     try:
+
         from ls_api import fetch_trade_history
+
     except ImportError:
+
         return jsonify({'error': 'ls_api 모듈을 찾을 수 없습니다.'}), 500
 
+
+
     data = request.get_json() or {}
+
     from_date = data.get('from_date', '')
+
     to_date = data.get('to_date', '')
+
     stock_code = data.get('stock_code', '')
 
+
+
     if not from_date or not to_date:
+
         return jsonify({'error': '조회 기간(from_date, to_date)을 입력하세요. 형식: YYYYMMDD'}), 400
 
+
+
     try:
+
         trades = fetch_trade_history(
+
             from_date=from_date,
+
             to_date=to_date,
+
             stock_code=stock_code
+
         )
+
         return jsonify({
+
             'success': True,
+
             'count': len(trades),
+
             'from_date': from_date,
+
             'to_date': to_date,
+
             'trades': trades
+
         })
+
     except ValueError as e:
+
         # 설정 미완료 등 사용자 입력 오류
+
         return jsonify({'error': str(e)}), 400
+
     except Exception as e:
+
         import traceback
+
         print(traceback.format_exc())
+
         return jsonify({'error': f'LS API 조회 실패: {str(e)}'}), 500
 
 
+
+
+
 @app.route('/api/ls/import-trades', methods=['POST'])
+
 def ls_import_trades():
+
     """
+
     선택한 거래내역을 Excel DB(매매일지 시트)에 저장
+
     Body: {
+
         file: "파일경로",
+
         trades: [{ date, name, qty, price, type, investment, memo }, ...]
+
     }
+
     """
+
     if not ONEDRIVE_PATH:
+
         return jsonify({'error': 'OneDrive 경로가 설정되지 않았습니다.'}), 400
 
+
+
     data = request.get_json() or {}
+
     file_path = data.get('file', '')
+
     trades = data.get('trades', [])
 
+
+
     if not file_path:
+
         return jsonify({'error': 'file 경로를 지정하세요.'}), 400
+
     if not trades:
+
         return jsonify({'error': '저장할 거래 내역이 없습니다.'}), 400
 
+
+
     full_path = os.path.join(ONEDRIVE_PATH, file_path)
+
     if not os.path.isfile(full_path):
+
         return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
 
+
+
     try:
+
         _excel_write_lock.acquire()
+
         try:
+
             wb = load_workbook_retry(full_path, rich_text=True)
+
         except Exception:
+
             _excel_write_lock.release()
+
             raise
+
         try:
+
             sheet_name = '매매일지'
+
             if sheet_name not in wb.sheetnames:
+
                 return jsonify({'error': f'"{sheet_name}" 시트를 찾을 수 없습니다.'}), 404
 
+
+
             ws = wb[sheet_name]
+
             saved_count = 0
+
             errors = []
 
+
+
             for trade in trades:
+
                 try:
+
                     # 기존 매매일지 컬럼 순서: [날짜, 종목, 수량, 단가, 매매종류, 투자금]
+
                     row_values = [
+
                         trade.get('date', ''),
+
                         trade.get('name', ''),
+
                         int(trade.get('qty', 0)),
+
                         int(trade.get('price', 0)),
+
                         trade.get('type', '매수'),
+
                         float(trade.get('investment', 0)),
+
                     ]
+
                     # 메모가 있으면 7번째 컬럼에 추가
+
                     memo = trade.get('memo', '')
+
                     if memo:
+
                         row_values.append(memo)
+
+
 
                     ws.append(row_values)
 
+
+
                     # 폰트 색상 (매도=빨강, 매수=검정)
+
                     last_row = ws.max_row
+
                     font_color = "FF0000" if trade.get('type') == '매도' else "000000"
+
                     cell_font = Font(color=font_color)
+
                     for col_idx in range(1, len(row_values) + 1):
+
                         ws.cell(row=last_row, column=col_idx).font = cell_font
 
+
+
                     # 포트폴리오 맵 동기화
+
                     stock_name = trade.get('name', '')
+
                     investment = float(trade.get('investment', 0))
+
                     if stock_name:
+
                         try:
+
                             sync_portfolio_map(wb, stock_name, investment)
+
                         except Exception:
+
                             pass  # 맵 동기화 실패는 저장 자체를 막지 않음
+
+
 
                     saved_count += 1
 
+
+
                 except Exception as row_e:
+
                     errors.append(f"{trade.get('name', '?')}: {str(row_e)}")
 
+
+
             save_workbook_safely(wb, full_path)
+
         finally:
+
             try: wb.close()
+
             except: pass
+
             _excel_write_lock.release()
 
+
+
         # 아이폰 앱용 JSON 자동 갱신
+
         trigger_export()
 
+
+
         msg = f'{saved_count}건 저장 완료'
+
         if errors:
+
             msg += f' (오류 {len(errors)}건: {"; ".join(errors[:3])})'
+
+
 
         return jsonify({'success': True, 'saved': saved_count, 'errors': errors, 'message': msg})
 
     except Exception as e:
+
+        return jsonify({'error': f'매매일지 저장 실패: {str(e)}'}), 500
+
+
+
+
+
+# ============================================================
+
+# 키움증권(영웅문) OpenAPI 연동 라우트
+
+# ============================================================
+
+
+
+@app.route('/api/kiwoom/config', methods=['GET', 'POST'])
+
+def kiwoom_config():
+
+    """키움증권 API 설정 조회 및 저장 (다중 계좌 지원)"""
+
+    try:
+
+        from kiwoom_api import load_config, save_config
+
+    except ImportError:
+
+        return jsonify({'error': 'kiwoom_api 모듈을 찾을 수 없습니다.'}), 500
+
+
+
+    cfg = load_config()
+
+
+
+    if request.method == 'GET':
+
+        accounts_safe = {}
+
+        for acnt_no, info in cfg.get('accounts', {}).items():
+
+            app_key = info.get('app_key', '')
+
+            masked_key = (app_key[:6] + '...' + app_key[-4:]) if len(app_key) > 10 else ('설정됨' if app_key else '')
+
+            accounts_safe[acnt_no] = {
+
+                'account': acnt_no,
+
+                'name': info.get('name', acnt_no),
+
+                'app_key_masked': masked_key,
+
+                'has_secret': bool(info.get('secret_key') or cfg.get('secret_key')),
+
+                'configured': bool(info.get('app_key') and (info.get('secret_key') or cfg.get('secret_key')))
+
+            }
+
+        return jsonify({
+
+            'success': True,
+
+            'default_account': cfg.get('default_account', ''),
+
+            'accounts': accounts_safe,
+
+            'account_list': list(accounts_safe.keys())
+
+        })
+
+
+
+    # POST: 설정 저장
+
+    data = request.get_json() or {}
+
+    account = data.get('account', '').strip()
+
+    secret_key = data.get('secret_key', '').strip()
+
+    account_pw = data.get('account_pw', '').strip()
+
+    default_acnt = data.get('default_account', '').strip()
+
+
+
+    if default_acnt:
+
+        cfg['default_account'] = default_acnt
+
+
+
+    if account and account in cfg.get('accounts', {}):
+
+        if secret_key and secret_key != '****':
+
+            cfg['accounts'][account]['secret_key'] = secret_key
+
+        if account_pw and account_pw != '****':
+
+            cfg['accounts'][account]['account_pw'] = account_pw
+
+    elif secret_key and secret_key != '****':
+
+        # 전역 Secret Key로 모든 계좌에 일괄 적용
+
+        cfg['secret_key'] = secret_key
+
+        for acnt_no in cfg.get('accounts', {}):
+
+            if not cfg['accounts'][acnt_no].get('secret_key'):
+
+                cfg['accounts'][acnt_no]['secret_key'] = secret_key
+
+
+
+    save_config(cfg)
+
+    return jsonify({'success': True, 'message': '키움증권 API 설정이 저장되었습니다.'})
+
+
+
+
+
+@app.route('/api/kiwoom/fetch-trades', methods=['POST'])
+
+def kiwoom_fetch_trades():
+
+    """
+
+    키움증권 API로 주문/체결 내역 조회
+
+    Body: { account: "11592223", from_date: "YYYYMMDD", to_date: "YYYYMMDD" }
+
+    """
+
+    try:
+
+        from kiwoom_api import fetch_trade_history
+
+    except ImportError:
+
+        return jsonify({'error': 'kiwoom_api 모듈을 찾을 수 없습니다.'}), 500
+
+
+
+    data = request.get_json() or {}
+
+    account = data.get('account', '').strip()
+
+    from_date = data.get('from_date', '').strip()
+
+    to_date = data.get('to_date', '').strip()
+
+
+
+    if not from_date or not to_date:
+
+        return jsonify({'error': '조회 기간(from_date, to_date)을 입력하세요. 형식: YYYYMMDD'}), 400
+
+
+
+    try:
+
+        trades = fetch_trade_history(
+
+            from_date=from_date,
+
+            to_date=to_date,
+
+            account=account if account else None
+
+        )
+
+        return jsonify({
+
+            'success': True,
+
+            'count': len(trades),
+
+            'account': account,
+
+            'from_date': from_date,
+
+            'to_date': to_date,
+
+            'trades': trades
+
+        })
+
+    except ValueError as e:
+
+        return jsonify({'error': str(e)}), 400
+
+    except Exception as e:
+
         import traceback
+
         print(traceback.format_exc())
-        return jsonify({'error': f'저장 오류: {str(e)}'}), 500
 
-TARGET_PRICES_FILE = os.path.join("StockPortfolioApp", "public", "data", "target_prices.json")
-TARGET_DATES_FILE = os.path.join("StockPortfolioApp", "public", "data", "target_dates.json")
-CASH_SNAPSHOTS_FILE = os.path.join("StockPortfolioApp", "public", "data", "cash_snapshots.json")
+        return jsonify({'error': f'키움 API 조회 실패: {str(e)}'}), 500
 
-@app.route('/api/target-prices', methods=['GET'])
-def get_target_prices():
+
+
+
+
+@app.route('/api/kiwoom/import-trades', methods=['POST'])
+
+def kiwoom_import_trades():
+
+    """
+
+    선택한 키움 거래내역을 Excel DB(매매일지 시트)에 저장
+
+    Body: {
+
+        file: "파일경로",
+
+        trades: [{ date, name, qty, price, type, investment, memo, account }, ...]
+
+    }
+
+    """
+
+    if not ONEDRIVE_PATH:
+
+        return jsonify({'error': 'OneDrive 경로가 설정되지 않았습니다.'}), 400
+
+
+
+    data = request.get_json() or {}
+
+    file_path = data.get('file', '')
+
+    trades = data.get('trades', [])
+
+
+
+    if not file_path:
+
+        return jsonify({'error': 'file 경로를 지정하세요.'}), 400
+
+    if not trades:
+
+        return jsonify({'error': '저장할 거래 내역이 없습니다.'}), 400
+
+
+
+    full_path = os.path.join(ONEDRIVE_PATH, file_path)
+
+    if not os.path.isfile(full_path):
+
+        return jsonify({'error': f'파일을 찾을 수 없습니다: {file_path}'}), 404
+
+
+
     try:
-        if os.path.exists(TARGET_PRICES_FILE):
-            with open(TARGET_PRICES_FILE, 'r', encoding='utf-8') as f:
-                return jsonify(json.load(f))
-        return jsonify({})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/target-prices', methods=['POST'])
-def save_target_prices():
-    try:
-        data = request.get_json()
-        os.makedirs(os.path.dirname(TARGET_PRICES_FILE), exist_ok=True)
-        with open(TARGET_PRICES_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        
-        # 파일이 업데이트되었으므로 GitHub 배포 스크립트 실행 (백그라운드)
-        trigger_export()
-        
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/target-dates', methods=['GET'])
-def get_target_dates():
-    try:
-        if os.path.exists(TARGET_DATES_FILE):
-            with open(TARGET_DATES_FILE, 'r', encoding='utf-8') as f:
-                return jsonify(json.load(f))
-        return jsonify({})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/target-dates', methods=['POST'])
-def save_target_dates():
-    try:
-        data = request.get_json()
-        os.makedirs(os.path.dirname(TARGET_DATES_FILE), exist_ok=True)
-        with open(TARGET_DATES_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        
-        # 파일이 업데이트되었으므로 GitHub 배포 스크립트 실행 (백그라운드)
-        trigger_export()
-        
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# ────────────────────────────────────────────────
-# 월별 현금 스냅샷 (Excel "현금비중" 시트 기반)
-# ────────────────────────────────────────────────
-@app.route('/api/cash-snapshots', methods=['GET'])
-def get_cash_snapshots():
-    """Excel '현금비중' 시트에서 스냅샷 데이터 읽기"""
-    try:
-        import io, openpyxl
-        full_path = os.path.join(ONEDRIVE_PATH, EXCEL_FILE)
-        if not os.path.isfile(full_path):
-            return jsonify([])
-
-        with open(full_path, 'rb') as f:
-            file_data = f.read()
-
-        wb = openpyxl.load_workbook(io.BytesIO(file_data), data_only=True)
-        if '현금비중' not in wb.sheetnames:
-            return jsonify([])
-
-        ws = wb['현금비중']
-        data = []
-        for r in range(2, ws.max_row + 1):
-            month = ws.cell(r, 1).value
-            if not month:
-                continue
-            investment = ws.cell(r, 2).value or 0
-            cash = ws.cell(r, 3).value or 0
-            totalAsset = ws.cell(r, 4).value or 0
-            ratio = ws.cell(r, 5).value or 0
-            data.append({
-                'month': str(month).strip(),
-                'investment': float(investment),
-                'cash': float(cash),
-                'totalAsset': float(totalAsset),
-                'ratio': float(ratio)
-            })
-        wb.close()
-        data.sort(key=lambda x: x['month'])
-        return jsonify(data)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/cash-snapshots', methods=['POST'])
-def save_cash_snapshots():
-    """Excel '현금비중' 시트에 스냅샷 데이터 저장 (전체 덮어쓰기)"""
-    try:
-        import openpyxl
-        full_path = os.path.join(ONEDRIVE_PATH, EXCEL_FILE)
-        if not os.path.isfile(full_path):
-            return jsonify({'error': '엑셀 파일을 찾을 수 없습니다.'}), 404
-
-        data = request.get_json()
-        if not isinstance(data, list):
-            return jsonify({'error': '배열 데이터가 필요합니다.'}), 400
 
         _excel_write_lock.acquire()
+
         try:
+
             wb = load_workbook_retry(full_path, rich_text=True)
+
         except Exception:
+
             _excel_write_lock.release()
+
             raise
 
-        if '현금비중' not in wb.sheetnames:
-            ws = wb.create_sheet('현금비중')
-        else:
-            ws = wb['현금비중']
+        try:
 
-        # 헤더 확인/설정
-        headers = ['월', '투자금(백만)', '현금(백만)', '총자산(백만)', '현금비중(%)']
-        for i, h in enumerate(headers, 1):
-            ws.cell(1, i, h)
+            sheet_name = '매매일지'
 
-        # 기존 데이터 삭제 (2행부터)
-        for r in range(ws.max_row, 1, -1):
-            ws.delete_rows(r)
+            if sheet_name not in wb.sheetnames:
 
-        # 새 데이터 쓰기
-        for idx, item in enumerate(data):
-            row = idx + 2
-            ws.cell(row, 1, str(item.get('month', '')))
-            ws.cell(row, 2, float(item.get('investment', 0)))
-            ws.cell(row, 3, float(item.get('cash', 0)))
-            ws.cell(row, 4, float(item.get('totalAsset', 0)))
-            ws.cell(row, 5, float(item.get('ratio', 0)))
+                return jsonify({'error': f'"{sheet_name}" 시트를 찾을 수 없습니다.'}), 404
 
-        save_workbook_safely(wb, full_path)
-        wb.close()
-        _excel_write_lock.release()
+
+
+            ws = wb[sheet_name]
+
+            saved_count = 0
+
+            errors = []
+
+
+
+            for trade in trades:
+
+                try:
+
+                    row_values = [
+
+                        trade.get('date', ''),
+
+                        trade.get('name', ''),
+
+                        int(trade.get('qty', 0)),
+
+                        int(trade.get('price', 0)),
+
+                        trade.get('type', '매수'),
+
+                        float(trade.get('investment', 0)),
+
+                    ]
+
+                    memo = trade.get('memo', '')
+
+                    if memo:
+
+                        row_values.append(memo)
+
+
+
+                    ws.append(row_values)
+
+
+
+                    last_row = ws.max_row
+
+                    font_color = "FF0000" if trade.get('type') == '매도' else "000000"
+
+                    cell_font = Font(color=font_color)
+
+                    for col_idx in range(1, len(row_values) + 1):
+
+                        ws.cell(row=last_row, column=col_idx).font = cell_font
+
+
+
+                    stock_name = trade.get('name', '')
+
+                    investment = float(trade.get('investment', 0))
+
+                    if stock_name:
+
+                        try:
+
+                            sync_portfolio_map(wb, stock_name, investment)
+
+                        except Exception:
+
+                            pass
+
+
+
+                    saved_count += 1
+
+                except Exception as row_e:
+
+                    errors.append(f"{trade.get('name', '?')}: {str(row_e)}")
+
+
+
+            save_workbook_safely(wb, full_path)
+
+        finally:
+
+            try: wb.close()
+
+            except: pass
+
+            _excel_write_lock.release()
+
+
 
         trigger_export()
-        return jsonify({'success': True, 'count': len(data)})
+
+
+
+        msg = f'{saved_count}건 저장 완료 (키움 영웅문)'
+
+        if errors:
+
+            msg += f' (오류 {len(errors)}건: {"; ".join(errors[:3])})'
+
+
+
+        return jsonify({'success': True, 'saved': saved_count, 'errors': errors, 'message': msg})
+
     except Exception as e:
-        try:
-            _excel_write_lock.release()
-        except RuntimeError:
-            pass  # 락을 획득하지 않은 상태에서 예외가 발생한 경우
+
+        return jsonify({'error': f'매매일지 저장 실패: {str(e)}'}), 500
+
+
+
+    except Exception as e:
+
+        import traceback
+
+        print(traceback.format_exc())
+
+        return jsonify({'error': f'저장 오류: {str(e)}'}), 500
+
+
+
+TARGET_PRICES_FILE = os.path.join("StockPortfolioApp", "public", "data", "target_prices.json")
+
+TARGET_DATES_FILE = os.path.join("StockPortfolioApp", "public", "data", "target_dates.json")
+
+CASH_SNAPSHOTS_FILE = os.path.join("StockPortfolioApp", "public", "data", "cash_snapshots.json")
+
+
+
+@app.route('/api/target-prices', methods=['GET'])
+
+def get_target_prices():
+
+    try:
+
+        if os.path.exists(TARGET_PRICES_FILE):
+
+            with open(TARGET_PRICES_FILE, 'r', encoding='utf-8') as f:
+
+                return jsonify(json.load(f))
+
+        return jsonify({})
+
+    except Exception as e:
+
         return jsonify({'error': str(e)}), 500
 
-# ────────────────────────────────────────────────
-# 현금 계좌 & 투자금 계좌 (Excel "_계좌정보" 시트 기반)
-# ────────────────────────────────────────────────
 
-def _read_accounts_sheet(section_key):
-    """Excel '_계좌정보' 시트에서 특정 섹션의 계좌 데이터를 읽어옴"""
-    import io
-    full_path = os.path.join(ONEDRIVE_PATH, EXCEL_FILE)
-    if not os.path.isfile(full_path):
-        return []
+
+@app.route('/api/target-prices', methods=['POST'])
+
+def save_target_prices():
+
     try:
-        with open(full_path, 'rb') as f:
-            file_data = f.read()
-        wb = openpyxl.load_workbook(io.BytesIO(file_data), data_only=True)
-        if '_계좌정보' not in wb.sheetnames:
-            wb.close()
-            return []
-        ws = wb['_계좌정보']
-        # section_key 행 찾기 (첫 번째 열에 "현금계좌" 또는 "투자금계좌" 표시)
-        data = []
-        in_section = False
-        for r in range(1, ws.max_row + 1):
-            cell_val = str(ws.cell(r, 1).value or '').strip()
-            if cell_val == section_key:
-                in_section = True
-                continue
-            if in_section:
-                if cell_val == '' or cell_val.startswith('#'):
-                    break  # 섹션 종료
-                name = str(ws.cell(r, 1).value or '').strip()
-                amount = ws.cell(r, 2).value or 0
-                if name:
-                    data.append({'name': name, 'amount': float(amount)})
-        wb.close()
-        return data
+
+        data = request.get_json()
+
+        os.makedirs(os.path.dirname(TARGET_PRICES_FILE), exist_ok=True)
+
+        with open(TARGET_PRICES_FILE, 'w', encoding='utf-8') as f:
+
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        
+
+        # 파일이 업데이트되었으므로 GitHub 배포 스크립트 실행 (백그라운드)
+
+        trigger_export()
+
+        
+
+        return jsonify({'success': True})
+
     except Exception as e:
-        print(f"[ACCOUNTS] 읽기 오류: {e}")
-        return []
 
-def _write_accounts_sheet(section_key, accounts):
-    """Excel '_계좌정보' 시트에 계좌 데이터 저장"""
-    full_path = os.path.join(ONEDRIVE_PATH, EXCEL_FILE)
-    if not os.path.isfile(full_path):
-        return False
-    _excel_write_lock.acquire()
+        return jsonify({'error': str(e)}), 500
+
+
+
+@app.route('/api/target-dates', methods=['GET'])
+
+def get_target_dates():
+
     try:
-        wb = load_workbook_retry(full_path, rich_text=True)
-        if '_계좌정보' not in wb.sheetnames:
-            ws = wb.create_sheet('_계좌정보')
+
+        if os.path.exists(TARGET_DATES_FILE):
+
+            with open(TARGET_DATES_FILE, 'r', encoding='utf-8') as f:
+
+                return jsonify(json.load(f))
+
+        return jsonify({})
+
+    except Exception as e:
+
+        return jsonify({'error': str(e)}), 500
+
+
+
+@app.route('/api/target-dates', methods=['POST'])
+
+def save_target_dates():
+
+    try:
+
+        data = request.get_json()
+
+        os.makedirs(os.path.dirname(TARGET_DATES_FILE), exist_ok=True)
+
+        with open(TARGET_DATES_FILE, 'w', encoding='utf-8') as f:
+
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        
+
+        # 파일이 업데이트되었으므로 GitHub 배포 스크립트 실행 (백그라운드)
+
+        trigger_export()
+
+        
+
+        return jsonify({'success': True})
+
+    except Exception as e:
+
+        return jsonify({'error': str(e)}), 500
+
+
+
+# ────────────────────────────────────────────────
+
+# 월별 현금 스냅샷 (Excel "현금비중" 시트 기반)
+
+# ────────────────────────────────────────────────
+
+@app.route('/api/cash-snapshots', methods=['GET'])
+
+def get_cash_snapshots():
+
+    """Excel '현금비중' 시트에서 스냅샷 데이터 읽기"""
+
+    try:
+
+        import io, openpyxl
+
+        full_path = os.path.join(ONEDRIVE_PATH, EXCEL_FILE)
+
+        if not os.path.isfile(full_path):
+
+            return jsonify([])
+
+
+
+        with open(full_path, 'rb') as f:
+
+            file_data = f.read()
+
+
+
+        wb = openpyxl.load_workbook(io.BytesIO(file_data), data_only=True)
+
+        if '현금비중' not in wb.sheetnames:
+
+            return jsonify([])
+
+
+
+        ws = wb['현금비중']
+
+        data = []
+
+        for r in range(2, ws.max_row + 1):
+
+            month = ws.cell(r, 1).value
+
+            if not month:
+
+                continue
+
+            investment = ws.cell(r, 2).value or 0
+
+            cash = ws.cell(r, 3).value or 0
+
+            totalAsset = ws.cell(r, 4).value or 0
+
+            ratio = ws.cell(r, 5).value or 0
+
+            data.append({
+
+                'month': str(month).strip(),
+
+                'investment': float(investment),
+
+                'cash': float(cash),
+
+                'totalAsset': float(totalAsset),
+
+                'ratio': float(ratio)
+
+            })
+
+        wb.close()
+
+        data.sort(key=lambda x: x['month'])
+
+        return jsonify(data)
+
+    except Exception as e:
+
+        return jsonify({'error': str(e)}), 500
+
+
+
+@app.route('/api/cash-snapshots', methods=['POST'])
+
+def save_cash_snapshots():
+
+    """Excel '현금비중' 시트에 스냅샷 데이터 저장 (전체 덮어쓰기)"""
+
+    try:
+
+        import openpyxl
+
+        full_path = os.path.join(ONEDRIVE_PATH, EXCEL_FILE)
+
+        if not os.path.isfile(full_path):
+
+            return jsonify({'error': '엑셀 파일을 찾을 수 없습니다.'}), 404
+
+
+
+        data = request.get_json()
+
+        if not isinstance(data, list):
+
+            return jsonify({'error': '배열 데이터가 필요합니다.'}), 400
+
+
+
+        _excel_write_lock.acquire()
+
+        try:
+
+            wb = load_workbook_retry(full_path, rich_text=True)
+
+        except Exception:
+
+            _excel_write_lock.release()
+
+            raise
+
+
+
+        if '현금비중' not in wb.sheetnames:
+
+            ws = wb.create_sheet('현금비중')
+
         else:
-            ws = wb['_계좌정보']
 
-        # 해당 섹션 찾기
-        section_start = None
-        section_end = None
-        for r in range(1, ws.max_row + 1):
-            cell_val = str(ws.cell(r, 1).value or '').strip()
-            if cell_val == section_key:
-                section_start = r
-            elif section_start is not None and (cell_val == '' or cell_val.startswith('#') or cell_val in ('현금계좌', '투자금계좌')):
-                section_end = r
-                break
-        if section_start is not None and section_end is None:
-            section_end = ws.max_row + 1
+            ws = wb['현금비중']
 
-        # 기존 섹션 데이터 삭제
-        if section_start is not None and section_end is not None:
-            for r in range(section_end - 1, section_start, -1):
-                ws.delete_rows(r)
+
+
+        # 헤더 확인/설정
+
+        headers = ['월', '투자금(백만)', '현금(백만)', '총자산(백만)', '현금비중(%)']
+
+        for i, h in enumerate(headers, 1):
+
+            ws.cell(1, i, h)
+
+
+
+        # 기존 데이터 삭제 (2행부터)
+
+        for r in range(ws.max_row, 1, -1):
+
+            ws.delete_rows(r)
+
+
 
         # 새 데이터 쓰기
-        if section_start is None:
-            # 새 섹션 추가 (시트 끝에)
-            insert_row = ws.max_row + 1
-            if ws.max_row > 1 or ws.cell(1, 1).value is not None:
-                insert_row += 1  # 빈 줄 하나 띄우기
-            ws.cell(insert_row, 1, section_key)
-            for i, acc in enumerate(accounts):
-                ws.cell(insert_row + 1 + i, 1, acc.get('name', ''))
-                ws.cell(insert_row + 1 + i, 2, float(acc.get('amount', 0)))
-        else:
-            for i, acc in enumerate(accounts):
-                ws.cell(section_start + 1 + i, 1, acc.get('name', ''))
-                ws.cell(section_start + 1 + i, 2, float(acc.get('amount', 0)))
+
+        for idx, item in enumerate(data):
+
+            row = idx + 2
+
+            ws.cell(row, 1, str(item.get('month', '')))
+
+            ws.cell(row, 2, float(item.get('investment', 0)))
+
+            ws.cell(row, 3, float(item.get('cash', 0)))
+
+            ws.cell(row, 4, float(item.get('totalAsset', 0)))
+
+            ws.cell(row, 5, float(item.get('ratio', 0)))
+
+
 
         save_workbook_safely(wb, full_path)
+
         wb.close()
-        return True
-    except Exception as e:
-        print(f"[ACCOUNTS] 쓰기 오류: {e}")
-        return False
-    finally:
+
         _excel_write_lock.release()
+
+
+
+        trigger_export()
+
+        return jsonify({'success': True, 'count': len(data)})
+
+    except Exception as e:
+
+        try:
+
+            _excel_write_lock.release()
+
+        except RuntimeError:
+
+            pass  # 락을 획득하지 않은 상태에서 예외가 발생한 경우
+
+        return jsonify({'error': str(e)}), 500
+
+
+
+# ────────────────────────────────────────────────
+
+# 현금 계좌 & 투자금 계좌 (Excel "_계좌정보" 시트 기반)
+
+# ────────────────────────────────────────────────
+
+
+
+def _read_accounts_sheet(section_key):
+
+    """Excel '_계좌정보' 시트에서 특정 섹션의 계좌 데이터를 읽어옴"""
+
+    import io
+
+    full_path = os.path.join(ONEDRIVE_PATH, EXCEL_FILE)
+
+    if not os.path.isfile(full_path):
+
+        return []
+
+    try:
+
+        with open(full_path, 'rb') as f:
+
+            file_data = f.read()
+
+        wb = openpyxl.load_workbook(io.BytesIO(file_data), data_only=True)
+
+        if '_계좌정보' not in wb.sheetnames:
+
+            wb.close()
+
+            return []
+
+        ws = wb['_계좌정보']
+
+        # section_key 행 찾기 (첫 번째 열에 "현금계좌" 또는 "투자금계좌" 표시)
+
+        data = []
+
+        in_section = False
+
+        for r in range(1, ws.max_row + 1):
+
+            cell_val = str(ws.cell(r, 1).value or '').strip()
+
+            if cell_val == section_key:
+
+                in_section = True
+
+                continue
+
+            if in_section:
+
+                if cell_val == '' or cell_val.startswith('#'):
+
+                    break  # 섹션 종료
+
+                name = str(ws.cell(r, 1).value or '').strip()
+
+                amount = ws.cell(r, 2).value or 0
+
+                if name:
+
+                    data.append({'name': name, 'amount': float(amount)})
+
+        wb.close()
+
+        return data
+
+    except Exception as e:
+
+        print(f"[ACCOUNTS] 읽기 오류: {e}")
+
+        return []
+
+
+
+def _write_accounts_sheet(section_key, accounts):
+
+    """Excel '_계좌정보' 시트에 계좌 데이터 저장"""
+
+    full_path = os.path.join(ONEDRIVE_PATH, EXCEL_FILE)
+
+    if not os.path.isfile(full_path):
+
+        return False
+
+    _excel_write_lock.acquire()
+
+    try:
+
+        wb = load_workbook_retry(full_path, rich_text=True)
+
+        if '_계좌정보' not in wb.sheetnames:
+
+            ws = wb.create_sheet('_계좌정보')
+
+        else:
+
+            ws = wb['_계좌정보']
+
+
+
+        # 해당 섹션 찾기
+
+        section_start = None
+
+        section_end = None
+
+        for r in range(1, ws.max_row + 1):
+
+            cell_val = str(ws.cell(r, 1).value or '').strip()
+
+            if cell_val == section_key:
+
+                section_start = r
+
+            elif section_start is not None and (cell_val == '' or cell_val.startswith('#') or cell_val in ('현금계좌', '투자금계좌')):
+
+                section_end = r
+
+                break
+
+        if section_start is not None and section_end is None:
+
+            section_end = ws.max_row + 1
+
+
+
+        # 기존 섹션 데이터 삭제
+
+        if section_start is not None and section_end is not None:
+
+            for r in range(section_end - 1, section_start, -1):
+
+                ws.delete_rows(r)
+
+
+
+        # 새 데이터 쓰기
+
+        if section_start is None:
+
+            # 새 섹션 추가 (시트 끝에)
+
+            insert_row = ws.max_row + 1
+
+            if ws.max_row > 1 or ws.cell(1, 1).value is not None:
+
+                insert_row += 1  # 빈 줄 하나 띄우기
+
+            ws.cell(insert_row, 1, section_key)
+
+            for i, acc in enumerate(accounts):
+
+                ws.cell(insert_row + 1 + i, 1, acc.get('name', ''))
+
+                ws.cell(insert_row + 1 + i, 2, float(acc.get('amount', 0)))
+
+        else:
+
+            for i, acc in enumerate(accounts):
+
+                ws.cell(section_start + 1 + i, 1, acc.get('name', ''))
+
+                ws.cell(section_start + 1 + i, 2, float(acc.get('amount', 0)))
+
+
+
+        save_workbook_safely(wb, full_path)
+
+        wb.close()
+
+        return True
+
+    except Exception as e:
+
+        print(f"[ACCOUNTS] 쓰기 오류: {e}")
+
+        return False
+
+    finally:
+
+        _excel_write_lock.release()
+
+
+
 
 
 @app.route('/api/cash-accounts', methods=['GET'])
+
 def get_cash_accounts():
+
     """Excel '_계좌정보' 시트에서 현금 계좌 목록 읽기"""
+
     try:
+
         data = _read_accounts_sheet('현금계좌')
+
         return jsonify(data)
+
     except Exception as e:
+
         return jsonify({'error': str(e)}), 500
+
+
 
 @app.route('/api/cash-accounts', methods=['POST'])
+
 def save_cash_accounts():
+
     """Excel '_계좌정보' 시트에 현금 계좌 목록 저장"""
+
     try:
+
         data = request.get_json()
+
         if not isinstance(data, list):
+
             return jsonify({'error': '배열 데이터가 필요합니다.'}), 400
+
         success = _write_accounts_sheet('현금계좌', data)
+
         if success:
+
             trigger_export()
+
             return jsonify({'success': True, 'count': len(data)})
+
         return jsonify({'error': '저장 실패'}), 500
+
     except Exception as e:
+
         return jsonify({'error': str(e)}), 500
+
+
 
 @app.route('/api/invest-accounts', methods=['GET'])
+
 def get_invest_accounts():
+
     """Excel '_계좌정보' 시트에서 투자금 계좌 목록 읽기"""
+
     try:
+
         data = _read_accounts_sheet('투자금계좌')
+
         return jsonify(data)
+
     except Exception as e:
+
         return jsonify({'error': str(e)}), 500
+
+
 
 @app.route('/api/invest-accounts', methods=['POST'])
+
 def save_invest_accounts():
+
     """Excel '_계좌정보' 시트에 투자금 계좌 목록 저장"""
+
     try:
+
         data = request.get_json()
+
         if not isinstance(data, list):
+
             return jsonify({'error': '배열 데이터가 필요합니다.'}), 400
+
         success = _write_accounts_sheet('투자금계좌', data)
+
         if success:
+
             trigger_export()
+
             return jsonify({'success': True, 'count': len(data)})
+
         return jsonify({'error': '저장 실패'}), 500
+
     except Exception as e:
+
         return jsonify({'error': str(e)}), 500
 
+
+
 @app.route('/api/ls/current-prices', methods=['POST'])
+
 def ls_current_prices():
+
     """
+
     LS증권 API로 여러 종목의 현재가 조회
+
     Body: { "shcodes": ["005930", ...], "names": ["삼성전자", "SK하이닉스", ...] }
+
     반환: { "005930": 80000, "삼성전자": 80000 }
+
     """
+
     try:
+
         from ls_api import fetch_current_prices, get_stock_codes_by_names, load_config, get_access_token
+
     except ImportError:
+
         return jsonify({'error': 'ls_api 모듈을 찾을 수 없습니다.'}), 500
 
+
+
     data = request.get_json() or {}
+
     shcodes = data.get('shcodes', [])
+
     names = data.get('names', [])
+
     
+
     name_to_code = {}
+
     code_to_name = {}
 
+
+
     if names:
+
         cfg = load_config()
+
         token = get_access_token(cfg["app_key"], cfg["app_secret"])
+
         if token:
+
             name_to_code = get_stock_codes_by_names(token, names)
+
             shcodes.extend(name_to_code.values())
+
             code_to_name = {v: k for k, v in name_to_code.items()}
+
+
 
     shcodes = list(set(shcodes)) # 중복 제거
 
+
+
     if not shcodes:
+
         return jsonify({'error': '종목 코드(shcodes)나 종목명(names)을 제공해주세요.'}), 400
 
+
+
     try:
+
         prices = fetch_current_prices(shcodes)
+
         
+
         # 이름으로 요청된 경우 이름으로도 가격 추가
+
         result_prices = {**prices}
+
         for code, price in prices.items():
+
             if code in code_to_name:
+
                 result_prices[code_to_name[code]] = price
+
                 
+
         return jsonify({
+
             'success': True,
+
             'prices': result_prices
+
         })
+
     except Exception as e:
+
         import traceback
+
         print(traceback.format_exc())
+
         return jsonify({'error': f'현재가 조회 실패: {str(e)}'}), 500
 
 
+
+
+
 @app.route('/api/batch-current-prices', methods=['POST'])
+
 def batch_current_prices():
+
     """
+
     여러 종목의 현재가를 한 번에 조회 (탐구생활 신호 계산용)
+
     POST body: { "names": ["삼성전자", "SK하이닉스", ...] }
+
     반환: { "success": true, "prices": { "삼성전자": 80000, "SK하이닉스": 200000, ... } }
+
     """
+
     try:
+
         from ls_api import fetch_current_prices, get_stock_codes_by_names, load_config, get_access_token
+
     except ImportError:
+
         return jsonify({'error': 'ls_api 모듈을 찾을 수 없습니다.'}), 500
 
+
+
     data = request.get_json() or {}
+
     names = data.get('names', [])
+
     if not names or not isinstance(names, list):
+
         return jsonify({'error': 'names 배열이 필요합니다.'}), 400
 
+
+
     # 중복 제거 및 공백 정리
+
     names = list(set(n.strip() for n in names if n and n.strip()))
 
+
+
     if not names:
+
         return jsonify({'success': True, 'prices': {}})
+
+
 
     cfg = load_config()
+
     token = get_access_token(cfg["app_key"], cfg["app_secret"])
+
     if not token:
+
         return jsonify({'error': 'LS API 토큰 발급 실패'}), 500
 
+
+
     # 1. 종목명 → 종목코드 매핑
+
     try:
+
         name_to_code = get_stock_codes_by_names(token, names)
+
     except Exception as e:
+
         return jsonify({'error': f'종목코드 조회 실패: {str(e)}'}), 500
 
+
+
     if not name_to_code:
+
         return jsonify({'success': True, 'prices': {}})
 
+
+
     # 2. 종목코드 → 현재가 조회
+
     codes = list(name_to_code.values())
+
     try:
+
         code_prices = fetch_current_prices(codes)
+
     except Exception as e:
+
         return jsonify({'error': f'현재가 배치 조회 실패: {str(e)}'}), 500
 
+
+
     # 3. 종목명 기준으로 가격 맵 구성
+
     prices = {}
+
     for name in names:
+
         code = name_to_code.get(name)
+
         if code and code in code_prices:
+
             prices[name] = int(code_prices[code])
+
+
 
     _set_signal_price_cache(prices=prices, names=names, loading=False)
 
+
+
     return jsonify({
+
         'success': True,
+
         'prices': prices
+
     })
 
 
+
+
+
 @app.route('/api/ls/moving-averages', methods=['GET'])
+
 def ls_moving_averages():
+
     """
+
     단일 종목의 이동평균선(5, 20, 60, 120일) 데이터 조회
+
     Query: ?shcode=005930 또는 ?name=삼성전자
+
     """
+
     try:
+
         from ls_api import fetch_moving_averages, get_stock_codes_by_names, load_config, get_access_token
+
     except ImportError:
+
         return jsonify({'error': 'ls_api 모듈을 찾을 수 없습니다.'}), 500
 
+
+
     shcode = request.args.get('shcode', '')
+
     name = request.args.get('name', '')
 
+
+
     if name and not shcode:
+
         cfg = load_config()
+
         token = get_access_token(cfg["app_key"], cfg["app_secret"])
+
         if token:
+
             name_to_code = get_stock_codes_by_names(token, [name])
+
             if name in name_to_code:
+
                 shcode = name_to_code[name]
 
+
+
     if not shcode:
+
         return jsonify({'error': '종목 코드나 이름을 제공해주세요.'}), 400
 
+
+
     try:
+
         ma_data = fetch_moving_averages(shcode)
+
         return jsonify({
+
             'success': True,
+
             'data': ma_data
+
         })
+
     except Exception as e:
+
         import traceback
+
         print(traceback.format_exc())
+
         return jsonify({'error': f'이동평균선 조회 실패: {str(e)}'}), 500
 
 
+
+
+
 # ── 신호 데이터 원격 갱신 (모바일 → PC 서버 트리거) ──
+
 _signal_refresh_lock = threading.Lock()
 
+
+
 def get_foreign_ownership_diffs():
+
     """탐구생활 모든 종목의 1주일 외국인 지분율 변동 계산 (캐시 활용)"""
+
     import json
+
     import os
+
     import time
+
     import urllib.request
+
     import re
+
     from datetime import datetime
+
     
+
     cache_path = os.path.join(BASE_DIR, 'StockPortfolioApp', 'public', 'data', 'foreign_ownership_cache.json')
+
     today_str = datetime.now().strftime('%Y-%m-%d')
+
     
+
     # 1. 캐시 확인
+
     if os.path.exists(cache_path):
+
         try:
+
             with open(cache_path, 'r', encoding='utf-8') as f:
+
                 cache_data = json.load(f)
+
                 if cache_data.get('date') == today_str:
+
                     print("[INFO] Use today's foreign ownership cache")
+
                     return cache_data.get('data', {})
+
         except Exception as e:
+
             print(f"[WARN] Failed to read foreign ownership cache: {e}")
+
             
+
     # 2. 캐시가 없거나 만료된 경우 갱신
+
     print("[INFO] Updating foreign ownership diffs from Naver Finance...")
+
     inv_path = os.path.join(BASE_DIR, 'StockPortfolioApp', 'public', 'data', 'investigation.json')
+
     inv_stocks = []
+
     if os.path.exists(inv_path):
+
         try:
+
             with open(inv_path, 'r', encoding='utf-8') as f:
+
                 inv_data = json.load(f)
+
                 cols = inv_data.get('columns', [])
+
                 nameCol = '종목명' if '종목명' in cols else 'Unnamed: 1'
+
                 for row in inv_data.get('data', []):
+
                     name = str(row.get(nameCol, '')).strip()
+
                     if name and name not in ['종목', 'stock'] and '~~' not in name:
+
                         inv_stocks.append(name)
+
         except Exception:
+
             pass
+
             
+
     if not inv_stocks:
+
         return {}
+
         
+
     # 종목코드 맵
+
     name_to_code = {}
+
     try:
+
         from ls_api import load_config as _load_config, get_access_token as _get_access_token, get_stock_codes_by_names as _get_stock_codes_by_names
+
         cfg = _load_config()
+
         token = _get_access_token(cfg.get("app_key", ""), cfg.get("app_secret", ""))
+
         if token:
+
             name_to_code = _get_stock_codes_by_names(token, inv_stocks)
+
     except Exception:
+
         pass
+
         
+
     if not name_to_code:
+
         codes_path = os.path.join(BASE_DIR, 'StockPortfolioApp', 'public', 'data', 'stock_codes.json')
+
         if os.path.exists(codes_path):
+
             try:
+
                 with open(codes_path, 'r', encoding='utf-8') as f:
+
                     name_to_code = json.load(f)
+
             except Exception:
+
                 pass
 
+
+
     url_template = "https://finance.naver.com/item/frgn.naver?code={code}"
+
     headers = {
+
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+
     }
+
     
+
     # 단일 종목 외국인 지분율 크롤링 내부 함수
+
     def _fetch_single_foreign_ownership(name_code_pair):
+
         name, code = name_code_pair
+
         try:
+
             req = urllib.request.Request(url_template.format(code=code), headers=headers)
+
             with urllib.request.urlopen(req, timeout=5) as response:
+
                 html = response.read().decode('euc-kr', errors='replace')
+
             rows = re.findall(r'<tr[^>]*>.*?</tr>', html, re.DOTALL)
+
             history = []
+
             for r in rows:
+
                 if re.search(r'\d{4}\.\d{2}\.\d{2}', r):
+
                     tds = re.findall(r'<td[^>]*>(.*?)</td>', r, re.DOTALL)
+
                     tds_clean = [re.sub(r'<[^>]+>', '', t).strip() for t in tds]
+
                     if len(tds_clean) >= 9:
+
                         ratio_str = tds_clean[8].replace('%', '').strip()
+
                         try:
+
                             history.append(float(ratio_str))
+
                         except ValueError:
+
                             pass
+
             if len(history) >= 6:
+
                 return (name, round(history[0] - history[5], 2))
+
         except Exception:
+
             pass
+
         return None
+
     
+
     pairs = [(name, name_to_code[name]) for name in inv_stocks if name_to_code.get(name)]
+
     diffs = {}
+
     
+
     with ThreadPoolExecutor(max_workers=5) as executor:
+
         futures = {executor.submit(_fetch_single_foreign_ownership, pair): pair for pair in pairs}
+
         for future in as_completed(futures):
+
             result = future.result()
+
             if result:
+
                 diffs[result[0]] = result[1]
+
             
+
     # 캐시 파일 쓰기
+
     try:
+
         os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+
         with open(cache_path, 'w', encoding='utf-8') as f:
+
             json.dump({'date': today_str, 'data': diffs}, f, ensure_ascii=False, indent=2)
+
     except Exception as e:
+
         print(f"[WARN] Failed to write foreign ownership cache: {e}")
+
         
+
     return diffs
 
+
+
 def update_market_interest_stocks_file():
+
     """네이버 실시간 인기 검색 종목 및 외인 비중 변동 증가/감소 Top 5를 시장관심종목으로 통합 및 저장"""
+
     import urllib.request
+
     import re
+
     import json
+
     
+
     # 1. 탐구생활 종목 전체 로드
+
     inv_path = os.path.join(BASE_DIR, 'StockPortfolioApp', 'public', 'data', 'investigation.json')
+
     inv_stocks = []
+
     if os.path.exists(inv_path):
+
         try:
+
             with open(inv_path, 'r', encoding='utf-8') as f:
+
                 inv_data = json.load(f)
+
                 cols = inv_data.get('columns', [])
+
                 nameCol = '종목명' if '종목명' in cols else 'Unnamed: 1'
+
                 for row in inv_data.get('data', []):
+
                     name = str(row.get(nameCol, '')).strip()
+
                     if name and name not in ['종목', 'stock'] and '~~' not in name:
+
                         inv_stocks.append(name)
+
         except Exception as e:
+
             print(f"[ERROR] Failed to read investigation.json in helper: {e}")
+
             
+
     # 2. 네이버 인기 검색 종목 크롤링 (30개) 및 탐구생활 매칭
+
     url = "https://finance.naver.com/sise/lastsearch2.naver"
+
     headers = {
+
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+
     }
+
     popular_stocks = []
+
     try:
+
         req = urllib.request.Request(url, headers=headers)
+
         with urllib.request.urlopen(req, timeout=5) as response:
+
             html = response.read().decode('euc-kr', errors='replace')
+
         pattern = r'class="tltle"[^>]*>([^<]+)</a>'
+
         popular_stocks = [name.strip() for name in re.findall(pattern, html)]
+
     except Exception as e:
+
         print(f"[ERROR] fetch_naver_popular_stocks in helper failed: {e}")
+
         
+
     popular_matched = []
+
     if inv_stocks and popular_stocks:
+
         inv_clean = {name.replace(" ", "").upper(): name for name in inv_stocks}
+
         for pop_stock in popular_stocks:
+
             pop_clean = pop_stock.replace(" ", "").upper()
+
             if pop_clean in inv_clean:
+
                 popular_matched.append(inv_clean[pop_clean])
+
                 
+
     # 3. 외국인 지분율 변동 계산 및 Top 5 증가/감소 종목 추출
+
     diffs = get_foreign_ownership_diffs()
+
     
+
     # 현재 탐구생활 종목(inv_stocks)에 존재하는 종목만 필터링 (공백 및 대소문자 무시 매칭 지원)
+
     inv_clean = {name.replace(" ", "").upper(): name for name in inv_stocks}
+
     filtered_diffs = {}
+
     for name, val in diffs.items():
+
         name_clean = name.replace(" ", "").upper()
+
         if name_clean in inv_clean:
+
             filtered_diffs[inv_clean[name_clean]] = val
+
     diffs = filtered_diffs
+
     
+
     # 증가 Top 5
+
     sorted_increase = sorted([item for item in diffs.items() if item[1] > 0], key=lambda x: x[1], reverse=True)
+
     top_increase = [name for name, val in sorted_increase[:5]]
+
     
+
     # 감소 Top 5
+
     sorted_decrease = sorted([item for item in diffs.items() if item[1] < 0], key=lambda x: x[1])
+
     top_decrease = [name for name, val in sorted_decrease[:5]]
+
     
+
     # 4. 통합 (인기 매칭 종목 + 증가 Top 5 + 감소 Top 5)
+
     combined_stocks = []
+
     seen = set()
+
     
+
     for stock in popular_matched:
+
         if stock not in seen:
+
             combined_stocks.append(stock)
+
             seen.add(stock)
+
             
+
     for stock in top_increase:
+
         if stock not in seen:
+
             combined_stocks.append(stock)
+
             seen.add(stock)
+
             
+
     for stock in top_decrease:
+
         if stock not in seen:
+
             combined_stocks.append(stock)
+
             seen.add(stock)
+
             
+
     # 외인 지분율 변동폭(diffs) 기준으로 내림차순 정렬 (올라간 거 -> 내려간 거 순)
+
     # diffs에 변동률이 없는 종목은 0.0으로 간주하여 정렬
+
     combined_stocks.sort(key=lambda x: diffs.get(x, 0.0), reverse=True)
+
             
+
     # 변동폭 딕셔너리 구성
+
     foreign_diffs = {name: val for name, val in diffs.items() if name in combined_stocks}
+
     
+
     # 5. 파일 저장
+
     out_dir = os.path.join(BASE_DIR, 'StockPortfolioApp', 'public', 'data')
+
     os.makedirs(out_dir, exist_ok=True)
+
     out_path = os.path.join(out_dir, 'market_interest_stocks.json')
+
     
+
     result_data = {
+
         "stocks": combined_stocks,
+
         "foreign_diffs": foreign_diffs
+
     }
+
     
+
     try:
+
         with open(out_path, 'w', encoding='utf-8') as f:
+
             json.dump(result_data, f, ensure_ascii=False, indent=2)
+
         print(f"[OK] market_interest_stocks.json updated: {len(combined_stocks)} stocks")
+
     except Exception as e:
+
         print(f"[ERROR] Failed to write market_interest_stocks.json: {e}")
+
         
+
     return combined_stocks
 
+
+
 @app.route('/api/market-interest-stocks', methods=['GET', 'POST'])
+
 def get_market_interest_stocks():
+
     """실시간 인기 검색어 및 외인 변동폭 기반 시장관심종목 업데이트 및 조회"""
+
     try:
+
         stocks = update_market_interest_stocks_file()
+
         
+
         # 갱신된 파일의 데이터 직접 읽기 (foreign_diffs를 포함하여 프론트에 주기 위함)
+
         out_path = os.path.join(BASE_DIR, 'StockPortfolioApp', 'public', 'data', 'market_interest_stocks.json')
+
         foreign_diffs = {}
+
         if os.path.exists(out_path):
+
             with open(out_path, 'r', encoding='utf-8') as f:
+
                 saved_data = json.load(f)
+
                 foreign_diffs = saved_data.get('foreign_diffs', {})
+
                 
+
         return jsonify({
+
             'success': True,
+
             'stocks': stocks,
+
             'foreign_diffs': foreign_diffs
+
         })
+
     except Exception as e:
+
         return jsonify({'error': str(e)}), 500
 
+
+
 @app.route('/api/refresh-signals', methods=['GET', 'POST'])
+
 def refresh_signals():
+
     """
+
     모바일에서 호출하여 신호 데이터(이평선/RSI)를 갱신하고 GitHub에 반영.
+
     CORS 프록시 없이 모바일에서도 최신 시세를 확인할 수 있게 합니다.
+
     
+
     동작 흐름:
+
     1. export_signals.py 실행 (LS증권 API로 최신 이평선/RSI 수집)
+
     2. 시장관심종목(market_interest_stocks.json) 실시간 갱신
+
     3. StockPortfolioApp/public/data → mobile/data 복사
+
     4. Git add + commit + push (GitHub Pages 반영)
+
     5. 완료 시 JSON 응답 반환
+
     """
+
     if not _signal_refresh_lock.acquire(blocking=False):
+
         return jsonify({
+
             'success': False,
+
             'message': '이미 신호 데이터 갱신이 진행 중입니다. 잠시 후 다시 시도하세요.'
+
         }), 429  # Too Many Requests
 
+
+
     try:
+
         import time as _time
 
+
+
         # 1단계: export_signals.py 실행 (이평선/RSI 수집)
+
         print("[REFRESH-SIGNALS] 1. 신호 데이터(이평선/RSI) 수집 시작...")
+
         result_sig = subprocess.run(
+
             [sys.executable, os.path.join(BASE_DIR, "export_signals.py")],
+
             capture_output=True, text=True, encoding="utf-8", errors="replace",
+
             cwd=BASE_DIR, timeout=600  # 종목 수에 따라 시간이 걸릴 수 있음
+
         )
+
         if result_sig.returncode != 0:
+
             print(f"[REFRESH-SIGNALS] ❌ 수집 실패: {result_sig.stderr[:500]}")
+
             return jsonify({
+
                 'success': False,
+
                 'message': f'신호 데이터 수집 실패: {result_sig.stderr[:200]}'
+
             }), 500
+
         print("[REFRESH-SIGNALS] ✅ 신호 데이터 수집 완료")
 
+
+
         # 1.5단계: 시장관심종목 데이터 갱신
+
         print("[REFRESH-SIGNALS] 1.5. 시장관심종목 데이터 갱신 시작...")
+
         try:
+
             update_market_interest_stocks_file()
+
             print("[REFRESH-SIGNALS] ✅ 시장관심종목 데이터 갱신 완료")
+
         except Exception as e_market:
+
             print(f"[REFRESH-SIGNALS] ❌ 시장관심종목 갱신 에러 (건너뜀): {e_market}")
 
+
+
         # 2단계: mobile/data 로 복사
+
         print("[REFRESH-SIGNALS] 2. 모바일 데이터 복사 중...")
+
         src = os.path.join(BASE_DIR, "StockPortfolioApp", "public", "data")
+
         dst = os.path.join(BASE_DIR, "mobile", "data")
+
         if os.path.exists(src):
+
             subprocess.run(
+
                 f'xcopy "{src}" "{dst}" /E /I /Y',
+
                 shell=True, capture_output=True, timeout=30
+
             )
+
         print("[REFRESH-SIGNALS] ✅ 모바일 데이터 복사 완료")
 
+
+
         # 3단계: Git push
+
         print("[REFRESH-SIGNALS] 3. Git push 시작...")
+
         subprocess.run(["git", "add", "."], cwd=BASE_DIR, capture_output=True, timeout=30)
+
         
+
         # 변경 사항이 없는 경우 커밋 건너뜀
+
         if not git_has_changes():
+
             print("[REFRESH-SIGNALS] 변경사항 없음 (이미 최신)")
+
             return jsonify({
+
                 'success': True,
+
                 'message': '신호 데이터가 이미 최신 상태입니다.',
+
                 'pushed': False
+
             })
+
+
 
         from datetime import datetime as dt
+
         commit_msg = f"Signal refresh {dt.now().strftime('%Y-%m-%d %H:%M')}"
+
         commit_result = subprocess.run(
+
             ["git", "commit", "-m", commit_msg],
+
             cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30
+
         )
+
         if commit_result.returncode != 0:
+
             print(f"[REFRESH-SIGNALS] ❌ Git 커밋 실패: {commit_result.stderr[:300]}")
+
             return jsonify({
+
                 'success': False,
+
                 'message': '신호 데이터 커밋 실패'
+
             }), 500
 
+
+
         env = os.environ.copy()
+
         env["GCM_INTERACTIVE"] = "never"
+
         env["GIT_TERMINAL_PROMPT"] = "0"
+
         
+
         # push 직전 rebase pull 실행
+
         print("[REFRESH-SIGNALS] push 전 원격 변경 사항 병합 (rebase)...")
+
         subprocess.run(
+
             ["git", "pull", "--rebase", "origin", "main"],
+
             cwd=BASE_DIR, capture_output=True, env=env, timeout=60
+
         )
+
+
 
         push_result = subprocess.run(
+
             ["git", "push", "origin", "main"],
+
             cwd=BASE_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace",
+
             timeout=120, env=env
+
         )
+
         
+
         if push_result.returncode == 0:
+
             print("[REFRESH-SIGNALS] ✅ GitHub push 완료!")
+
             return jsonify({
+
                 'success': True,
+
                 'message': '신호 데이터 갱신 및 GitHub 반영 완료! 약 10초 후 새로고침하면 최신 데이터가 표시됩니다.',
+
                 'pushed': True
-            })
-        else:
-            print(f"[REFRESH-SIGNALS] ❌ GitHub push 실패: {push_result.stderr[:300]}")
-            return jsonify({
-                'success': True,
-                'message': '신호 데이터 수집은 완료했으나, GitHub 반영에 실패했습니다. 잠시 후 자동 업로더가 처리합니다.',
-                'pushed': False
+
             })
 
+        else:
+
+            print(f"[REFRESH-SIGNALS] ❌ GitHub push 실패: {push_result.stderr[:300]}")
+
+            return jsonify({
+
+                'success': True,
+
+                'message': '신호 데이터 수집은 완료했으나, GitHub 반영에 실패했습니다. 잠시 후 자동 업로더가 처리합니다.',
+
+                'pushed': False
+
+            })
+
+
+
     except subprocess.TimeoutExpired:
+
         print("[REFRESH-SIGNALS] ❌ 시간 초과")
+
         return jsonify({
+
             'success': False,
+
             'message': '신호 데이터 수집 시간 초과 (10분). 종목 수가 너무 많을 수 있습니다.'
+
         }), 500
+
     except Exception as e:
+
         print(f"[REFRESH-SIGNALS] ❌ 예외 발생: {e}")
+
         return jsonify({
+
             'success': False,
+
             'message': f'오류 발생: {str(e)}'
+
         }), 500
+
     finally:
+
         if _signal_refresh_lock.locked():
+
             _signal_refresh_lock.release()
 
 
+
+
+
 if __name__ == '__main__':
+
     threading.Thread(
+
         target=refresh_investigation_signal_price_cache,
+
         daemon=True,
+
         name='signal-price-warmup',
+
     ).start()
+
     print("=" * 60)
+
     print("  Stock Portfolio Analysis Server")
+
     print("=" * 60)
+
     if ONEDRIVE_PATH:
+
         print(f"  OneDrive Path: {os.path.normpath(ONEDRIVE_PATH)}")
+
     else:
+
         print("  OneDrive path not detected.")
+
         print("  Please set the path in the Web UI.")
+
     print(f"  Server Address: http://localhost:5000")
+
     print("=" * 60)
+
     
+
     try:
+
         # 배포 시에는 debug=False 권장
+
         app.run(debug=False, port=5000, host='0.0.0.0')
+
     except Exception as e:
+
         print(f"Error starting server: {e}")
+
         sys.exit(1)
+
