@@ -1,5 +1,6 @@
 # LS증권 API 설정 키 (보안 - Git 제외)
 ls_api_config.json
+kiwoom_api_config.json
 
 # 임시/스크래치 파일 (대용량 파일 사고 방지)
 scratch/
