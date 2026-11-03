@@ -1,18 +1,18 @@
 ﻿{
-    "timestamp":  "2026-10-29T22:03:03.1749071+09:00",
+    "timestamp":  "2026-11-03T19:42:37.6393536+09:00",
     "computer":  "DESKTOP-G7F107R",
     "os":  {
                "product":  "Windows 10 Pro",
                "displayVersion":  "26H2",
                "build":  "26300",
-               "ubr":  9711
+               "ubr":  9818
            },
     "storage":  {
                     "C":  {
                               "health":  "Healthy",
-                              "freeGB":  100.9,
+                              "freeGB":  100.5,
                               "totalGB":  237.5,
-                              "freePercent":  42.5
+                              "freePercent":  42.3
                           },
                     "F":  {
                               "health":  "Healthy",
@@ -22,30 +22,27 @@
                           }
                 },
     "performance":  {
-                        "cpuPercent":  38.6,
-                        "availableMemoryMB":  6944
+                        "cpuPercent":  9.2,
+                        "availableMemoryMB":  7430
                     },
     "services":  [
                      {
                          "url":  "http://127.0.0.1:5000/",
-                         "ok":  false,
-                         "status":  null,
-                         "ms":  2112.4,
-                         "error":  "원격 서버에 연결할 수 없습니다."
+                         "ok":  true,
+                         "status":  200,
+                         "ms":  106
                      },
                      {
                          "url":  "http://127.0.0.1:5000/api/onedrive-status",
-                         "ok":  false,
-                         "status":  null,
-                         "ms":  2024.3,
-                         "error":  "원격 서버에 연결할 수 없습니다."
+                         "ok":  true,
+                         "status":  200,
+                         "ms":  12.6
                      },
                      {
                          "url":  "http://127.0.0.1:8000/",
-                         "ok":  false,
-                         "status":  null,
-                         "ms":  2004.9,
-                         "error":  "원격 서버에 연결할 수 없습니다."
+                         "ok":  true,
+                         "status":  200,
+                         "ms":  94.4
                      }
                  ],
     "startup":  [
@@ -69,22 +66,22 @@
                  {
                      "name":  "server_health.log",
                      "sizeMB":  0.2,
-                     "lastWrite":  "2026-10-29T22:03:44.0106031+09:00"
+                     "lastWrite":  "2026-11-02T21:55:24.4578171+09:00"
                  },
                  {
                      "name":  "resume_log.txt",
                      "sizeMB":  0.1,
-                     "lastWrite":  "2026-10-29T21:59:13.6771285+09:00"
+                     "lastWrite":  "2026-11-03T19:39:25.3541306+09:00"
                  },
                  {
                      "name":  "upload_log.txt",
                      "sizeMB":  0.1,
-                     "lastWrite":  "2026-10-29T21:59:15.3091548+09:00"
+                     "lastWrite":  "2026-11-03T19:39:16.4299119+09:00"
                  },
                  {
                      "name":  "restart_log.txt",
                      "sizeMB":  0.1,
-                     "lastWrite":  "2026-10-29T22:03:41.5804536+09:00"
+                     "lastWrite":  "2026-11-02T21:10:19.0420640+09:00"
                  }
              ],
     "backup":  [
