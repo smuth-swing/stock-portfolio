@@ -90,27 +90,93 @@ const applyQueueToData = (dataKey: string, dataObj: any, queue: any[]) => {
 
   const newData = { ...dataObj, data: [...dataObj.data] };
   const columns = dataObj.columns || [];
-  const pendingQueue = queue.filter(edit => edit.isPendingSync !== false);
 
-  pendingQueue.forEach(edit => {
-    if (edit.sheet !== '????' || dataKey !== 'investigation') return;
-    const requestedIndex = Number(edit.rowIndex);
-    const stableIndex = Number.isFinite(requestedIndex)
-      ? newData.data.findIndex((row: any) => Number(row?._realIndex) === requestedIndex)
-      : -1;
-    const idx = stableIndex >= 0 ? stableIndex : requestedIndex;
-    if (!Number.isFinite(idx) || idx < 0) return;
+  // 탐구생활 시트 여부 판별 (시트명에 '탐구'가 포함되거나 investigation 데이터인 경우)
+  const isTargetSheet = (sheetName?: string) => {
+    if (!sheetName) return dataKey === 'investigation';
+    return String(sheetName).includes('탐구') || dataKey === 'investigation';
+  };
 
-    if (!newData.data[idx]) {
-      newData.data[idx] = {};
-    } else {
-      newData.data[idx] = { ...newData.data[idx] };
-    }
-    (edit.values || []).forEach((val: any, i: number) => {
-      const colName = columns[i];
-      if (colName) newData.data[idx][colName] = val;
+  // 1. 신규 종목 (isNew === true) 처리
+  //    PC로 전송하기 전이라도 핸드폰 화면에 계속 유지되도록 목록 맨 앞에 추가
+  queue.forEach(edit => {
+    if (!isTargetSheet(edit.sheet)) return;
+    if (!edit.isNew) return;
+
+    const stockName = String(edit.stockName || '').trim();
+    if (!stockName) return;
+
+    // 서버 데이터에 이미 반영되어 내려왔는지 종목명으로 확인
+    const existingIndex = newData.data.findIndex((row: any) => {
+      const rName = String(row['종목명'] || row['Unnamed: 1'] || '').replace(/~~/g, '').trim();
+      return rName && rName === stockName;
     });
+
+    if (existingIndex >= 0) {
+      // 이미 서버 데이터에 있으면 해당 행에 큐의 최신 값만 덮어쓰기
+      const targetRow = { ...newData.data[existingIndex] };
+      (edit.values || []).forEach((val: any, i: number) => {
+        const colName = columns[i];
+        if (colName) targetRow[colName] = val;
+      });
+      newData.data[existingIndex] = targetRow;
+    } else {
+      // 서버 데이터에 아직 없는 신규 종목이면 목록 맨 앞에 새 행으로 복원
+      const newRow: any = {
+        _isNew: true,
+        _realIndex: edit.rowIndex !== undefined ? edit.rowIndex : -1,
+        _syncId: edit.syncId,
+        '종목명': stockName,
+        'Unnamed: 1': stockName,
+      };
+      (edit.values || []).forEach((val: any, i: number) => {
+        const colName = columns[i];
+        if (colName) newRow[colName] = val;
+      });
+      if (!newRow['Unnamed: 0'] && edit.values && edit.values[0]) {
+        newRow['Unnamed: 0'] = edit.values[0];
+      }
+      newData.data.unshift(newRow);
+    }
   });
+
+  // 2. 기존 종목 수정 (!isNew) 처리
+  queue.forEach(edit => {
+    if (!isTargetSheet(edit.sheet)) return;
+    if (edit.isNew) return; // 신규 종목은 위에서 처리함
+
+    const requestedIndex = Number(edit.rowIndex);
+    const stockName = String(edit.stockName || '').trim();
+
+    // 1순위: 종목명으로 일치하는 행 검색 (가장 안전)
+    let targetIdx = -1;
+    if (stockName) {
+      targetIdx = newData.data.findIndex((row: any) => {
+        const rName = String(row['종목명'] || row['Unnamed: 1'] || '').replace(/~~/g, '').trim();
+        return rName && rName === stockName;
+      });
+    }
+
+    // 2순위: _realIndex로 검색
+    if (targetIdx < 0 && Number.isFinite(requestedIndex) && requestedIndex >= 0) {
+      targetIdx = newData.data.findIndex((row: any) => Number(row?._realIndex) === requestedIndex);
+    }
+
+    // 3순위: 배열 인덱스로 fallback
+    if (targetIdx < 0 && Number.isFinite(requestedIndex) && requestedIndex >= 0 && requestedIndex < newData.data.length) {
+      targetIdx = requestedIndex;
+    }
+
+    if (targetIdx >= 0 && newData.data[targetIdx]) {
+      const targetRow = { ...newData.data[targetIdx] };
+      (edit.values || []).forEach((val: any, i: number) => {
+        const colName = columns[i];
+        if (colName) targetRow[colName] = val;
+      });
+      newData.data[targetIdx] = targetRow;
+    }
+  });
+
   return newData;
 };
 
