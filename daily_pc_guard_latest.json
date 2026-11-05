@@ -1,8 +1,12 @@
 ﻿{
 <<<<<<< HEAD
+<<<<<<< HEAD
     "timestamp":  "2026-11-01T20:06:07.1877687+09:00",
 =======
     "timestamp":  "2026-11-03T19:42:37.6393536+09:00",
+>>>>>>> main
+=======
+    "timestamp":  "2026-11-05T19:38:11.9965875+09:00",
 >>>>>>> main
     "computer":  "DESKTOP-G7F107R",
     "os":  {
@@ -15,6 +19,7 @@
                     "C":  {
                               "health":  "Healthy",
 <<<<<<< HEAD
+<<<<<<< HEAD
                               "freeGB":  98.5,
                               "totalGB":  237.5,
                               "freePercent":  41.5
@@ -23,21 +28,31 @@
                               "totalGB":  237.5,
                               "freePercent":  42.3
 >>>>>>> main
+=======
+                              "freeGB":  100.6,
+                              "totalGB":  237.5,
+                              "freePercent":  42.4
+>>>>>>> main
                           },
                     "F":  {
                               "health":  "Healthy",
-                              "freeGB":  270.9,
+                              "freeGB":  268.8,
                               "totalGB":  931.5,
-                              "freePercent":  29.1
+                              "freePercent":  28.9
                           }
                 },
     "performance":  {
+<<<<<<< HEAD
 <<<<<<< HEAD
                         "cpuPercent":  9.8,
                         "availableMemoryMB":  7675
 =======
                         "cpuPercent":  9.2,
                         "availableMemoryMB":  7430
+>>>>>>> main
+=======
+                        "cpuPercent":  19.4,
+                        "availableMemoryMB":  5436
 >>>>>>> main
                     },
     "services":  [
@@ -46,9 +61,13 @@
                          "ok":  true,
                          "status":  200,
 <<<<<<< HEAD
+<<<<<<< HEAD
                          "ms":  6575.7
 =======
                          "ms":  106
+>>>>>>> main
+=======
+                         "ms":  178
 >>>>>>> main
                      },
                      {
@@ -56,9 +75,13 @@
                          "ok":  true,
                          "status":  200,
 <<<<<<< HEAD
+<<<<<<< HEAD
                          "ms":  68.8
 =======
                          "ms":  12.6
+>>>>>>> main
+=======
+                         "ms":  16.8
 >>>>>>> main
                      },
                      {
@@ -66,9 +89,13 @@
                          "ok":  true,
                          "status":  200,
 <<<<<<< HEAD
+<<<<<<< HEAD
                          "ms":  665.6
 =======
                          "ms":  94.4
+>>>>>>> main
+=======
+                         "ms":  102.5
 >>>>>>> main
                      }
                  ],
@@ -94,14 +121,19 @@
                      "name":  "server_health.log",
                      "sizeMB":  0.2,
 <<<<<<< HEAD
+<<<<<<< HEAD
                      "lastWrite":  "2026-11-01T01:03:57.7562629+09:00"
 =======
                      "lastWrite":  "2026-11-02T21:55:24.4578171+09:00"
+>>>>>>> main
+=======
+                     "lastWrite":  "2026-11-05T05:55:24.0276666+09:00"
 >>>>>>> main
                  },
                  {
                      "name":  "resume_log.txt",
                      "sizeMB":  0.1,
+<<<<<<< HEAD
 <<<<<<< HEAD
                      "lastWrite":  "2026-11-01T20:03:37.6676223+09:00"
 =======
@@ -116,14 +148,26 @@
 =======
                      "lastWrite":  "2026-11-03T19:39:16.4299119+09:00"
 >>>>>>> main
+=======
+                     "lastWrite":  "2026-11-05T19:34:31.7932005+09:00"
+                 },
+                 {
+                     "name":  "upload_log.txt",
+                     "sizeMB":  0.2,
+                     "lastWrite":  "2026-11-05T19:34:18.4527835+09:00"
+>>>>>>> main
                  },
                  {
                      "name":  "restart_log.txt",
                      "sizeMB":  0.1,
 <<<<<<< HEAD
+<<<<<<< HEAD
                      "lastWrite":  "2026-10-31T21:45:08.7163040+09:00"
 =======
                      "lastWrite":  "2026-11-02T21:10:19.0420640+09:00"
+>>>>>>> main
+=======
+                     "lastWrite":  "2026-11-04T21:10:18.4705495+09:00"
 >>>>>>> main
                  }
              ],
