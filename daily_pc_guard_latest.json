@@ -1,13 +1,5 @@
 ﻿{
-<<<<<<< HEAD
-<<<<<<< HEAD
-    "timestamp":  "2026-11-01T20:06:07.1877687+09:00",
-=======
-    "timestamp":  "2026-11-03T19:42:37.6393536+09:00",
->>>>>>> main
-=======
-    "timestamp":  "2026-11-05T19:38:11.9965875+09:00",
->>>>>>> main
+    "timestamp":  "2026-11-06T17:39:26.8192500+09:00",
     "computer":  "DESKTOP-G7F107R",
     "os":  {
                "product":  "Windows 10 Pro",
@@ -18,85 +10,40 @@
     "storage":  {
                     "C":  {
                               "health":  "Healthy",
-<<<<<<< HEAD
-<<<<<<< HEAD
-                              "freeGB":  98.5,
+                              "freeGB":  95.2,
                               "totalGB":  237.5,
-                              "freePercent":  41.5
-=======
-                              "freeGB":  100.5,
-                              "totalGB":  237.5,
-                              "freePercent":  42.3
->>>>>>> main
-=======
-                              "freeGB":  100.6,
-                              "totalGB":  237.5,
-                              "freePercent":  42.4
->>>>>>> main
+                              "freePercent":  40.1
                           },
                     "F":  {
                               "health":  "Healthy",
-                              "freeGB":  268.8,
+                              "freeGB":  267.9,
                               "totalGB":  931.5,
-                              "freePercent":  28.9
+                              "freePercent":  28.8
                           }
                 },
     "performance":  {
-<<<<<<< HEAD
-<<<<<<< HEAD
-                        "cpuPercent":  9.8,
-                        "availableMemoryMB":  7675
-=======
-                        "cpuPercent":  9.2,
-                        "availableMemoryMB":  7430
->>>>>>> main
-=======
-                        "cpuPercent":  19.4,
-                        "availableMemoryMB":  5436
->>>>>>> main
+                        "cpuPercent":  3.2,
+                        "availableMemoryMB":  5991
                     },
     "services":  [
                      {
                          "url":  "http://127.0.0.1:5000/",
-                         "ok":  true,
-                         "status":  200,
-<<<<<<< HEAD
-<<<<<<< HEAD
-                         "ms":  6575.7
-=======
-                         "ms":  106
->>>>>>> main
-=======
-                         "ms":  178
->>>>>>> main
+                         "ok":  false,
+                         "status":  null,
+                         "ms":  30170.2,
+                         "error":  "작업 시간을 초과했습니다."
                      },
                      {
                          "url":  "http://127.0.0.1:5000/api/onedrive-status",
                          "ok":  true,
                          "status":  200,
-<<<<<<< HEAD
-<<<<<<< HEAD
-                         "ms":  68.8
-=======
-                         "ms":  12.6
->>>>>>> main
-=======
-                         "ms":  16.8
->>>>>>> main
+                         "ms":  1505.4
                      },
                      {
                          "url":  "http://127.0.0.1:8000/",
                          "ok":  true,
                          "status":  200,
-<<<<<<< HEAD
-<<<<<<< HEAD
-                         "ms":  665.6
-=======
-                         "ms":  94.4
->>>>>>> main
-=======
-                         "ms":  102.5
->>>>>>> main
+                         "ms":  346.2
                      }
                  ],
     "startup":  [
@@ -120,55 +67,22 @@
                  {
                      "name":  "server_health.log",
                      "sizeMB":  0.2,
-<<<<<<< HEAD
-<<<<<<< HEAD
-                     "lastWrite":  "2026-11-01T01:03:57.7562629+09:00"
-=======
-                     "lastWrite":  "2026-11-02T21:55:24.4578171+09:00"
->>>>>>> main
-=======
-                     "lastWrite":  "2026-11-05T05:55:24.0276666+09:00"
->>>>>>> main
+                     "lastWrite":  "2026-11-05T22:55:24.2101963+09:00"
                  },
                  {
                      "name":  "resume_log.txt",
                      "sizeMB":  0.1,
-<<<<<<< HEAD
-<<<<<<< HEAD
-                     "lastWrite":  "2026-11-01T20:03:37.6676223+09:00"
-=======
-                     "lastWrite":  "2026-11-03T19:39:25.3541306+09:00"
->>>>>>> main
-                 },
-                 {
-                     "name":  "upload_log.txt",
-                     "sizeMB":  0.1,
-<<<<<<< HEAD
-                     "lastWrite":  "2026-11-01T20:03:01.8293432+09:00"
-=======
-                     "lastWrite":  "2026-11-03T19:39:16.4299119+09:00"
->>>>>>> main
-=======
-                     "lastWrite":  "2026-11-05T19:34:31.7932005+09:00"
+                     "lastWrite":  "2026-11-06T17:34:23.4354321+09:00"
                  },
                  {
                      "name":  "upload_log.txt",
                      "sizeMB":  0.2,
-                     "lastWrite":  "2026-11-05T19:34:18.4527835+09:00"
->>>>>>> main
+                     "lastWrite":  "2026-11-06T17:34:21.0063127+09:00"
                  },
                  {
                      "name":  "restart_log.txt",
                      "sizeMB":  0.1,
-<<<<<<< HEAD
-<<<<<<< HEAD
-                     "lastWrite":  "2026-10-31T21:45:08.7163040+09:00"
-=======
-                     "lastWrite":  "2026-11-02T21:10:19.0420640+09:00"
->>>>>>> main
-=======
-                     "lastWrite":  "2026-11-04T21:10:18.4705495+09:00"
->>>>>>> main
+                     "lastWrite":  "2026-11-05T21:10:17.9755759+09:00"
                  }
              ],
     "backup":  [
@@ -181,8 +95,8 @@
                    {
                        "source":  "C:\\Users\\zerod\\.antigravity\\주식 포트폴리오 관리",
                        "destination":  "F:\\Windows11_Backup_2026-10-05\\DailyMirror\\PortfolioProject",
-                       "robocopyCode":  3,
-                       "ok":  true
+                       "robocopyCode":  11,
+                       "ok":  false
                    }
                ]
 }
