@@ -1,8 +1,12 @@
 ﻿{
 <<<<<<< HEAD
+<<<<<<< HEAD
     "timestamp":  "2026-11-06T17:39:26.8192500+09:00",
 =======
     "timestamp":  "2026-11-07T06:42:34.9737946+09:00",
+>>>>>>> main
+=======
+    "timestamp":  "2026-11-08T21:24:46.6277621+09:00",
 >>>>>>> main
     "computer":  "DESKTOP-G7F107R",
     "os":  {
@@ -14,6 +18,7 @@
     "storage":  {
                     "C":  {
                               "health":  "Healthy",
+<<<<<<< HEAD
 <<<<<<< HEAD
                               "freeGB":  95.2,
                               "totalGB":  237.5,
@@ -31,19 +36,27 @@
                         "availableMemoryMB":  5991
 =======
                               "freeGB":  98.8,
+=======
+                              "freeGB":  99,
+>>>>>>> main
                               "totalGB":  237.5,
-                              "freePercent":  41.6
+                              "freePercent":  41.7
                           },
                     "F":  {
                               "health":  "Healthy",
-                              "freeGB":  266.6,
+                              "freeGB":  265.4,
                               "totalGB":  931.5,
-                              "freePercent":  28.6
+                              "freePercent":  28.5
                           }
                 },
     "performance":  {
+<<<<<<< HEAD
                         "cpuPercent":  12.5,
                         "availableMemoryMB":  7072
+>>>>>>> main
+=======
+                        "cpuPercent":  22.1,
+                        "availableMemoryMB":  6541
 >>>>>>> main
                     },
     "services":  [
@@ -57,7 +70,11 @@
 =======
                          "ok":  true,
                          "status":  200,
+<<<<<<< HEAD
                          "ms":  76.3
+>>>>>>> main
+=======
+                         "ms":  3230.2
 >>>>>>> main
                      },
                      {
@@ -65,9 +82,13 @@
                          "ok":  true,
                          "status":  200,
 <<<<<<< HEAD
+<<<<<<< HEAD
                          "ms":  1505.4
 =======
                          "ms":  15.2
+>>>>>>> main
+=======
+                         "ms":  20.2
 >>>>>>> main
                      },
                      {
@@ -75,9 +96,13 @@
                          "ok":  true,
                          "status":  200,
 <<<<<<< HEAD
+<<<<<<< HEAD
                          "ms":  346.2
 =======
                          "ms":  102.3
+>>>>>>> main
+=======
+                         "ms":  120
 >>>>>>> main
                      }
                  ],
@@ -103,27 +128,39 @@
                      "name":  "server_health.log",
                      "sizeMB":  0.2,
 <<<<<<< HEAD
+<<<<<<< HEAD
                      "lastWrite":  "2026-11-05T22:55:24.2101963+09:00"
 =======
                      "lastWrite":  "2026-11-07T06:42:02.5983467+09:00"
+>>>>>>> main
+=======
+                     "lastWrite":  "2026-11-07T15:55:19.8170039+09:00"
 >>>>>>> main
                  },
                  {
                      "name":  "resume_log.txt",
                      "sizeMB":  0.1,
 <<<<<<< HEAD
+<<<<<<< HEAD
                      "lastWrite":  "2026-11-06T17:34:23.4354321+09:00"
 =======
                      "lastWrite":  "2026-11-07T06:39:44.0750742+09:00"
+>>>>>>> main
+=======
+                     "lastWrite":  "2026-11-08T21:21:46.4656163+09:00"
 >>>>>>> main
                  },
                  {
                      "name":  "upload_log.txt",
                      "sizeMB":  0.2,
 <<<<<<< HEAD
+<<<<<<< HEAD
                      "lastWrite":  "2026-11-06T17:34:21.0063127+09:00"
 =======
                      "lastWrite":  "2026-11-07T06:39:32.0075667+09:00"
+>>>>>>> main
+=======
+                     "lastWrite":  "2026-11-08T21:21:44.3900258+09:00"
 >>>>>>> main
                  },
                  {
