@@ -1,1 +1,5 @@
+<<<<<<< HEAD
 {"date": "2026-11-11", "data": {"rsi_day": 43.5, "high_1w": 12150.0, "low_1w": 9350.0, "rsi_week": 42.63, "ma120_week": 11415.25, "rsi_month": 48.72, "current": 12130.0, "ma5_month": 14000.0, "ma5_month_next": 13528.0}}
+=======
+{"date": "2026-11-12", "data": {"rsi_day": 41.96, "high_1w": 12300.0, "low_1w": 9350.0, "rsi_week": 41.72, "ma120_week": 11411.583333333334, "rsi_month": 48.05, "current": 11690.0, "ma5_month": 13912.0, "ma5_month_next": 13352.0}}
+>>>>>>> main
