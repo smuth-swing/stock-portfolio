@@ -68,12 +68,12 @@ def save_config(config: dict):
         json.dump(config, f, ensure_ascii=False, indent=2)
 
 
-def get_access_token(app_key: str, app_secret: str) -> str:
-    """OAuth 2.0 액세스 토큰 발급 (캐시 활용)"""
+def get_access_token(app_key: str, app_secret: str, force_refresh: bool = False) -> str:
+    """OAuth 2.0 액세스 토큰 발급 (캐시 활용, force_refresh 시 강제 재발급)"""
     global _token_cache
 
-    # 캐시가 유효한 경우 재사용 (만료 60초 전에 갱신)
-    if _token_cache["access_token"] and time.time() < _token_cache["expires_at"] - 60:
+    # 강제 갱신이 아니고 캐시가 유효한 경우 재사용 (만료 60초 전에 갱신)
+    if not force_refresh and _token_cache["access_token"] and time.time() < _token_cache["expires_at"] - 60:
         return _token_cache["access_token"]
 
     url = f"{LS_BASE_URL}/oauth2/token"
@@ -165,6 +165,7 @@ def fetch_trade_history(from_date, to_date, stock_code=""):
     """
     LS증권 주문체결내역(CSPAQ13700) API 호출 및 정제.
     CSPAQ13700은 단일 일자 조회만 지원하므로, 날짜별로 반복 조회합니다.
+    토큰 만료(401/인증에러) 시 자동 갱신 및 재시도 지원.
     """
     cfg = load_config()
     account = cfg["account"]
@@ -178,6 +179,11 @@ def fetch_trade_history(from_date, to_date, stock_code=""):
     start_dt = datetime.strptime(from_date, "%Y%m%d")
     end_dt = datetime.strptime(to_date, "%Y%m%d")
     
+    clean_stock_code = ""
+    if stock_code:
+        c = str(stock_code).strip()
+        clean_stock_code = ("A" + c) if not c.startswith("A") else c
+
     current_dt = start_dt
     while current_dt <= end_dt:
         target_date = current_dt.strftime("%Y%m%d")
@@ -194,7 +200,7 @@ def fetch_trade_history(from_date, to_date, stock_code=""):
             "CSPAQ13700InBlock1": {
                 "OrdMktCode": "00", 
                 "BnsTpCode": "0", 
-                "IsuNo": "",
+                "IsuNo": clean_stock_code,
                 "ExecYn": "0", # 0:전체
                 "OrdDt": target_date,
                 "SrtOrdNo2": 999999999, 
@@ -206,24 +212,46 @@ def fetch_trade_history(from_date, to_date, stock_code=""):
         }
 
         success = False
+        token_refreshed = False
         for attempt in range(3):
             if attempt > 0:
-                time.sleep(1.0)  # 재시도 시에만 대기
+                time.sleep(1.0)  # 재시도 시 대기
             try:
                 resp = requests.post(f"{LS_BASE_URL}/stock/accno", headers=headers, json=body, timeout=15)
+                
+                # 토큰 만료 또는 401 오류 시 토큰 강제 갱신 후 1회 즉시 재시도
+                if resp.status_code in (401, 403) and not token_refreshed:
+                    print("[LS_API] 토큰 만료 감지 -> 신규 토큰 강제 재발급 시도")
+                    token = get_access_token(cfg["app_key"], cfg["app_secret"], force_refresh=True)
+                    headers["authorization"] = f"Bearer {token}"
+                    token_refreshed = True
+                    continue
+                
                 if resp.status_code == 200:
                     result = resp.json()
+                    rsp_cd = result.get("rsp_cd", "")
+                    
+                    # LS 증권 인증 관련 오류 코드 시 토큰 재발급 후 재시도
+                    if rsp_cd in ("IGW00121", "IGW00200") and not token_refreshed:
+                        print(f"[LS_API] 인증 오류 코드({rsp_cd}) -> 신규 토큰 강제 재발급")
+                        token = get_access_token(cfg["app_key"], cfg["app_secret"], force_refresh=True)
+                        headers["authorization"] = f"Bearer {token}"
+                        token_refreshed = True
+                        continue
+
                     success = True
                     break
-            except Exception:
-                pass
+                else:
+                    print(f"[LS_API] CSPAQ13700 호출 실패 (HTTP {resp.status_code}): {resp.text[:200]}")
+            except Exception as req_err:
+                print(f"[LS_API] CSPAQ13700 요청 예외: {req_err}")
         
         if not success:
             current_dt += timedelta(days=1)
             continue
 
         if "rsp_cd" in result and result["rsp_cd"] not in ("00000", "00136", "00133", "00200", "01001", "IGW00201"):
-            pass
+            print(f"[LS_API] CSPAQ13700 응답 메시지: [{result.get('rsp_cd')}] {result.get('rsp_msg')}")
         
         raw_list = result.get("CSPAQ13700OutBlock3", [])
         if raw_list:
