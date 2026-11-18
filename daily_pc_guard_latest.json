@@ -1,48 +1,48 @@
 ﻿{
-    "timestamp":  "2026-11-09T21:02:34.9253108+09:00",
+    "timestamp":  "2026-11-18T19:07:18.9854539+09:00",
     "computer":  "DESKTOP-G7F107R",
     "os":  {
                "product":  "Windows 10 Pro",
                "displayVersion":  "26H2",
                "build":  "26300",
-               "ubr":  9818
+               "ubr":  9974
            },
     "storage":  {
                     "C":  {
                               "health":  "Healthy",
-                              "freeGB":  100.3,
+                              "freeGB":  97.2,
                               "totalGB":  237.5,
-                              "freePercent":  42.2
+                              "freePercent":  40.9
                           },
                     "F":  {
                               "health":  "Healthy",
-                              "freeGB":  265.4,
+                              "freeGB":  260.9,
                               "totalGB":  931.5,
-                              "freePercent":  28.5
+                              "freePercent":  28
                           }
                 },
     "performance":  {
-                        "cpuPercent":  24.2,
-                        "availableMemoryMB":  6906
+                        "cpuPercent":  28.9,
+                        "availableMemoryMB":  7067
                     },
     "services":  [
                      {
                          "url":  "http://127.0.0.1:5000/",
                          "ok":  true,
                          "status":  200,
-                         "ms":  112.6
+                         "ms":  76.4
                      },
                      {
                          "url":  "http://127.0.0.1:5000/api/onedrive-status",
                          "ok":  true,
                          "status":  200,
-                         "ms":  14.3
+                         "ms":  15.9
                      },
                      {
                          "url":  "http://127.0.0.1:8000/",
                          "ok":  true,
                          "status":  200,
-                         "ms":  103.5
+                         "ms":  110.4
                      }
                  ],
     "startup":  [
@@ -66,22 +66,22 @@
                  {
                      "name":  "server_health.log",
                      "sizeMB":  0.2,
-                     "lastWrite":  "2026-11-08T21:55:23.9064597+09:00"
+                     "lastWrite":  "2026-11-17T21:55:19.8396956+09:00"
                  },
                  {
                      "name":  "resume_log.txt",
                      "sizeMB":  0.1,
-                     "lastWrite":  "2026-11-09T20:59:50.7032132+09:00"
+                     "lastWrite":  "2026-11-18T19:05:03.5659470+09:00"
                  },
                  {
                      "name":  "upload_log.txt",
-                     "sizeMB":  0.2,
-                     "lastWrite":  "2026-11-09T20:59:51.7017890+09:00"
+                     "sizeMB":  0.3,
+                     "lastWrite":  "2026-11-18T19:04:51.7843215+09:00"
                  },
                  {
                      "name":  "restart_log.txt",
                      "sizeMB":  0.1,
-                     "lastWrite":  "2026-11-08T21:29:03.0481308+09:00"
+                     "lastWrite":  "2026-11-17T21:42:22.8709265+09:00"
                  }
              ],
     "backup":  [

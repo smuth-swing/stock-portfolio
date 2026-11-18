@@ -10272,7 +10272,13 @@ async function importKiwoomTrades() {
 
             await loadExcel(currentData._filePath, currentData.current_sheet);
 
-            document.getElementById('ls-trades-result').style.display = 'none';
+            const tradesResult = document.getElementById('ls-trades-result');
+            if (tradesResult) tradesResult.style.display = 'none';
+            const importBody = document.getElementById('broker-import-body') || document.getElementById('ls-import-body');
+            const importChevron = document.getElementById('broker-import-chevron') || document.getElementById('ls-import-chevron');
+            if (importBody) importBody.style.display = 'none';
+            if (importChevron) importChevron.textContent = '▼ 펼치기';
+            lsImportData = [];
 
         } else {
 
@@ -11072,13 +11078,12 @@ async function importLsTrades() {
 
     
 
-    const btn = document.querySelector('#ls-trades-result .btn-primary');
-
-    const originalText = btn.textContent;
-
-    btn.disabled = true;
-
-    btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:6px;"></div> 저장 중';
+    const btn = document.querySelector('#ls-trades-result .btn-primary') || document.querySelector('button[onclick="importActiveBrokerTrades()"]');
+    const originalText = btn ? btn.textContent : '💾 선택 저장';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:6px;"></div> 저장 중';
+    }
 
     
 
@@ -11104,14 +11109,14 @@ async function importLsTrades() {
 
             
 
-            // 패널 접기 & 결과 지우기
+            // 패널 접기 & 결과 지우기 (broker-import 및 ls-import 안전 대응)
+            const importBody = document.getElementById('broker-import-body') || document.getElementById('ls-import-body');
+            const importChevron = document.getElementById('broker-import-chevron') || document.getElementById('ls-import-chevron');
+            const tradesResult = document.getElementById('ls-trades-result');
 
-            document.getElementById('ls-import-body').style.display = 'none';
-
-            document.getElementById('ls-import-chevron').textContent = '▼ 펼치기';
-
-            document.getElementById('ls-trades-result').style.display = 'none';
-
+            if (importBody) importBody.style.display = 'none';
+            if (importChevron) importChevron.textContent = '▼ 펼치기';
+            if (tradesResult) tradesResult.style.display = 'none';
             lsImportData = [];
 
             
@@ -11133,11 +11138,10 @@ async function importLsTrades() {
         alert(`저장 오류: ${e.message}`);
 
     } finally {
-
-        btn.disabled = false;
-
-        btn.textContent = originalText;
-
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }
     }
 
 }
