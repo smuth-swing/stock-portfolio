@@ -1695,22 +1695,18 @@ def index():
 
 
 @app.route('/app.js')
-
 def serve_root_js():
-
-    """루트 app.js 서빙"""
-
-    return send_from_directory('.', 'app.js')
-
-
+    """루트 app.js 서빙 (캐시 방지 헤더 포함)"""
+    resp = make_response(send_from_directory('.', 'app.js'))
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return resp
 
 @app.route('/styles.css')
-
 def serve_root_css():
-
-    """루트 styles.css 서빙"""
-
-    return send_from_directory('.', 'styles.css')
+    """루트 styles.css 서빙 (캐시 방지 헤더 포함)"""
+    resp = make_response(send_from_directory('.', 'styles.css'))
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return resp
 
 
 
