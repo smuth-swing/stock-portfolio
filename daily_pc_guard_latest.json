@@ -1,5 +1,5 @@
 ﻿{
-    "timestamp":  "2026-11-19T20:45:16.1077326+09:00",
+    "timestamp":  "2026-11-20T14:22:55.7584093+09:00",
     "computer":  "DESKTOP-G7F107R",
     "os":  {
                "product":  "Windows 10 Pro",
@@ -10,9 +10,9 @@
     "storage":  {
                     "C":  {
                               "health":  "Healthy",
-                              "freeGB":  100.6,
+                              "freeGB":  99.9,
                               "totalGB":  237.5,
-                              "freePercent":  42.4
+                              "freePercent":  42.1
                           },
                     "F":  {
                               "health":  "Healthy",
@@ -22,27 +22,27 @@
                           }
                 },
     "performance":  {
-                        "cpuPercent":  35.6,
-                        "availableMemoryMB":  7778
+                        "cpuPercent":  46.1,
+                        "availableMemoryMB":  5117
                     },
     "services":  [
                      {
                          "url":  "http://127.0.0.1:5000/",
                          "ok":  true,
                          "status":  200,
-                         "ms":  155.6
+                         "ms":  3700.6
                      },
                      {
                          "url":  "http://127.0.0.1:5000/api/onedrive-status",
                          "ok":  true,
                          "status":  200,
-                         "ms":  15.4
+                         "ms":  14.7
                      },
                      {
                          "url":  "http://127.0.0.1:8000/",
                          "ok":  true,
                          "status":  200,
-                         "ms":  110.7
+                         "ms":  120.8
                      }
                  ],
     "startup":  [
@@ -66,22 +66,22 @@
                  {
                      "name":  "server_health.log",
                      "sizeMB":  0.2,
-                     "lastWrite":  "2026-11-18T21:55:20.4744752+09:00"
+                     "lastWrite":  "2026-11-20T14:21:27.6201380+09:00"
                  },
                  {
                      "name":  "resume_log.txt",
                      "sizeMB":  0.1,
-                     "lastWrite":  "2026-11-19T20:41:54.2009508+09:00"
+                     "lastWrite":  "2026-11-20T14:18:12.6127764+09:00"
                  },
                  {
                      "name":  "upload_log.txt",
                      "sizeMB":  0.3,
-                     "lastWrite":  "2026-11-19T20:41:40.9576677+09:00"
+                     "lastWrite":  "2026-11-20T14:17:57.6779572+09:00"
                  },
                  {
                      "name":  "restart_log.txt",
                      "sizeMB":  0.1,
-                     "lastWrite":  "2026-11-18T21:27:25.9955828+09:00"
+                     "lastWrite":  "2026-11-19T21:10:21.6358800+09:00"
                  }
              ],
     "backup":  [
