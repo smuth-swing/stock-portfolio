@@ -2,6 +2,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     "timestamp":  "2026-11-14T10:21:55.4758686+09:00",
 =======
     "timestamp":  "2026-11-18T19:07:18.9854539+09:00",
@@ -12,16 +13,20 @@
 =======
     "timestamp":  "2026-11-20T14:22:55.7584093+09:00",
 >>>>>>> main
+=======
+    "timestamp":  "2026-11-21T13:44:48.2771388+09:00",
+>>>>>>> main
     "computer":  "DESKTOP-G7F107R",
     "os":  {
                "product":  "Windows 10 Pro",
                "displayVersion":  "26H2",
                "build":  "26300",
-               "ubr":  9974
+               "ubr":  10075
            },
     "storage":  {
                     "C":  {
                               "health":  "Healthy",
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -43,15 +48,21 @@
                               "totalGB":  237.5,
                               "freePercent":  42.1
 >>>>>>> main
+=======
+                              "freeGB":  92.3,
+                              "totalGB":  237.5,
+                              "freePercent":  38.9
+>>>>>>> main
                           },
                     "F":  {
                               "health":  "Healthy",
-                              "freeGB":  260.9,
+                              "freeGB":  260.4,
                               "totalGB":  931.5,
                               "freePercent":  28
                           }
                 },
     "performance":  {
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -69,12 +80,17 @@
                         "cpuPercent":  46.1,
                         "availableMemoryMB":  5117
 >>>>>>> main
+=======
+                        "cpuPercent":  20.3,
+                        "availableMemoryMB":  5828
+>>>>>>> main
                     },
     "services":  [
                      {
                          "url":  "http://127.0.0.1:5000/",
                          "ok":  true,
                          "status":  200,
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -88,11 +104,15 @@
 =======
                          "ms":  3700.6
 >>>>>>> main
+=======
+                         "ms":  690.6
+>>>>>>> main
                      },
                      {
                          "url":  "http://127.0.0.1:5000/api/onedrive-status",
                          "ok":  true,
                          "status":  200,
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -106,11 +126,15 @@
 =======
                          "ms":  14.7
 >>>>>>> main
+=======
+                         "ms":  14.3
+>>>>>>> main
                      },
                      {
                          "url":  "http://127.0.0.1:8000/",
                          "ok":  true,
                          "status":  200,
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -123,6 +147,9 @@
 >>>>>>> main
 =======
                          "ms":  120.8
+>>>>>>> main
+=======
+                         "ms":  103.1
 >>>>>>> main
                      }
                  ],
@@ -150,6 +177,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
                      "lastWrite":  "2026-11-13T22:55:19.5187157+09:00"
 =======
                      "lastWrite":  "2026-11-17T21:55:19.8396956+09:00"
@@ -160,10 +188,14 @@
 =======
                      "lastWrite":  "2026-11-20T14:21:27.6201380+09:00"
 >>>>>>> main
+=======
+                     "lastWrite":  "2026-11-21T13:43:13.8751889+09:00"
+>>>>>>> main
                  },
                  {
                      "name":  "resume_log.txt",
                      "sizeMB":  0.1,
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -194,10 +226,19 @@
 =======
                      "lastWrite":  "2026-11-20T14:17:57.6779572+09:00"
 >>>>>>> main
+=======
+                     "lastWrite":  "2026-11-21T13:38:57.4528142+09:00"
+                 },
+                 {
+                     "name":  "upload_log.txt",
+                     "sizeMB":  0.4,
+                     "lastWrite":  "2026-11-21T13:38:47.4524205+09:00"
+>>>>>>> main
                  },
                  {
                      "name":  "restart_log.txt",
                      "sizeMB":  0.1,
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -210,6 +251,9 @@
 >>>>>>> main
 =======
                      "lastWrite":  "2026-11-19T21:10:21.6358800+09:00"
+>>>>>>> main
+=======
+                     "lastWrite":  "2026-11-20T21:10:19.4690967+09:00"
 >>>>>>> main
                  }
              ],
