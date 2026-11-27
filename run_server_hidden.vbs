@@ -1,16 +1,18 @@
-' run_server_hidden.vbs â€” ì„œë²„ë¥¼ ì™„ì „ížˆ ìˆ¨ê¹€ ëª¨ë“œë¡œ ì‹¤í–‰ (ì½˜ì†” ì°½ ì—†ìŒ)
+' run_server_hidden.vbs ? ¼­¹ö¸¦ ¿ÏÀüÈ÷ ¼û±è ¸ðµå·Î ½ÇÇà (ÄÜ¼Ö Ã¢ ¾øÀ½)
 Set WshShell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 strPath = fso.GetParentFolderName(WScript.ScriptFullName)
 
-' pythonw.exe ì‚¬ìš© (ì½˜ì†” ì°½ì„ ì—´ì§€ ì•ŠëŠ” Python ì‹¤í–‰ íŒŒì¼)
-strPythonW = "C:\Users\zerod\AppData\Local\Programs\Python\Python312\pythonw.exe"
+' python.exe »ç¿ë (ÄÜ¼Ö Ã¢ ¾øÀÌ ¼û±è ¸ðµå ½ÇÇà + ·Î±× ¸®´ÙÀÌ·ºÆ®)
+strPython = "C:\Users\zerod\AppData\Local\Programs\Python\Python312\python.exe"
 strServer = strPath & "\server.py"
 strLogFile = strPath & "\server_log.txt"
 
-' pythonw.exeë¡œ ì„œë²„ ì‹¤í–‰ â€” ì¶œë ¥ì„ ë¡œê·¸ë¡œ ë¦¬ë‹¤ì´ë ‰íŠ¸
+' python.exe·Î ¼­¹ö ½ÇÇà ? Ãâ·ÂÀ» ·Î±×·Î ¸®´ÙÀÌ·ºÆ®
+' cmd /c ·Î ½ÇÇà ½Ã Ã¹¹øÂ°/¸¶Áö¸· µû¿ÈÇ¥ Á¦°Å ¹æÁö¸¦ À§ÇØ ÀüÃ¼ ¸í·ÉÁÙÀ» µû¿ÈÇ¥·Î °¨½Ó
 WshShell.CurrentDirectory = strPath
-WshShell.Run "cmd /c """ & strPythonW & """ """ & strServer & """ >> """ & strLogFile & """ 2>&1", 0, False
+cmdLine = "cmd /c """"" & strPython & """ """ & strServer & """ >> """ & strLogFile & """ 2>&1"""
+WshShell.Run cmdLine, 0, False
 
 Set fso = Nothing
 Set WshShell = Nothing

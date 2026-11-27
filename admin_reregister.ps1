@@ -55,7 +55,8 @@ Unregister-ScheduledTask -TaskName $tn -Confirm:$false -ErrorAction SilentlyCont
 $vbs = Join-Path $ProjectDir "run_restart_hidden.vbs"
 $action = New-ScheduledTaskAction -Execute "wscript.exe" -Argument ('"' + $vbs + '"') -WorkingDirectory $ProjectDir
 $trigger = New-ScheduledTaskTrigger -Daily -At "21:10"
-$settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 5) -StartWhenAvailable -DontStopOnIdleEnd -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+# StartWhenAvailable을 제거하여 부팅 직후 밀린 작업으로 인한 불필요한 서버 강제 재시작 방지
+$settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 5) -DontStopOnIdleEnd -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
 Register-ScheduledTask -TaskName $tn -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description "Daily restart (hidden via VBS)" -Force | Out-Null
 Log "[4/5] $tn -> wscript.exe"
@@ -67,7 +68,9 @@ $vbs = Join-Path $ProjectDir "run_resume_hidden.vbs"
 $action = New-ScheduledTaskAction -Execute "wscript.exe" -Argument ('"' + $vbs + '"')
 $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
 $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 5) -MultipleInstances IgnoreNew -DontStopIfGoingOnBatteries -AllowStartIfOnBatteries
+# 부팅 시 StockPortfolioServer와의 동시 실행 경합 방지를 위해 45초 지연 설정
 $trigger1 = New-ScheduledTaskTrigger -AtLogOn
+$trigger1.Delay = "PT45S"
 Register-ScheduledTask -TaskName $tn -Action $action -Trigger $trigger1 -Principal $principal -Settings $settings | Out-Null
 
 # Power-Troubleshooter 이벤트 트리거 추가

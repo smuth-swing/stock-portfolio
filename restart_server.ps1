@@ -1,6 +1,8 @@
-# restart_server.ps1 — 서버 + Uploader 재시작 스크립트
+﻿# restart_server.ps1 — 서버 + Uploader 재시작 스크립트
 # 매일 21:10에 StockPortfolioRestart 태스크에 의해 실행됨
 # 서버와 uploader를 모두 안전하게 재시작
+
+param([switch]$Force)
 
 $ProjectDir = $PSScriptRoot
 $PythonExe  = "C:\Users\zerod\AppData\Local\Programs\Python\Python312\python.exe"
@@ -16,6 +18,14 @@ function Write-Log {
     $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $line = "[$ts] $msg"
     Add-Content -Path $LogFile -Value $line -Encoding UTF8
+}
+
+# [가드] StartWhenAvailable 등으로 인해 부팅 직후 밀린 작업이 잘못 실행되는 것 방지
+# 수동 강제 실행(-Force)이 아닌 경우, 21:05 ~ 21:30 사이가 아니면 안전하게 스킵
+$now = Get-Date
+if (-not $Force -and ($now.Hour -ne 21 -or $now.Minute -lt 5 -or $now.Minute -gt 30)) {
+    Write-Log "정기 재시작 시간대(21:10 전후)가 아니므로 실행을 건너뜁니다. (현재 시간: $($now.ToString('HH:mm:ss')))"
+    exit 0
 }
 
 Write-Log "===== 정기 재시작 시작 ====="

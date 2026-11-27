@@ -1,9 +1,5 @@
 ﻿{
-<<<<<<< HEAD
-    "timestamp":  "2026-11-24T17:36:09.4265925+09:00",
-=======
-    "timestamp":  "2026-11-25T21:47:31.9192810+09:00",
->>>>>>> main
+    "timestamp":  "2026-11-27T19:50:10.8404619+09:00",
     "computer":  "DESKTOP-G7F107R",
     "os":  {
                "product":  "Windows 10 Pro",
@@ -14,15 +10,9 @@
     "storage":  {
                     "C":  {
                               "health":  "Healthy",
-<<<<<<< HEAD
-                              "freeGB":  92.4,
+                              "freeGB":  93.2,
                               "totalGB":  237.5,
-                              "freePercent":  38.9
-=======
-                              "freeGB":  94.2,
-                              "totalGB":  237.5,
-                              "freePercent":  39.7
->>>>>>> main
+                              "freePercent":  39.2
                           },
                     "F":  {
                               "health":  "Healthy",
@@ -32,44 +22,27 @@
                           }
                 },
     "performance":  {
-<<<<<<< HEAD
-                        "cpuPercent":  7.7,
-                        "availableMemoryMB":  6809
-=======
-                        "cpuPercent":  25.1,
-                        "availableMemoryMB":  6890
->>>>>>> main
+                        "cpuPercent":  21.7,
+                        "availableMemoryMB":  6235
                     },
     "services":  [
                      {
                          "url":  "http://127.0.0.1:5000/",
                          "ok":  true,
                          "status":  200,
-<<<<<<< HEAD
-                         "ms":  79.3
-=======
-                         "ms":  267.7
->>>>>>> main
+                         "ms":  76.3
                      },
                      {
                          "url":  "http://127.0.0.1:5000/api/onedrive-status",
                          "ok":  true,
                          "status":  200,
-<<<<<<< HEAD
-                         "ms":  13.4
-=======
-                         "ms":  16.6
->>>>>>> main
+                         "ms":  14.3
                      },
                      {
                          "url":  "http://127.0.0.1:8000/",
                          "ok":  true,
                          "status":  200,
-<<<<<<< HEAD
-                         "ms":  94.7
-=======
-                         "ms":  115.2
->>>>>>> main
+                         "ms":  108.5
                      }
                  ],
     "startup":  [
@@ -93,38 +66,22 @@
                  {
                      "name":  "server_health.log",
                      "sizeMB":  0.2,
-<<<<<<< HEAD
-                     "lastWrite":  "2026-11-23T21:55:19.9238261+09:00"
-=======
-                     "lastWrite":  "2026-11-25T05:55:19.4928559+09:00"
->>>>>>> main
+                     "lastWrite":  "2026-11-25T23:55:20.0301533+09:00"
                  },
                  {
                      "name":  "resume_log.txt",
                      "sizeMB":  0.1,
-<<<<<<< HEAD
-                     "lastWrite":  "2026-11-24T17:32:57.7668619+09:00"
-=======
-                     "lastWrite":  "2026-11-25T21:45:52.2529165+09:00"
->>>>>>> main
+                     "lastWrite":  "2026-11-27T19:47:53.5272018+09:00"
                  },
                  {
                      "name":  "upload_log.txt",
                      "sizeMB":  0.4,
-<<<<<<< HEAD
-                     "lastWrite":  "2026-11-24T17:32:55.2792262+09:00"
-=======
-                     "lastWrite":  "2026-11-25T21:45:51.3797690+09:00"
->>>>>>> main
+                     "lastWrite":  "2026-11-27T19:47:42.8786953+09:00"
                  },
                  {
                      "name":  "restart_log.txt",
                      "sizeMB":  0.1,
-<<<<<<< HEAD
-                     "lastWrite":  "2026-11-23T21:10:19.5223905+09:00"
-=======
-                     "lastWrite":  "2026-11-24T21:10:19.9720967+09:00"
->>>>>>> main
+                     "lastWrite":  "2026-11-25T21:54:55.1292911+09:00"
                  }
              ],
     "backup":  [

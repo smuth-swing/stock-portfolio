@@ -1,4 +1,4 @@
-$ProjectDir   = $PSScriptRoot
+﻿$ProjectDir   = $PSScriptRoot
 $PythonExe    = "C:\Users\zerod\AppData\Local\Programs\Python\Python312\python.exe"
 $ServerScript = Join-Path $ProjectDir "server.py"
 $LogFile      = Join-Path $ProjectDir "server_health.log"
@@ -40,8 +40,12 @@ if ($listening) {
 } else {
     Write-Log "ALERT - Server down. Starting..."
     Start-Process -FilePath $PythonExe -ArgumentList ("`"" + $ServerScript + "`"") -WorkingDirectory $ProjectDir -WindowStyle Hidden
-    Start-Sleep -Seconds 6
-    $recheck = netstat -ano | Select-String ":5000 " | Where-Object { $_ -match "LISTENING" }
+    $recheck = $null
+    for ($i = 1; $i -le 5; $i++) {
+        Start-Sleep -Seconds 3
+        $recheck = netstat -ano | Select-String ":5000 " | Where-Object { $_ -match "LISTENING" }
+        if ($recheck) { break }
+    }
     if ($recheck) { Write-Log "SUCCESS - Restarted on port 5000" }
     else { Write-Log "ERROR - Restart failed" }
 }

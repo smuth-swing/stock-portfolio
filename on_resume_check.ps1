@@ -1,4 +1,4 @@
-# on_resume_check.ps1 — 절전/최대절전 복귀 시 서버 + Uploader 확인 및 재시작
+﻿# on_resume_check.ps1 — 절전/최대절전 복귀 시 서버 + Uploader 확인 및 재시작
 # StockApp_OnResume 태스크에 의해 실행됨
 
 $ProjectDir = $PSScriptRoot
@@ -23,7 +23,13 @@ Write-Log "===== 절전 복귀 확인 시작 ====="
 Start-Sleep -Seconds 5
 
 # ==================== 1. 서버 확인 ====================
-$listening = netstat -ano | Select-String ":5000 " | Where-Object { $_ -match "LISTENING" }
+# 기동 중일 수 있으므로 최대 15초(3초 간격 5회) 대기하며 확인
+$listening = $null
+for ($attempt = 1; $attempt -le 5; $attempt++) {
+    $listening = netstat -ano | Select-String ":5000 " | Where-Object { $_ -match "LISTENING" }
+    if ($listening) { break }
+    Start-Sleep -Seconds 3
+}
 
 if ($listening) {
     # HTTP 응답 확인
@@ -51,14 +57,29 @@ if ($listening) {
         Start-Sleep -Seconds 2
         $ServerScript = Join-Path $ProjectDir "server.py"
         Start-Process -FilePath $PythonExe -ArgumentList "`"$ServerScript`"" -WorkingDirectory $ProjectDir -WindowStyle Hidden
-        Write-Log "   서버 재시작 완료"
+        
+        # 기동 완료 대기 (최대 15초)
+        $recheck = $null
+        for ($i = 1; $i -le 5; $i++) {
+            Start-Sleep -Seconds 3
+            $recheck = netstat -ano | Select-String ":5000 " | Where-Object { $_ -match "LISTENING" }
+            if ($recheck) { break }
+        }
+        if ($recheck) { Write-Log "   서버 재시작 완료 (포트 5000)" }
+        else { Write-Log "   [경고] 서버 재시작 후 포트 대기 초과" }
     }
 } else {
     Write-Log "[경고] 서버 다운. 시작 중..."
     $ServerScript = Join-Path $ProjectDir "server.py"
     Start-Process -FilePath $PythonExe -ArgumentList "`"$ServerScript`"" -WorkingDirectory $ProjectDir -WindowStyle Hidden
-    Start-Sleep -Seconds 5
-    $recheck = netstat -ano | Select-String ":5000 " | Where-Object { $_ -match "LISTENING" }
+    
+    # 기동 완료 대기 (최대 15초)
+    $recheck = $null
+    for ($i = 1; $i -le 5; $i++) {
+        Start-Sleep -Seconds 3
+        $recheck = netstat -ano | Select-String ":5000 " | Where-Object { $_ -match "LISTENING" }
+        if ($recheck) { break }
+    }
     if ($recheck) { Write-Log "   서버 시작 성공 (포트 5000)" }
     else { Write-Log "   [오류] 서버 시작 실패" }
 }
